@@ -187,19 +187,13 @@ class ThemeRepository @Inject constructor(
         settingsPreferences.settings,
     ) { prefs: ThemePrefs, dynamic: String?, nowPlaying: String?, misc: MiscSettings ->
         val isAmoled = prefs.amoled
-        val isGlass = prefs.liquidGlass
-        val scheme = when {
-            misc.dynamicNowPlayingEnabled && nowPlaying != null ->
-                Md3SchemeBuilder.buildScheme(nowPlaying, isAmoled, isGlass)
-            prefs.accentMode == AccentMode.MONOCHROME ->
-                Md3SchemeBuilder.buildMonochromeScheme(isAmoled, isGlass)
-            prefs.accentMode == AccentMode.DYNAMIC -> {
-                val seed = dynamic ?: getSystemWallpaperColorHex() ?: prefs.accentColor
-                Md3SchemeBuilder.buildScheme(seed, isAmoled, isGlass)
-            }
-            else ->
-                Md3SchemeBuilder.buildScheme(prefs.accentColor, isAmoled, isGlass)
-        }
+        // Nothing OS redesign: one flat monochrome+red scheme everywhere,
+        // replacing the accent-picker/dynamic-color paths below. Liquid
+        // Glass (translucent containers) is incompatible with this flat,
+        // hairline-divider look, so it's always forced off here regardless
+        // of the stored preference.
+        val isGlass = false
+        val scheme = Md3SchemeBuilder.buildNothingScheme(isAmoled)
         ThemeUiState(
             colorScheme = scheme,
             amoled = isAmoled,
@@ -212,7 +206,7 @@ class ThemeRepository @Inject constructor(
         applicationScope,
         SharingStarted.Eagerly,
         ThemeUiState(
-            colorScheme = Md3SchemeBuilder.buildScheme("#E03030", false),
+            colorScheme = Md3SchemeBuilder.buildNothingScheme(false),
             amoled = false,
             mode = AccentMode.MANUAL,
             accentColorHex = "#E03030",

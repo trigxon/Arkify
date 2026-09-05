@@ -14,7 +14,7 @@ data class DownloadedTrackEntity(
     // Normalized "${artist}_${title}" (see TrackDownloadManager.makeDownloadKey).
     // Enforced unique so a duplicate download REPLACEs the existing row
     // instead of creating a second one.
-    val trackKey: String,
+    val trackKey: String = "",
     val title: String,
     val artist: String,
     val album: String = "",
@@ -25,7 +25,7 @@ data class DownloadedTrackEntity(
     val formatBadge: String = "AUDIO",
     val durationMs: Long = 0L,
     val bitrateKbps: Int? = null,
-    val isQobuz: Boolean = false,
+    val isLossless: Boolean = false,
     val hasLyrics: Boolean = false,
     val syncedLyrics: String? = null,
     val plainLyrics: String? = null,

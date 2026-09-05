@@ -132,17 +132,6 @@ enum class PlaylistTrackSort(val label: String) {
     PLAY_TIME("Play time"),
 }
 
-@HiltViewModel
-class PlaylistDownloadHelperViewModel @Inject constructor(
-    private val downloadManager: com.lastwave.app.data.download.TrackDownloadManager,
-) : ViewModel() {
-    fun downloadAll(tracks: List<GeneratedTrack>) {
-        tracks.forEach { t ->
-            downloadManager.downloadTrack(t.name, t.artist, t.album, t.artworkUrl)
-        }
-    }
-}
-
 private fun formatDate(millis: Long): String =
     SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(millis))
 
@@ -153,7 +142,6 @@ fun PlaylistDetailScreen(
     onBack: () -> Unit,
     onOpenPlaylist: ((Long) -> Unit)? = null,
     viewModel: PlaylistViewModel = hiltViewModel(),
-    downloadViewModel: PlaylistDownloadHelperViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -430,7 +418,7 @@ fun PlaylistDetailScreen(
                                 shape = RoundedCornerShape(50),
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                tonalElevation = 2.dp,
+                                tonalElevation = 0.dp,
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
@@ -455,8 +443,8 @@ fun PlaylistDetailScreen(
                                 onDismissRequest = { sortMenuOpen = false },
                                 shape = RoundedCornerShape(20.dp),
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                tonalElevation = 6.dp,
-                                shadowElevation = 10.dp,
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp,
                                 modifier = Modifier.widthIn(min = 210.dp),
                             ) {
                                 PlaylistTrackSort.entries.forEach { option ->
@@ -718,8 +706,8 @@ fun PlaylistDetailScreen(
                             onDismissRequest = { overflowMenuOpen = false },
                             shape = RoundedCornerShape(24.dp),
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            tonalElevation = 6.dp,
-                            shadowElevation = 12.dp,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp,
                         ) {
                             DropdownMenuItem(
                                 text = { Text(if (playlist.isPinned) "Unpin playlist" else "Pin to top") },
@@ -784,15 +772,6 @@ fun PlaylistDetailScreen(
                                 }
                             }
                             DropdownMenuItem(
-                                text = { Text("Download all songs") },
-                                leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    downloadViewModel.downloadAll(playlist.tracks)
-                                    overflowMenuOpen = false
-                                },
-                            )
-                            DropdownMenuItem(
                                 text = { Text("Export / Share") },
                                 leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
                                 onClick = {
@@ -845,7 +824,7 @@ fun PlaylistDetailScreen(
             Surface(
                 shape = ExpressivePillShape,
                 color = MaterialTheme.colorScheme.inverseSurface,
-                shadowElevation = 8.dp,
+                shadowElevation = 0.dp,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
@@ -875,7 +854,7 @@ fun PlaylistDetailScreen(
             Surface(
                 shape = ExpressivePillShape,
                 color = MaterialTheme.colorScheme.inverseSurface,
-                shadowElevation = 8.dp,
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = FloatingNavDefaults.contentBottomPadding() + 12.dp),
@@ -1062,30 +1041,27 @@ private fun NativeTrackRow(
                 modifier = Modifier.width(24.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
+                Text(
+                    text = "$index",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+            Spacer(Modifier.width(6.dp))
+            Box(Modifier.size(48.dp).clip(ArtworkShape)) {
+                ArtworkImage(
+                    name = track.name,
+                    artist = track.artist,
+                    embeddedUrl = track.artworkUrl,
+                    fallbackIcon = Icons.Filled.MusicNote,
+                    modifier = Modifier.fillMaxSize(),
+                )
                 if (isPlaying) {
-                    com.lastwave.app.ui.player.PlayingWaveBars(Modifier.size(18.dp))
-                } else {
-                    Text(
-                        text = "$index",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.outline,
-                        fontWeight = FontWeight.Medium,
+                    com.lastwave.app.ui.player.PlayingWaveBars(
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp).size(24.dp, 18.dp),
                     )
                 }
             }
-
-            Spacer(Modifier.width(6.dp))
-
-            // High-res track artwork (clean, no wave overlay)
-            ArtworkImage(
-                name = track.name,
-                artist = track.artist,
-                embeddedUrl = track.artworkUrl,
-                fallbackIcon = if (isPlaying) Icons.Filled.GraphicEq else Icons.Filled.MusicNote,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(ArtworkShape),
-            )
 
             Spacer(Modifier.width(14.dp))
 
@@ -1111,80 +1087,28 @@ private fun NativeTrackRow(
 
             // Now Playing badge if active
             if (isPlaying) {
-                val infiniteTransition = rememberInfiniteTransition(label = "nowPlayingAnim")
-                val b1 by infiniteTransition.animateFloat(
-                    initialValue = 0.25f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(tween(440, easing = LinearEasing), RepeatMode.Reverse),
-                    label = "b1",
-                )
-                val b2 by infiniteTransition.animateFloat(
-                    initialValue = 0.95f,
-                    targetValue = 0.3f,
-                    animationSpec = infiniteRepeatable(tween(580, easing = LinearEasing), RepeatMode.Reverse),
-                    label = "b2",
-                )
-                val b3 by infiniteTransition.animateFloat(
-                    initialValue = 0.4f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(tween(480, easing = LinearEasing), RepeatMode.Reverse),
-                    label = "b3",
-                )
-                val pulseScale by infiniteTransition.animateFloat(
+                val transition = rememberInfiniteTransition(label = "nowPlayingAnim")
+                val pulseScale = transition.animateFloat(
                     initialValue = 0.985f,
                     targetValue = 1.015f,
                     animationSpec = infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
                     label = "pulseScale",
                 )
-
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.graphicsLayer {
-                        scaleX = pulseScale
-                        scaleY = pulseScale
+                        scaleX = pulseScale.value
+                        scaleY = pulseScale.value
                     },
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    Text(
+                        "Now Playing",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    ) {
-                        // Live breathing equalizer bars
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalAlignment = Alignment.Bottom,
-                            modifier = Modifier.height(10.dp),
-                        ) {
-                            Box(
-                                Modifier
-                                    .width(2.dp)
-                                    .height((3f + b1 * 7f).dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                            )
-                            Box(
-                                Modifier
-                                    .width(2.dp)
-                                    .height((3f + b2 * 7f).dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                            )
-                            Box(
-                                Modifier
-                                    .width(2.dp)
-                                    .height((3f + b3 * 7f).dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                            )
-                        }
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "Now Playing",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
+                    )
                 }
                 Spacer(Modifier.width(4.dp))
             }

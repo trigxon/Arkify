@@ -135,7 +135,7 @@ fun SearchScreen(
         Surface(
             shape = SearchHeaderShape,
             color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 2.dp,
+            tonalElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .liquidGlassChrome(SearchHeaderShape, liquidGlass),

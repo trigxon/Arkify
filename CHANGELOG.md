@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Duplicate/overlapping "now playing" notification on Android 10 (One UI 2.x).**
+  `buildNotification()` used `Notification.DecoratedMediaCustomViewStyle`
+  with a `MediaSession` attached, alongside a fully custom `RemoteViews`
+  player (own artwork, title, artist, transport buttons). On Android 10 +
+  Samsung One UI 2.x, SystemUI's older media-notification renderer drew
+  its own full media chrome as a second layer instead of just framing the
+  custom view, producing two overlapping players in the notification
+  shade/quick controls.
+
+  Now version-gated: Android 11+ keeps `DecoratedMediaCustomViewStyle`
+  with the session attached as before; Android 10 and below uses
+  `Notification.DecoratedCustomViewStyle` (no session tag on the
+  notification itself). Lock screen controls, Bluetooth, Android Auto,
+  and the in-app widget are unaffected, since they all read from
+  `mediaSession` directly rather than this notification's `Style` object.
+
+### Added
+- **Offline playback priority across all screens (Fixes #31).**
+  `MusicPlayer.resolveTrackAudioStream()` now checks the local Room database (`DownloadedTrackDao`) and verifies file presence on disk before attempting remote network resolution (Lossless / YouTube Music / InnerTube). When a track has already been downloaded, LastWave plays the local media file directly without making network calls, enabling seamless offline playback across Home, Search, Playlists, Album, and Artist screens and saving cellular data when online.
+
+  Files changed:
+  `app/src/main/java/com/lastwave/app/playback/MusicPlayer.kt`
+
+- **Download state awareness and duplicate download prevention.**
+  - Added `DownloadedTrackDao.findByTrackKey` and deduplication checks in `TrackDownloadManager.downloadTrack` to prevent duplicate download jobs, redundant network requests, and duplicate files (e.g. `(1).flac`) in MediaStore.
+  - The 3-dot context menu sheet (`TrackContextMenuSheet`) now dynamically reflects the track's status (`Downloaded` with check icon, `Downloading…`, or `Download (Max Quality)`), giving instant visual feedback and preventing accidental re-downloads.
+
+  Files changed:
+  `app/src/main/java/com/lastwave/app/data/local/db/DownloadedTrackDao.kt`
+  `app/src/main/java/com/lastwave/app/data/download/TrackDownloadManager.kt`
+  `app/src/main/java/com/lastwave/app/ui/common/TrackContextMenuSheet.kt`
+
+- **Direct navigation from download notifications to the Downloads screen.**
+  `TrackDownloadManager` now fires pending intents with `ACTION_VIEW_DOWNLOADS` targeting `DownloadsScreen` (`AppRoute.Downloads`). Integrated an `AppRouteNavigator` singleton and `AppRouteNavBridge` into `NavGraph` and `MainActivity` so tapping download notifications opens the Downloads screen directly instead of only bringing the app to the foreground.
+
+  Files changed:
+  `app/src/main/java/com/lastwave/app/data/download/TrackDownloadManager.kt`
+  `app/src/main/java/com/lastwave/app/MainActivity.kt`
+  `app/src/main/java/com/lastwave/app/ui/navigation/AppRouteNavigator.kt`
+  `app/src/main/java/com/lastwave/app/ui/navigation/NavGraph.kt`
+
 ## 2026-09-02 — musaibbhat120605
 
 ### Fixed
@@ -92,21 +136,49 @@
 
   Files changed:
   `app/src/main/java/com/lastwave/app/ui/settings/DownloadsViewModel.kt`
-### Improved
-***Download speed.
-Removed a duplicate network call: downloadTrack() looked up
-innerTube.findBestMatch() once for artwork/album backfill, then called
-it again later for the YouTube fallback stream lookup. The result is
-now cached and reused, so this search only ever runs once per track.
-Qobuz stream resolution now runs concurrently with artwork/metadata
-resolution (coroutineScope + async) instead of waiting for them to
-finish first — the two are independent, so their network round-trips
-now overlap instead of stacking up serially (previously up to ~7.5s of
-pure latency per track before the transfer even started).
-Added a concurrency cap (MAX_CONCURRENT_DOWNLOADS = 3) via a
-Semaphore around each track's full download pipeline, matching the
-pattern already used by the Nocturne project. Uncapped concurrent
-downloads (e.g. downloading a whole playlist) were firing every track's
-network calls simultaneously, competing for the same CDN/API and
-risking throttling — working against overall speed rather than for it.
-Files changed: app/src/main/java/com/lastwave/app/data/download/TrackDownloadManager.kt
+
+## 2026-09-05 — musaibbhat120605
+
+### Changed
+- **Nothing OS-style redesign (foundation + nav bar + list surfaces).**
+  Full UI redesign in progress. Done so far:
+  - New monochrome + single-red-accent color scheme (`Md3SchemeBuilder.
+    buildNothingScheme()`), wired in as the app's only scheme — replaces
+    the accent-picker/dynamic-color paths. Liquid Glass forced off.
+  - All shapes flattened to 0dp, both in the central `Shape.kt` and in
+    several screens' own local shape overrides that had been silently
+    shadowing it (`HomeScreen.kt`, `SettingsScreen.kt`, `GenerateScreen.kt`,
+    `ExpressiveGroup.kt`).
+  - All non-zero `tonalElevation`/`shadowElevation` values across the UI
+    layer flattened to 0dp (14 files) — no more drop-shadow/elevation look.
+  - Typography stripped of its rounded/expressive variable-font styling
+    down to flat weight-only hierarchy; label styles got wide letter-
+    spacing for a "stenciled hardware label" read.
+  - Added a real bundled dot-matrix font, DSEG7 Classic (SIL OFL license,
+    see `/licenses/DSEG-LICENSE.txt`), exposed as `NothingDigitsFontFamily`
+    for numeric/technical text (durations, bitrate, counts, dates) —
+    still needs to be applied at each screen's actual number `Text()`
+    call sites.
+  - Motion (`ExpressiveMotion.kt`): removed all spring/bounce and scale-
+    morph transitions in favor of short (120-200ms) ease-out fades/slides.
+  - Bottom nav bar (`MainShell.kt`): removed the filled-pill selection
+    background and elevation/shadow on the dock; selection now reads as a
+    small red dot beneath the icon. Icons swapped to their Outlined
+    variants; the one primary action (Generator button) stays a flat solid
+    red circle as the deliberate single accent-color exception.
+
+  Still to do: apply `NothingDigitsFontFamily` to actual number displays;
+  outline-only buttons elsewhere; Now Playing screen layout; remaining
+  screens not yet touched (Album/Artist/Playlist detail, Search, full
+  Settings pass beyond shapes/elevation).
+
+  Files changed: `Md3SchemeBuilder.kt`, `ThemeRepository.kt`, `Shape.kt`,
+  `Type.kt`, `ExpressiveMotion.kt`, `MainShell.kt`, `HomeScreen.kt`,
+  `SettingsScreen.kt`, `GenerateScreen.kt`, `ExpressiveGroup.kt`, plus
+  elevation-only edits across `AlbumDetailScreen.kt`,
+  `ArtistDetailScreen.kt`, `ExpressiveHeader.kt`,
+  `ExpressiveLoadingIndicator.kt`, `GenerationProgressCard.kt`,
+  `NavGraph.kt`, `PlayerHost.kt`, `PlaylistDetailScreen.kt`,
+  `PlaylistScreen.kt`, `SearchScreen.kt`, `YouTubePlaylistImportScreen.kt`.
+  New asset: `res/font/dseg7_classic_regular.ttf`,
+  `res/font/dseg7_classic_bold.ttf`, `licenses/DSEG-LICENSE.txt`.

@@ -170,6 +170,8 @@ import com.lastwave.app.data.lyrics.LyricsResult
 import com.lastwave.app.data.playlist.PlaylistRepository
 import com.lastwave.app.data.playlist.SavedPlaylist
 import com.lastwave.app.data.playlist.LIKED_SONGS_MODE
+import com.lastwave.app.data.local.LyricsAnimation
+import com.lastwave.app.data.local.LyricsUiVersion
 import com.lastwave.app.playback.MusicPlayer
 import com.lastwave.app.playback.MusicPlayerState
 import com.lastwave.app.playback.PlaybackChromeState
@@ -259,9 +261,10 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             ytMusicLibraryManager.playlists.collect { remote ->
                 if (customPlaylistsLoaded) {
-                    _customPlaylists.value = playlistRepository.getAll()
+                    _customPlaylists.value = (playlistRepository.getAll()
                         .filter { it.mode == "custom" || it.mode == LIKED_SONGS_MODE }
-                        .sortedByDescending { it.mode == LIKED_SONGS_MODE } + remote
+                        .sortedByDescending { it.mode == LIKED_SONGS_MODE } + remote)
+                        .distinctBy { it.id }
                 }
             }
         }
@@ -282,9 +285,10 @@ class PlayerViewModel @Inject constructor(
     }
 
     private suspend fun refreshCustomPlaylists() {
-        _customPlaylists.value = playlistRepository.getAll()
+        _customPlaylists.value = (playlistRepository.getAll()
             .filter { it.mode == "custom" || it.mode == LIKED_SONGS_MODE }
-            .sortedByDescending { it.mode == LIKED_SONGS_MODE } + ytMusicLibraryManager.playlists.value
+            .sortedByDescending { it.mode == LIKED_SONGS_MODE } + ytMusicLibraryManager.playlists.value)
+            .distinctBy { it.id }
     }
 
     fun prepareCustomPlaylists() {
@@ -333,24 +337,26 @@ class PlayerViewModel @Inject constructor(
     ) {
         if (playlistIds.isEmpty()) return
         viewModelScope.launch {
-            val generatedTrack = track.toGeneratedTrack()
-            var remoteChanged = false
-            playlistIds.forEach { playlistId ->
-                val allowDuplicate = playlistId in duplicatePlaylistIds
-                if (playlistId < 0L) {
-                    val added = ytMusicLibraryManager.addTrack(playlistId, generatedTrack, allowDuplicate)
-                    remoteChanged = remoteChanged || added
-                } else {
-                    playlistRepository.addTrack(
-                        id = playlistId,
-                        track = generatedTrack,
-                        allowDuplicate = allowDuplicate,
-                    )
+            runCatching {
+                val generatedTrack = track.toGeneratedTrack()
+                var remoteChanged = false
+                playlistIds.forEach { playlistId ->
+                    val allowDuplicate = playlistId in duplicatePlaylistIds
+                    if (playlistId < 0L) {
+                        val added = ytMusicLibraryManager.addTrack(playlistId, generatedTrack, allowDuplicate)
+                        remoteChanged = remoteChanged || added
+                    } else {
+                        playlistRepository.addTrack(
+                            id = playlistId,
+                            track = generatedTrack,
+                            allowDuplicate = allowDuplicate,
+                        )
+                    }
                 }
-            }
-            if (remoteChanged) {
-                ytMusicLibraryManager.refresh()
-                refreshCustomPlaylists()
+                if (remoteChanged) {
+                    ytMusicLibraryManager.refresh()
+                    refreshCustomPlaylists()
+                }
             }
         }
     }
@@ -377,8 +383,10 @@ class PlayerViewModel @Inject constructor(
     fun createPlaylistAndAdd(title: String, track: PlayableTrack) {
         if (title.isBlank()) return
         viewModelScope.launch {
-            val playlist = playlistRepository.createCustom(title)
-            playlistRepository.addTrack(playlist.id, track.toGeneratedTrack())
+            runCatching {
+                val playlist = playlistRepository.createCustom(title)
+                playlistRepository.addTrack(playlist.id, track.toGeneratedTrack())
+            }
         }
     }
 
@@ -510,27 +518,27 @@ fun PlayerHost(
                     )
                 }
             }
-        }
-        playlistTrack?.let { track ->
-            AddToPlaylistDialogHost(
-                viewModel = viewModel,
-                track = track,
-                onDismiss = { playlistTrack = null },
-                onAdd = { playlistIds, duplicatePlaylistIds ->
-                    viewModel.addToPlaylists(playlistIds, duplicatePlaylistIds, track)
-                    playlistTrack = null
-                },
-                onFindDuplicates = { playlistIds ->
-                    viewModel.findDuplicatePlaylistIds(playlistIds, track)
-                },
-                onFindCachedDuplicates = { playlistIds ->
-                    viewModel.findCachedDuplicatePlaylistIds(playlistIds, track)
-                },
-                onCreate = { title ->
-                    viewModel.createPlaylistAndAdd(title, track)
-                    playlistTrack = null
-                },
-            )
+            playlistTrack?.let { track ->
+                AddToPlaylistDialogHost(
+                    viewModel = viewModel,
+                    track = track,
+                    onDismiss = { playlistTrack = null },
+                    onAdd = { playlistIds, duplicatePlaylistIds ->
+                        viewModel.addToPlaylists(playlistIds, duplicatePlaylistIds, track)
+                        playlistTrack = null
+                    },
+                    onFindDuplicates = { playlistIds ->
+                        viewModel.findDuplicatePlaylistIds(playlistIds, track)
+                    },
+                    onFindCachedDuplicates = { playlistIds ->
+                        viewModel.findCachedDuplicatePlaylistIds(playlistIds, track)
+                    },
+                    onCreate = { title ->
+                        viewModel.createPlaylistAndAdd(title, track)
+                        playlistTrack = null
+                    },
+                )
+            }
         }
     }
 }
@@ -556,6 +564,7 @@ private fun ExpandedPlayer(
         progressState = viewModel.progressState,
         player = viewModel.player,
         lyricsState = lyricsState,
+        lyricsUiVersion = settings.lyricsUiVersion,
         lyricsAnimation = settings.lyricsAnimation,
         wavySeekbarEnabled = settings.wavySeekbarEnabled,
         currentTab = currentTab,
@@ -704,7 +713,7 @@ private fun MiniPlayer(
                         Surface(
                             shape = RoundedCornerShape(18.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            tonalElevation = 2.dp,
+                            tonalElevation = 0.dp,
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             PlayerArtwork(track, Modifier.fillMaxSize(), 18.dp)
@@ -797,8 +806,8 @@ private fun MiniPlayerProgress(progressState: StateFlow<PlaybackProgressState>) 
 @Composable
 fun PlayingWaveBars(
     modifier: Modifier = Modifier,
-    waveColor: Color = MaterialTheme.colorScheme.primary,
-    containerColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+    waveColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
 ) {
     val transition = rememberInfiniteTransition(label = "miniArtworkWave")
     val first = transition.animateFloat(
@@ -820,47 +829,26 @@ fun PlayingWaveBars(
         label = "miniWaveThird",
     )
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = CircleShape,
         color = containerColor,
-        contentColor = waveColor,
-        shadowElevation = 2.dp,
         modifier = modifier.size(width = 26.dp, height = 22.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 3.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.5.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            Box(
-                Modifier
-                    .width(2.5.dp)
-                    .height(14.dp)
-                    .graphicsLayer {
-                        scaleY = (4f + first.value * 10f) / 14f
-                        transformOrigin = TransformOrigin(0.5f, 1f)
-                    }
-                    .background(waveColor, CircleShape),
-            )
-            Box(
-                Modifier
-                    .width(2.5.dp)
-                    .height(14.dp)
-                    .graphicsLayer {
-                        scaleY = (4f + second.value * 10f) / 14f
-                        transformOrigin = TransformOrigin(0.5f, 1f)
-                    }
-                    .background(waveColor, CircleShape),
-            )
-            Box(
-                Modifier
-                    .width(2.5.dp)
-                    .height(14.dp)
-                    .graphicsLayer {
-                        scaleY = (4f + third.value * 10f) / 14f
-                        transformOrigin = TransformOrigin(0.5f, 1f)
-                    }
-                    .background(waveColor, CircleShape),
-            )
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 4.dp)) {
+            val barWidth = size.width / 5f
+            repeat(3) { index ->
+                val fraction = when (index) {
+                    0 -> first.value
+                    1 -> second.value
+                    else -> third.value
+                }
+                val barHeight = size.height * fraction
+                drawRoundRect(
+                    color = waveColor,
+                    topLeft = androidx.compose.ui.geometry.Offset(index * barWidth * 2f, size.height - barHeight),
+                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2f),
+                )
+            }
         }
     }
 }
@@ -876,6 +864,7 @@ private fun AddToPlaylistDialog(
     onFindCachedDuplicates: suspend (Set<Long>) -> Set<Long>,
     onCreate: (String) -> Unit,
 ) {
+    val sanitizedPlaylists = remember(playlists) { playlists.distinctBy { it.id } }
     var newPlaylistName by remember(track) { mutableStateOf("") }
     var selectedPlaylistIds by remember(track) { mutableStateOf(emptySet<Long>()) }
     var duplicateConfirmation by remember(track) { mutableStateOf<Set<Long>?>(null) }
@@ -885,41 +874,55 @@ private fun AddToPlaylistDialog(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val trackKey = remember(track.title, track.artist) { track.toGeneratedTrack().key }
-    val selectedPlaylists = playlists.filter { it.id in selectedPlaylistIds }
+    val selectedPlaylists = sanitizedPlaylists.filter { it.id in selectedPlaylistIds }
     val playlistListMaxHeight = (LocalConfiguration.current.screenHeightDp.dp - 360.dp)
         .coerceIn(180.dp, 410.dp)
 
-    LaunchedEffect(playlists.map(SavedPlaylist::id)) {
-        selectedPlaylistIds = selectedPlaylistIds.intersect(playlists.mapTo(mutableSetOf(), SavedPlaylist::id))
+    LaunchedEffect(sanitizedPlaylists.map(SavedPlaylist::id)) {
+        selectedPlaylistIds = selectedPlaylistIds.intersect(sanitizedPlaylists.mapTo(mutableSetOf(), SavedPlaylist::id))
     }
 
-    LaunchedEffect(trackKey, playlists.map(SavedPlaylist::id)) {
-        val remoteIds = playlists
-            .filterTo(mutableListOf()) { it.remotePlaylistId != null }
-            .mapTo(mutableSetOf(), SavedPlaylist::id)
-        knownDuplicatePlaylistIds = knownDuplicatePlaylistIds + onFindCachedDuplicates(remoteIds)
-        delay(1_500L)
-        knownDuplicatePlaylistIds = knownDuplicatePlaylistIds + onFindCachedDuplicates(remoteIds)
+    LaunchedEffect(trackKey, sanitizedPlaylists.map(SavedPlaylist::id)) {
+        runCatching {
+            val remoteIds = sanitizedPlaylists
+                .filterTo(mutableListOf()) { it.remotePlaylistId != null }
+                .mapTo(mutableSetOf(), SavedPlaylist::id)
+            knownDuplicatePlaylistIds = knownDuplicatePlaylistIds + onFindCachedDuplicates(remoteIds)
+        }
     }
 
     fun requestAdd(playlistIds: Set<Long>) {
         if (playlistIds.isEmpty() || isCheckingDuplicates) return
+        val immediateDuplicates = playlistIds.filter { id ->
+            id in knownDuplicatePlaylistIds ||
+                sanitizedPlaylists.firstOrNull { it.id == id }?.tracks?.any { it.key == trackKey } == true
+        }.toSet()
+        if (immediateDuplicates.isNotEmpty()) {
+            duplicatePlaylistIds = emptySet()
+            duplicateConfirmation = immediateDuplicates
+            return
+        }
         scope.launch {
-            isCheckingDuplicates = true
-            val duplicates = onFindDuplicates(playlistIds)
-            isCheckingDuplicates = false
-            knownDuplicatePlaylistIds = (knownDuplicatePlaylistIds - playlistIds) + duplicates
-            if (duplicates.isEmpty()) {
+            runCatching {
+                isCheckingDuplicates = true
+                val duplicates = onFindDuplicates(playlistIds)
+                isCheckingDuplicates = false
+                knownDuplicatePlaylistIds = (knownDuplicatePlaylistIds - playlistIds) + duplicates
+                if (duplicates.isEmpty()) {
+                    onAdd(playlistIds, emptySet())
+                } else {
+                    duplicatePlaylistIds = emptySet()
+                    duplicateConfirmation = duplicates
+                }
+            }.onFailure {
+                isCheckingDuplicates = false
                 onAdd(playlistIds, emptySet())
-            } else {
-                duplicatePlaylistIds = emptySet()
-                duplicateConfirmation = duplicates
             }
         }
     }
 
     duplicateConfirmation?.let { duplicates ->
-        val duplicatePlaylists = playlists.filter { it.id in duplicates }
+        val duplicatePlaylists = sanitizedPlaylists.filter { it.id in duplicates }
         val missingCount = selectedPlaylistIds.size - duplicates.size
         AlertDialog(
             onDismissRequest = { duplicateConfirmation = null },
@@ -936,7 +939,10 @@ private fun AddToPlaylistDialog(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        itemsIndexed(duplicatePlaylists, key = { _, playlist -> playlist.id }) { _, playlist ->
+                        itemsIndexed(
+                            duplicatePlaylists,
+                            key = { index, playlist -> "${playlist.id}_${playlist.remotePlaylistId ?: ""}_$index" },
+                        ) { _, playlist ->
                             val addAgain = playlist.id in duplicatePlaylistIds
                             val canAddAnother = playlist.mode != LIKED_SONGS_MODE
                             Surface(
@@ -1059,7 +1065,7 @@ private fun AddToPlaylistDialog(
                 }
             }
 
-            if (playlists.isEmpty()) {
+            if (sanitizedPlaylists.isEmpty()) {
                 Text(
                     "No playlists yet. Create your first playlist below.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -1070,7 +1076,10 @@ private fun AddToPlaylistDialog(
                     modifier = Modifier.fillMaxWidth().heightIn(max = playlistListMaxHeight),
                     verticalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
-                    itemsIndexed(playlists, key = { _, playlist -> playlist.id }) { _, playlist ->
+                    itemsIndexed(
+                        sanitizedPlaylists,
+                        key = { index, playlist -> "${playlist.id}_${playlist.remotePlaylistId ?: ""}_$index" },
+                    ) { _, playlist ->
                         val selected = playlist.id in selectedPlaylistIds
                         val alreadyAdded = playlist.id in knownDuplicatePlaylistIds ||
                             playlist.tracks.any { it.key == trackKey }
@@ -1152,7 +1161,7 @@ private fun AddToPlaylistDialog(
                         enabled = newPlaylistName.isNotBlank(),
                         onClick = {
                             val cleanName = newPlaylistName.trim()
-                            val existingPlaylist = playlists.firstOrNull {
+                            val existingPlaylist = sanitizedPlaylists.firstOrNull {
                                 it.mode == "custom" && it.title.equals(cleanName, ignoreCase = true)
                             }
                             if (existingPlaylist == null) {
@@ -1211,7 +1220,8 @@ private fun FullPlayer(
     progressState: StateFlow<PlaybackProgressState>,
     player: MusicPlayer,
     lyricsState: LyricsUiState,
-    lyricsAnimation: com.lastwave.app.data.local.LyricsAnimation = com.lastwave.app.data.local.LyricsAnimation.APPLE_FLUID,
+    lyricsUiVersion: LyricsUiVersion = LyricsUiVersion.CLASSIC,
+    lyricsAnimation: LyricsAnimation = LyricsAnimation.APPLE_FLUID,
     wavySeekbarEnabled: Boolean = true,
     currentTab: FullPlayerTab,
     onTabChange: (FullPlayerTab) -> Unit,
@@ -1528,16 +1538,30 @@ private fun FullPlayer(
                 ) { tab ->
                     when (tab) {
                         FullPlayerTab.LYRICS -> {
-                            LyricsPanel(
-                                state = state,
-                                progressState = progressState,
-                                player = player,
-                                lyricsState = lyricsState,
-                                lyricsAnimation = lyricsAnimation,
-                                wavySeekbarEnabled = wavySeekbarEnabled,
-                                onRetry = onRetryLyrics,
-                                modifier = Modifier.fillMaxSize(),
-                            )
+                            if (lyricsUiVersion == LyricsUiVersion.MODERN) {
+                                ModernLyricsPanel(
+                                    state = state,
+                                    player = player,
+                                    lyricsState = lyricsState,
+                                    progressState = progressState,
+                                    wavySeekbarEnabled = wavySeekbarEnabled,
+                                    onRetry = onRetryLyrics,
+                                    onOpenPlayer = { onTabChange(FullPlayerTab.NOW_PLAYING) },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            } else {
+                                LyricsPanel(
+                                    state = state,
+                                    progressState = progressState,
+                                    player = player,
+                                    lyricsState = lyricsState,
+                                    lyricsAnimation = lyricsAnimation,
+                                    wavySeekbarEnabled = wavySeekbarEnabled,
+                                    onRetry = onRetryLyrics,
+                                    onOpenPlayer = { onTabChange(FullPlayerTab.NOW_PLAYING) },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                         }
 
                         FullPlayerTab.QUEUE -> {
@@ -1592,7 +1616,7 @@ private fun FullPlayer(
                                         Surface(
                                             shape = RoundedCornerShape(32.dp),
                                             color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.88f),
-                                            tonalElevation = 6.dp,
+                                            tonalElevation = 0.dp,
                                             shadowElevation = if (state.isPlaying) 28.dp else 12.dp,
                                             modifier = Modifier
                                                 .size(artworkSize)
@@ -2541,14 +2565,14 @@ internal fun formatTime(ms: Long): String {
 }
 
 private fun qualityLabel(state: MusicPlayerState): String = when {
-    // Qobuz with known bit depth / sampling rate → show precise format
-    state.isQobuz && state.bitDepth != null && state.samplingRateKHz != null -> {
+    // Lossless with known bit depth / sampling rate → show precise format
+    state.isLossless && state.bitDepth != null && state.samplingRateKHz != null -> {
         val rate = if (state.samplingRateKHz % 1.0 == 0.0) state.samplingRateKHz.toInt().toString()
         else state.samplingRateKHz.toString()
         "FLAC ${state.bitDepth}/$rate"
     }
-    state.isQobuz && state.audioCodec == "MP3 320k" -> "MP3 320k"
-    state.isQobuz -> state.audioCodec ?: "LOSSLESS"
+    state.isLossless && state.audioCodec == "MP3 320k" -> "MP3 320k"
+    state.isLossless -> state.audioCodec ?: "LOSSLESS"
     // YouTube with known codec + bitrate → e.g. "OPUS 160k" or "AAC 256k"
     state.audioCodec != null && state.bitrateKbps != null -> "${state.audioCodec} ${state.bitrateKbps}k"
     state.audioCodec != null -> state.audioCodec

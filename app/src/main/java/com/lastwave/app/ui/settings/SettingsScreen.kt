@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Waves
 import com.lastwave.app.data.local.LyricsAnimation
+import com.lastwave.app.data.local.LyricsUiVersion
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Palette
@@ -160,8 +161,8 @@ private val ACCENT_PRESETS = listOf(
 )
 
 // -- Expressive shape scale used only within this screen --
-private val CardOuterShape = RoundedCornerShape(28.dp)
-private val IconBadgeShape = RoundedCornerShape(14.dp)
+private val CardOuterShape = RoundedCornerShape(0.dp) // Nothing OS: flat
+private val IconBadgeShape = RoundedCornerShape(0.dp) // Nothing OS: flat
 
 /** Where a row sits within a visually-connected group of settings rows —
  *  drives per-row corner radii so a multi-row group reads as one premium
@@ -246,8 +247,10 @@ fun SettingsScreen(
     val ytAccountPlaylists by viewModel.ytAccountPlaylists.collectAsStateWithLifecycle()
     val hiddenYtLibraryPlaylistIds by viewModel.hiddenYtLibraryPlaylistIds.collectAsStateWithLifecycle()
     val eq by viewModel.equalizer.collectAsStateWithLifecycle()
+    val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showQualityDialog by remember { mutableStateOf(false) }
+    var showDownloadQualityDialog by remember { mutableStateOf(false) }
     var showEqSheet by remember { mutableStateOf(false) }
     var showLyricsAnimationSheet by remember { mutableStateOf(false) }
     var showSyncPlaylistsSheet by remember { mutableStateOf(false) }
@@ -569,7 +572,11 @@ fun SettingsScreen(
                                 iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
                                 iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 title = "Lyrics Animation",
-                                subtitle = "${misc.lyricsAnimation.title} \u2022 ${misc.lyricsAnimation.description}",
+                                subtitle = if (misc.lyricsUiVersion == LyricsUiVersion.MODERN) {
+                                    "New UI (Modern)"
+                                } else {
+                                    "${misc.lyricsAnimation.title} \u2022 ${misc.lyricsAnimation.description}"
+                                },
                                 onClick = { showLyricsAnimationSheet = true },
                                 position = position,
                             )
@@ -578,7 +585,9 @@ fun SettingsScreen(
                                 iconContainer = MaterialTheme.colorScheme.secondaryContainer,
                                 iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 title = "Equalizer",
-                                subtitle = if (eq.enabled) {
+                                subtitle = if (misc.isBitPerfectEnabled && eq.enabled) {
+                                    "On \u2022 ${eq.presetName} (Bypassed by Bit-Perfect Mode)"
+                                } else if (eq.enabled) {
                                     "On \u2022 ${eq.presetName} \u2022 15-band"
                                 } else {
                                     "Shape your sound across 15 frequencies"
@@ -622,34 +631,66 @@ fun SettingsScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionLabel("Audio & Streaming")
-                    val qualitySubtitle = when (misc.qobuzQuality) {
+                    val qualitySubtitle = when (misc.losslessQuality) {
                         27 -> "Max (Up to 24-bit / 192 kHz)"
                         7 -> "Hi-Res (24-bit / 96 kHz)"
                         6 -> "CD Lossless (16-bit / 44.1 kHz FLAC)"
                         5 -> "Standard (320 kbps MP3)"
                         else -> "Max (Up to 24-bit / 192 kHz)"
                     }
+                    val downloadQualitySubtitle = when (misc.downloadQuality) {
+                        27 -> "Max (24-bit / 192 kHz FLAC)"
+                        7 -> "Hi-Res (24-bit / 96 kHz FLAC)"
+                        6 -> "CD Lossless (16-bit / 44.1 kHz FLAC)"
+                        5 -> "Standard (320 kbps MP3)"
+                        -1 -> "YouTube Music (AAC / Opus)"
+                        else -> "Max (24-bit / 192 kHz FLAC)"
+                    }
 
-                    val totalAudioRows = if (misc.crossfadeEnabled) 4 else 3
+                    val totalAudioRows = if (misc.crossfadeEnabled) 6 else 5
                     SettingsGroup(rowCount = totalAudioRows) { index, position ->
-                        val lyricsIndex = if (misc.crossfadeEnabled) 3 else 2
                         when (index) {
                             0 -> SettingsActionCard(
                                 icon = Icons.Filled.HighQuality,
                                 iconContainer = MaterialTheme.colorScheme.primaryContainer,
                                 iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                title = "Qobuz-first Streaming",
+                                title = "Lossless Streaming",
                                 subtitle = "$qualitySubtitle \u2022 YouTube Music fallback",
                                 onClick = { showQualityDialog = true },
                                 position = position,
                             )
-                            1 -> SettingsToggleCard(
+                            1 -> SettingsActionCard(
+                                icon = Icons.Filled.CloudDownload,
+                                iconContainer = MaterialTheme.colorScheme.secondaryContainer,
+                                iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                title = "Download Quality",
+                                subtitle = "$downloadQualitySubtitle \u2022 Lossless & YouTube",
+                                onClick = { showDownloadQualityDialog = true },
+                                position = position,
+                            )
+                            2 -> SettingsToggleCard(
+                                icon = Icons.Filled.Tune,
+                                iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                                iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                title = "Bit-Perfect Mode (Direct Passthrough)",
+                                subtitle = if (misc.isBitPerfectEnabled) {
+                                    "Bit-exact passthrough on all tracks (Lossless & YouTube) \u2022 All DSP bypassed"
+                                } else {
+                                    "Bypass all DSP, EQ & audio processing for bit-exact reproduction"
+                                },
+                                checked = misc.isBitPerfectEnabled,
+                                onCheckedChange = viewModel::setBitPerfectEnabled,
+                                position = position,
+                            )
+                            3 -> SettingsToggleCard(
                                 icon = Icons.Filled.GraphicEq,
                                 iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
                                 iconTint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 title = "Crossfade",
-                                subtitle = if (misc.crossfadeEnabled) {
-                                    "Smooth transition between tracks • ${misc.crossfadeSeconds} sec"
+                                subtitle = if (misc.crossfadeEnabled && misc.isBitPerfectEnabled) {
+                                    "Paused while Bit-Perfect is enabled"
+                                } else if (misc.crossfadeEnabled) {
+                                    "Smooth transition between tracks \u2022 ${misc.crossfadeSeconds} sec"
                                 } else {
                                     "Blend the end of a track into the next one"
                                 },
@@ -657,7 +698,7 @@ fun SettingsScreen(
                                 onCheckedChange = viewModel::setCrossfadeEnabled,
                                 position = position,
                             )
-                            2 -> if (misc.crossfadeEnabled) {
+                            4 -> if (misc.crossfadeEnabled) {
                                 CrossfadeDurationRow(
                                     seconds = misc.crossfadeSeconds,
                                     onSecondsChange = viewModel::setCrossfadeSeconds,
@@ -679,7 +720,7 @@ fun SettingsScreen(
                                     position = position,
                                 )
                             }
-                            3 -> SettingsToggleCard(
+                            5 -> SettingsToggleCard(
                                 icon = Icons.Filled.Lyrics,
                                 iconContainer = MaterialTheme.colorScheme.secondaryContainer,
                                 iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -864,15 +905,98 @@ fun SettingsScreen(
                         }
                     }
                     Spacer(Modifier.height(4.dp))
+
+                    // Prominent Update Available Banner Card (if newer version detected)
+                    if (updateInfo.isUpdateAvailable) {
+                        Surface(
+                            shape = CardOuterShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shadowElevation = 0.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(CardOuterShape)
+                                .clickable { viewModel.openUpdate(context) },
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CloudDownload,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Update Available!",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                    Text(
+                                        text = "Version ${updateInfo.latestVersion} is ready to install",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                                    )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                ) {
+                                    Text(
+                                        text = "Update",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+
                     AboutCard(versionName = appVersionName(context))
+
+                    SettingsActionCard(
+                        icon = Icons.Filled.CloudDownload,
+                        iconContainer = if (updateInfo.isUpdateAvailable) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        iconTint = if (updateInfo.isUpdateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSecondaryContainer,
+                        title = if (updateInfo.isUpdateAvailable) "Update Ready (${updateInfo.latestVersion})" else "Check for Updates",
+                        subtitle = when {
+                            updateInfo.isChecking -> "Checking GitHub releases..."
+                            updateInfo.isUpdateAvailable -> "Tap to download new version"
+                            updateInfo.message != null -> updateInfo.message!!
+                            else -> "Current version: ${appVersionName(context)}"
+                        },
+                        onClick = {
+                            if (updateInfo.isUpdateAvailable) {
+                                viewModel.openUpdate(context)
+                            } else {
+                                viewModel.checkForUpdates()
+                            }
+                        },
+                    )
+
                     SettingsActionCard(
                         icon = Icons.Filled.Code,
                         iconContainer = MaterialTheme.colorScheme.secondaryContainer,
                         iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                         title = "Source Code",
-                        subtitle = "github.com/duxtami/LastWave-native",
+                        subtitle = "github.com/Clash-Projects/LastWave-native",
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/duxtami/LastWave-native"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Clash-Projects/LastWave-native"))
                             if (!startActivitySafely(context, intent)) {
                                 viewModel.showToast("No browser is available")
                             }
@@ -992,6 +1116,8 @@ fun SettingsScreen(
     // -- Experimental Lyrics Animation Sheet --
     if (showLyricsAnimationSheet) {
         LyricsAnimationSheet(
+            version = misc.lyricsUiVersion,
+            onSelectVersion = viewModel::setLyricsUiVersion,
             current = misc.lyricsAnimation,
             onSelect = {
                 viewModel.setLyricsAnimation(it)
@@ -1096,12 +1222,158 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     tiers.forEach { (qualityId, title, meta) ->
                         val (subtitle, badge) = meta
-                        val isSelected = misc.qobuzQuality == qualityId
+                        val isSelected = misc.losslessQuality == qualityId
                         Surface(
                             onClick = {
                                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                                viewModel.setQobuzQuality(qualityId)
+                                viewModel.setLosslessQuality(qualityId)
                                 showQualityDialog = false
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                            shadowElevation = if (isSelected) 3.dp else 0.dp,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            title,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        ) {
+                                            Text(
+                                                badge,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        subtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDownloadQualityDialog) {
+        val downloadTiers = listOf(
+            Triple(27, "Max Quality", "Up to 24-bit / 192 kHz • Studio Master FLAC" to "24-BIT / 192k"),
+            Triple(7, "Hi-Res Audio", "24-bit / 96 kHz • Studio FLAC" to "24-BIT / 96k"),
+            Triple(6, "CD Lossless", "16-bit / 44.1 kHz • Bit-Exact CD FLAC" to "16-BIT / 44.1k"),
+            Triple(5, "Standard Quality", "320 kbps • High-Bitrate MP3" to "320 kbps"),
+            Triple(-1, "YouTube Music", "128-256 kbps • YouTube Music AAC / Opus stream" to "YOUTUBE"),
+        )
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
+        ModalBottomSheet(
+            onDismissRequest = { showDownloadQualityDialog = false },
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .padding(top = 12.dp, bottom = 8.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                ) {}
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp + safeDrawingBottomPadding()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.CloudDownload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            "Download Quality",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "Select offline audio resolution & bit depth",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                Text(
+                    "Lossless downloads provide bit-exact studio quality (FLAC/MP3). If your chosen quality is unavailable, LastWave automatically downloads the higher quality tier above it (or falls back to YouTube Music if unavailable in lossless).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    downloadTiers.forEach { (qualityId, title, meta) ->
+                        val (subtitle, badge) = meta
+                        val isSelected = misc.downloadQuality == qualityId
+                        Surface(
+                            onClick = {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                viewModel.setDownloadQuality(qualityId)
+                                showDownloadQualityDialog = false
                             },
                             shape = RoundedCornerShape(20.dp),
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1194,7 +1466,7 @@ fun SettingsScreen(
                 ),
             contentAlignment = Alignment.BottomCenter,
         ) {
-            Surface(shape = ExpressivePillShape, color = MaterialTheme.colorScheme.inverseSurface, tonalElevation = 6.dp) {
+            Surface(shape = ExpressivePillShape, color = MaterialTheme.colorScheme.inverseSurface, tonalElevation = 0.dp) {
                 Text(msg, color = MaterialTheme.colorScheme.inverseOnSurface, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
             }
         }
@@ -1363,9 +1635,21 @@ private fun CrossfadeDurationRow(
     onSecondsChange: (Int) -> Unit,
     position: GroupPosition = GroupPosition.SINGLE,
 ) {
-    var sliderValue by remember(seconds) { mutableStateOf(seconds.coerceIn(1, 10).toFloat()) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var sliderValue by remember { mutableStateOf(seconds.coerceIn(1, 12).toFloat()) }
+    var isDragging by remember { mutableStateOf(false) }
+    LaunchedEffect(seconds) {
+        if (!isDragging) sliderValue = seconds.coerceIn(1, 12).toFloat()
+    }
     val shape = groupShape(position)
     val liquidGlass = LocalLiquidGlass.current
+
+    val blendStyle = when (sliderValue.roundToInt()) {
+        in 1..2 -> "Quick DJ overlap"
+        in 3..5 -> "Standard smooth blend"
+        in 6..8 -> "Long musical transition"
+        else -> "Extended cinematic crossfade"
+    }
 
     Card(
         shape = shape,
@@ -1386,33 +1670,51 @@ private fun CrossfadeDurationRow(
                 Column(Modifier.weight(1f)) {
                     Text("Crossfade duration", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     Text(
-                        "${sliderValue.toInt()} sec blend",
+                        "${sliderValue.roundToInt()}s \u2022 $blendStyle",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Text(
+                        "${sliderValue.roundToInt()}s",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     )
                 }
             }
             Slider(
                 value = sliderValue,
                 onValueChange = { value ->
-                    val updatedSeconds = value.roundToInt().coerceIn(1, 10)
-                    if (updatedSeconds.toFloat() != sliderValue) {
-                        sliderValue = updatedSeconds.toFloat()
-                        onSecondsChange(updatedSeconds)
+                    isDragging = true
+                    val rounded = value.roundToInt().coerceIn(1, 12)
+                    if (rounded.toFloat() != sliderValue) {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                        sliderValue = rounded.toFloat()
+                        onSecondsChange(rounded)
                     }
                 },
-                valueRange = 1f..10f,
-                steps = 8,
+                onValueChangeFinished = {
+                    isDragging = false
+                },
+                valueRange = 1f..12f,
+                steps = 10,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = 6.dp),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("1 sec", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                Text("10 sec", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                Text("1s (Tight)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                Text("6s", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                Text("12s (Long)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
             }
         }
     }
@@ -2243,7 +2545,7 @@ private fun EqualizerSheet(
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 2.dp,
+                tonalElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -2301,7 +2603,7 @@ private fun EqualizerSheet(
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 2.dp,
+                tonalElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 val curveAlpha by animateFloatAsState(
@@ -2858,6 +3160,8 @@ private fun SyncPlaylistsSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LyricsAnimationSheet(
+    version: LyricsUiVersion,
+    onSelectVersion: (LyricsUiVersion) -> Unit,
     current: LyricsAnimation,
     onSelect: (LyricsAnimation) -> Unit,
     onDismiss: () -> Unit,
@@ -2913,99 +3217,177 @@ private fun LyricsAnimationSheet(
                 }
             }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 480.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(LyricsAnimation.entries.toTypedArray(), key = { it.id }) { anim ->
-                    val isSelected = anim == current
-                    val cardShape = RoundedCornerShape(18.dp)
-
+                val versions = listOf(
+                    LyricsUiVersion.CLASSIC to "Classic",
+                    LyricsUiVersion.MODERN to "New UI",
+                )
+                versions.forEach { (ver, label) ->
+                    val isVerSelected = ver == version
+                    val chipShape = RoundedCornerShape(14.dp)
                     Surface(
-                        shape = cardShape,
-                        color = if (isSelected) {
-                            if (liquidGlass) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
-                            else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f)
-                        } else {
-                            if (liquidGlass) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f)
-                            else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f)
+                        onClick = {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            onSelectVersion(ver)
                         },
-                        border = if (isSelected) {
-                            BorderStroke(
-                                1.5.dp,
-                                if (liquidGlass) {
-                                    Brush.linearGradient(
-                                        listOf(
-                                            Color.White.copy(alpha = 0.50f),
-                                            MaterialTheme.colorScheme.primary,
-                                            Color.White.copy(alpha = 0.15f),
-                                        ),
-                                    )
-                                } else {
-                                    Brush.linearGradient(
-                                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary),
-                                    )
-                                },
-                            )
-                        } else if (liquidGlass) {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+                        shape = chipShape,
+                        color = if (isVerSelected) {
+                            if (liquidGlass) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
+                            else MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            if (liquidGlass) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.60f)
+                            else MaterialTheme.colorScheme.surfaceContainerHigh
+                        },
+                        border = if (isVerSelected) {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                         } else null,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(cardShape)
-                            .liquidGlassChrome(cardShape, liquidGlass)
-                            .clickable {
-                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                                onSelect(anim)
-                            },
+                            .weight(1f)
+                            .clip(chipShape),
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        Box(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceContainerLowest,
-                                modifier = Modifier.size(24.dp),
-                            ) {
-                                if (isSelected) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.size(16.dp),
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (isVerSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isVerSelected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                    }
+                }
+            }
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = anim.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = if (isSelected && liquidGlass) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    text = anim.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isSelected && liquidGlass) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+            if (version == LyricsUiVersion.CLASSIC) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 440.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(LyricsAnimation.entries.toTypedArray(), key = { it.id }) { anim ->
+                        val isSelected = anim == current
+                        val cardShape = RoundedCornerShape(18.dp)
+
+                        Surface(
+                            shape = cardShape,
+                            color = if (isSelected) {
+                                if (liquidGlass) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
+                                else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f)
+                            } else {
+                                if (liquidGlass) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f)
+                                else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f)
+                            },
+                            border = if (isSelected) {
+                                BorderStroke(
+                                    1.5.dp,
+                                    if (liquidGlass) {
+                                        Brush.linearGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = 0.50f),
+                                                MaterialTheme.colorScheme.primary,
+                                                Color.White.copy(alpha = 0.15f),
+                                            ),
+                                        )
                                     } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                        Brush.linearGradient(
+                                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary),
+                                        )
                                     },
                                 )
+                            } else if (liquidGlass) {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+                            } else null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(cardShape)
+                                .liquidGlassChrome(cardShape, liquidGlass)
+                                .clickable {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    onSelect(anim)
+                                },
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceContainerLowest,
+                                    modifier = Modifier.size(24.dp),
+                                ) {
+                                    if (isSelected) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = anim.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        color = if (isSelected && liquidGlass) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        text = anim.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isSelected && liquidGlass) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    )
+                                }
                             }
                         }
+                    }
+                }
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (liquidGlass) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.70f)
+                    else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.40f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = "New Lyrics UI",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "Modern lyrics rendering active",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }

@@ -70,6 +70,43 @@ object Md3SchemeBuilder {
         liquidGlass = liquidGlass,
     )
 
+    /**
+     * Nothing OS-style scheme: everything except the accent is pure
+     * grayscale (secondary/tertiary/neutral chroma = 0, matching
+     * [buildMonochromeScheme]), but primary carries real saturation at a
+     * true red hue so it reads as the single, sparing accent the design
+     * language calls for — [buildMonochromeScheme] by contrast zeroes out
+     * primary's chroma too, which is why it can't be reused here.
+     * Liquid Glass is always ignored (translucent containers don't belong
+     * in this flat, hairline-divider aesthetic) — always built as if it
+     * were off, regardless of the user's setting.
+     */
+    fun buildNothingScheme(amoled: Boolean): ColorScheme {
+        val base = build(
+            primaryHue = 0,
+            secondaryHue = 0,
+            tertiaryHue = 0,
+            neutralHue = 0,
+            amoled = amoled,
+            monochrome = true,
+            liquidGlass = false,
+        )
+        return base.copy(
+            primary = hsl(0, 100, 50), // #FF0000 — the one accent, used sparingly
+            onPrimary = Color.White,
+            primaryContainer = hsl(0, 90, 22),
+            onPrimaryContainer = hsl(0, 100, 88),
+            inversePrimary = hsl(0, 90, 40),
+            // Compressed toward background — flat planes, not tonal "elevation" steps.
+            surfaceContainer = if (amoled) Color.Black else hsl(0, 0, 3),
+            surfaceContainerHigh = if (amoled) hsl(0, 0, 3) else hsl(0, 0, 5),
+            surfaceContainerHighest = if (amoled) hsl(0, 0, 5) else hsl(0, 0, 7),
+            // Hairline-divider tones: legible but low-emphasis against black.
+            outline = hsl(0, 0, 42),
+            outlineVariant = hsl(0, 0, 18),
+        )
+    }
+
     private fun build(
         primaryHue: Int,
         secondaryHue: Int,

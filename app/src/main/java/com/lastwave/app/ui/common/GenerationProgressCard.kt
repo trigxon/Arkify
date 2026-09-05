@@ -66,7 +66,7 @@ fun GenerationProgressCard(message: String, modifier: Modifier = Modifier) {
         // ModeCard/SettingsToggleCard fixes for the full explanation. The
         // shadow below still gives real depth without that color shift.
         tonalElevation = 0.dp,
-        shadowElevation = 8.dp,
+        shadowElevation = 0.dp,
         modifier = modifier.fillMaxWidth().padding(vertical = 12.dp),
     ) {
         Column(

@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MusicNote
@@ -164,7 +165,7 @@ fun PlaylistScreen(
                             onClick = { sortMenuExpanded = true },
                             shape = RoundedCornerShape(50),
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            tonalElevation = 1.dp,
+                            tonalElevation = 0.dp,
                             modifier = Modifier.heightIn(min = 34.dp),
                         ) {
                             Row(
@@ -191,8 +192,8 @@ fun PlaylistScreen(
                             onDismissRequest = { sortMenuExpanded = false },
                             shape = RoundedCornerShape(22.dp),
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            tonalElevation = 4.dp,
-                            shadowElevation = 10.dp,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp,
                             modifier = Modifier.padding(vertical = 4.dp),
                         ) {
                             DropdownMenuItem(text = { Text("Newest first") }, onClick = { viewModel.setSortMode(PlaylistSortMode.DATE_DESC); sortMenuExpanded = false })
@@ -657,8 +658,8 @@ private fun PlaylistCard(
                     onDismissRequest = { menuExpanded = false },
                     shape = RoundedCornerShape(22.dp),
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = 4.dp,
-                    shadowElevation = 10.dp,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
                 ) {
                     DropdownMenuItem(
                         text = { Text(if (playlist.isPinned) "Unpin" else "Pin") },
@@ -696,7 +697,7 @@ private fun PlaylistCard(
                     if (!playlist.isYouTubeOnly) {
                         DropdownMenuItem(
                             text = { Text("Export") },
-                            leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
+                            leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
                             onClick = { onExport(); menuExpanded = false },
                         )
                     }

@@ -216,7 +216,7 @@ fun AlbumDetailScreen(
                                     Surface(
                                         shape = RoundedCornerShape(topStart = 14.dp, bottomEnd = 26.dp),
                                         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
-                                        tonalElevation = 4.dp,
+                                        tonalElevation = 0.dp,
                                         modifier = Modifier.align(Alignment.BottomEnd),
                                     ) {
                                         PlayingWaveBars(
@@ -351,7 +351,7 @@ fun AlbumDetailScreen(
                                     enabled = data.tracks.isNotEmpty(),
                                     shape = CircleShape,
                                     color = MaterialTheme.colorScheme.primary,
-                                    shadowElevation = 6.dp,
+                                    shadowElevation = 0.dp,
                                     modifier = Modifier.size(56.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {

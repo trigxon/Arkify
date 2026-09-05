@@ -1,7 +1,12 @@
 package com.lastwave.app.ui.home
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -73,12 +78,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.People
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.tween
@@ -106,7 +106,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
@@ -122,13 +121,17 @@ import kotlinx.coroutines.flow.map
 // constructed inline inside row/card composables, i.e. re-allocated for every
 // row on every recomposition. Rows are the hottest path while scrolling, so
 // they must not allocate.
-private val ListContainerShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-private val TrackRowShape = RoundedCornerShape(18.dp)
-private val NowPlayingCardShape = RoundedCornerShape(22.dp)
-private val ArtworkShape = RoundedCornerShape(14.dp)
-private val BadgePillShape = RoundedCornerShape(50)
-private val StatPillShape = RoundedCornerShape(20.dp)
-private val HeroInnerShape = RoundedCornerShape(24.dp)
+//
+// Nothing OS redesign: flat rectangles — these used to shadow the (also now
+// flattened) shapes in ui/theme/Shape.kt with their own rounded values, so
+// flattening the theme file alone didn't actually change anything here.
+private val ListContainerShape = RoundedCornerShape(0.dp)
+private val TrackRowShape = RoundedCornerShape(0.dp)
+private val NowPlayingCardShape = RoundedCornerShape(0.dp)
+private val ArtworkShape = RoundedCornerShape(0.dp)
+private val BadgePillShape = RoundedCornerShape(0.dp)
+private val StatPillShape = RoundedCornerShape(0.dp)
+private val HeroInnerShape = RoundedCornerShape(0.dp)
 
 /**
  * Faithful port of home.html/home.js's layout, top to bottom:
@@ -448,11 +451,6 @@ private fun ProfileAvatar(avatarUrl: String?, modifier: Modifier = Modifier) {
     Surface(
         shape = CircleShape,
         color = MaterialTheme.colorScheme.primaryContainer,
-        // A thin ring in the current accent color — matches the app theme
-        // (moves with Dynamic Color / manual accent / dynamic-now-playing
-        // the same way everything else does) instead of a plain flat
-        // avatar with no border at all.
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
         modifier = modifier,
     ) {
         if (!avatarUrl.isNullOrBlank()) {
@@ -495,8 +493,8 @@ private fun StatsCard(
         Surface(
             shape = ExpressiveHeroShape,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 2.dp,
-            shadowElevation = 4.dp,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
@@ -633,7 +631,7 @@ private fun MixHeader(sortMode: HomeSortMode, onSortModeChange: (HomeSortMode) -
                 onClick = { menuOpen = true },
                 shape = BadgePillShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                tonalElevation = 1.dp,
+                tonalElevation = 0.dp,
                 interactionSource = pillInteractionSource,
                 modifier = Modifier.heightIn(min = 34.dp).scale(pillScale),
             ) {
@@ -675,8 +673,8 @@ private fun MixHeader(sortMode: HomeSortMode, onSortModeChange: (HomeSortMode) -
                 // exactly what read as "squarish" — a light shadow plus a
                 // bit more tonalElevation for legibility fixes that
                 // without losing depth entirely.
-                tonalElevation = 3.dp,
-                shadowElevation = 3.dp,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
                 modifier = Modifier.padding(vertical = 4.dp),
             ) {
                 SortOption(Icons.Filled.Schedule, "Recent", sortMode == HomeSortMode.RECENT) {
@@ -793,16 +791,25 @@ private fun TrackRow(
                 .padding(vertical = 6.dp, horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ArtworkImage(
-                name = track.name,
-                artist = track.artist,
-                embeddedUrl = track.artworkUrl,
-                fallbackIcon = if (isNowPlaying) Icons.Filled.GraphicEq else Icons.Filled.MusicNote,
+            Box(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(ArtworkShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            )
+            ) {
+                ArtworkImage(
+                    name = track.name,
+                    artist = track.artist,
+                    embeddedUrl = track.artworkUrl,
+                    fallbackIcon = if (isNowPlaying) Icons.Filled.GraphicEq else Icons.Filled.MusicNote,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                if (isNowPlaying) {
+                    com.lastwave.app.ui.player.PlayingWaveBars(
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp).size(24.dp, 18.dp),
+                    )
+                }
+            }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -823,43 +830,28 @@ private fun TrackRow(
             }
             Spacer(Modifier.width(8.dp))
             if (isNowPlaying) {
-                val infiniteTransition = rememberInfiniteTransition(label = "nowPlayingPulse")
-                val pulseScale by infiniteTransition.animateFloat(
-                    initialValue = 1.0f,
+                val transition = rememberInfiniteTransition(label = "nowPlayingPulse")
+                val pulseScale = transition.animateFloat(
+                    initialValue = 1f,
                     targetValue = 1.06f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1200, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
+                    animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Reverse),
                     label = "pulseScale",
                 )
                 Surface(
                     shape = BadgePillShape,
-                    color = MaterialTheme.colorScheme.primary,
-                    tonalElevation = 4.dp,
-                    shadowElevation = 2.dp,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.graphicsLayer {
-                        scaleX = pulseScale
-                        scaleY = pulseScale
+                        scaleX = pulseScale.value
+                        scaleY = pulseScale.value
                     },
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    Text(
+                        "Now Playing",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    ) {
-                        Spacer(
-                            Modifier
-                                .size(6.dp)
-                                .background(MaterialTheme.colorScheme.onPrimary, CircleShape),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "Now Playing",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    }
+                    )
                 }
             }
             if (badge != null) {

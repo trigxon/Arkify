@@ -45,7 +45,7 @@ android {
 
     defaultConfig {
         applicationId = "com.lastwave.app"
-        minSdk = 24
+        minSdk = 29
         targetSdk = 35
         versionCode = 15
         versionName = "3.4.1"
@@ -59,11 +59,19 @@ android {
         }
         val maskLiteral = "new byte[] { " + secretMask.joinToString(", ") { "(byte) $it" } + " }"
 
-        val qobuzBackendUrl = resolveSecret("QOBUZ_BACKEND_URL", "QOBUZ_BASE_URL", "BACKEND_BASE_URL")
-        buildConfigField("byte[]", "QOBUZ_BACKEND_URL_BYTES", obfuscateSecret(qobuzBackendUrl))
+        val losslessBackendUrl = resolveSecret(
+            "LOSSLESS_BACKEND_URL",
+            "LOSSLESS_BASE_URL",
+            "BACKEND_BASE_URL"
+        )
+        buildConfigField("byte[]", "LOSSLESS_BACKEND_URL_BYTES", obfuscateSecret(losslessBackendUrl))
 
-        val qobuzApiKey = resolveSecret("QOBUZ_API_KEY", "QOBUZ_AUTH_KEY", "API_AUTH_KEY")
-        buildConfigField("byte[]", "QOBUZ_API_KEY_BYTES", obfuscateSecret(qobuzApiKey))
+        val losslessApiKey = resolveSecret(
+            "LOSSLESS_API_KEY",
+            "LOSSLESS_AUTH_KEY",
+            "API_AUTH_KEY"
+        )
+        buildConfigField("byte[]", "LOSSLESS_API_KEY_BYTES", obfuscateSecret(losslessApiKey))
 
         val lyricsApiKey = resolveSecret("LYRICS_API_KEY", "API_KEY", "LYRICS_AUTH_TOKEN")
         buildConfigField("byte[]", "LYRICS_API_KEY_BYTES", obfuscateSecret(lyricsApiKey))
@@ -84,6 +92,7 @@ android {
                     // libraries must be built/aligned accordingly. Ignored
                     // harmlessly by NDK toolchains that predate the flag.
                     "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                    "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
                 )
                 cFlags += "-Wl,-z,max-page-size=16384"
                 cppFlags += "-Wl,-z,max-page-size=16384"
@@ -157,6 +166,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-Xskip-metadata-version-check",
+            "-Xskip-prerelease-check",
+        )
     }
 
     buildFeatures {
@@ -238,6 +251,8 @@ dependencies {
 
     implementation(libs.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation(libs.lyrics.ui)
+    implementation(libs.lyrics.core)
     // Installs the baseline profiles bundled inside Compose (and other
     // androidx) AARs so hot UI paths are AOT-compiled on device instead of
     // running through JIT on first use — a large, zero-code smoothness win
@@ -286,7 +301,11 @@ dependencies {
 configurations.all {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") {
-            useVersion("1.9.24")
+            if (requested.name.startsWith("kotlin-stdlib")) {
+                useVersion("2.1.21")
+            } else {
+                useVersion("1.9.24")
+            }
         }
         if (requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-coroutines")) {
             useVersion("1.8.1")

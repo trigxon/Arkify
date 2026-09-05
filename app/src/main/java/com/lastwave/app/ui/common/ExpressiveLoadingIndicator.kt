@@ -59,7 +59,7 @@ fun ExpressiveLoadingIndicator(message: String? = null, modifier: Modifier = Mod
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
-                tonalElevation = 4.dp,
+                tonalElevation = 0.dp,
                 modifier = Modifier
                     .size(58.dp)
                     .graphicsLayer {

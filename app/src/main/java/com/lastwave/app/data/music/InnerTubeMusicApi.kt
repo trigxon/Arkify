@@ -234,9 +234,12 @@ class InnerTubeMusicApi @Inject constructor(
      * When an account is connected, the first attempt is authenticated so
      * owned/private playlists resolve too; it transparently falls back to
      * anonymous for public ones.
+     * [maxTracks] keeps preview/radio surfaces bounded; imports leave it null
+     * and retain the exhaustive continuation behavior above.
      */
     suspend fun fetchPlaylist(
         playlistIdOrUrl: String,
+        maxTracks: Int? = null,
         onPageLoaded: ((List<YouTubeMusicTrack>) -> Unit)? = null,
     ): YouTubePlaylistResult? = withContext(Dispatchers.IO) {
         val rawId = extractPlaylistId(playlistIdOrUrl)
@@ -257,8 +260,11 @@ class InnerTubeMusicApi @Inject constructor(
 
         val artworkUrl = extractArtworkFromHeader(header, root)
 
+        val trackLimit = maxTracks?.coerceAtLeast(1)
         val songs = mutableListOf<YouTubeMusicTrack>()
-        val initialSongs = parseSongRenderers(root)
+        val initialSongs = parseSongRenderers(root).let { parsed ->
+            trackLimit?.let { parsed.take(it) } ?: parsed
+        }
         songs += initialSongs
         if (songs.isNotEmpty()) {
             onPageLoaded?.invoke(songs.toList())
@@ -268,7 +274,11 @@ class InnerTubeMusicApi @Inject constructor(
         // purpose (60k tracks) — it only exists to bound a pathological loop.
         var token = playlistShelfContinuationToken(root)
         var page = 0
-        while (!token.isNullOrBlank() && page < MAX_CONTINUATION_PAGES) {
+        while (
+            !token.isNullOrBlank() &&
+            page < MAX_CONTINUATION_PAGES &&
+            (trackLimit == null || songs.size < trackLimit)
+        ) {
             val currentToken = token ?: break
             val nextPage = runCatching {
                 browseContinuation(browseId, currentToken, authenticated = authenticatedAs)
@@ -276,7 +286,9 @@ class InnerTubeMusicApi @Inject constructor(
             val pageSongs = parseSongRenderers(nextPage)
             if (pageSongs.isEmpty()) break
             val knownVideoIds = songs.mapTo(mutableSetOf()) { it.videoId }
-            val newSongs = pageSongs.filterNot { it.videoId in knownVideoIds }
+            val newSongs = pageSongs
+                .filterNot { it.videoId in knownVideoIds }
+                .let { parsed -> trackLimit?.let { parsed.take(it - songs.size) } ?: parsed }
             if (newSongs.isEmpty()) break
             songs += newSongs
             onPageLoaded?.invoke(songs.toList())
@@ -449,14 +461,12 @@ class InnerTubeMusicApi @Inject constructor(
             val recent = async {
                 runCatching { parseSongRenderers(browseRoot(YT_HISTORY_BROWSE_ID, authenticated = true)) }
                     .getOrDefault(emptyList())
-                    .filterNot { it.artist.equals("Unknown artist", ignoreCase = true) }
                     .distinctBy { it.videoId }
                     .take(recentLimit.coerceIn(0, 50))
             }
             val liked = async {
                 runCatching { parseSongRenderers(browseRoot(YT_LIKED_BROWSE_ID, authenticated = true)) }
                     .getOrDefault(emptyList())
-                    .filterNot { it.artist.equals("Unknown artist", ignoreCase = true) }
                     .distinctBy { it.videoId }
                     .take(likedLimit.coerceIn(0, 50))
             }
@@ -465,7 +475,6 @@ class InnerTubeMusicApi @Inject constructor(
                     parseHomeFeedSongs(browseRoot(YT_HOME_BROWSE_ID, authenticated = true))
                 }
                     .getOrDefault(emptyList())
-                    .filterNot { it.artist.equals("Unknown artist", ignoreCase = true) }
                     .distinctBy { it.videoId }
                     .take(feedLimit.coerceIn(0, 60))
             }
@@ -475,6 +484,36 @@ class InnerTubeMusicApi @Inject constructor(
                 feedTracks = feed.await(),
             )
         }
+    }
+
+    suspend fun fetchNewReleases(): List<YouTubePlaylistSummary> = withContext(Dispatchers.IO) {
+        runCatching {
+            val root = browseRoot(YT_NEW_RELEASES_BROWSE_ID, authenticated = false)
+            parsePlaylistRenderers(root)
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun fetchCharts(): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
+        runCatching {
+            val root = browseRoot(YT_CHARTS_BROWSE_ID, authenticated = false)
+            parseSongRenderers(root)
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun fetchHomeMixes(): List<YouTubePlaylistSummary> = withContext(Dispatchers.IO) {
+        val isAuth = ytAuth.connection.value.isConnected
+        runCatching {
+            val root = browseRoot(YT_HOME_BROWSE_ID, authenticated = isAuth)
+            parsePlaylistRenderers(root)
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun fetchHomeSongs(): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
+        val isAuth = ytAuth.connection.value.isConnected
+        runCatching {
+            val root = browseRoot(YT_HOME_BROWSE_ID, authenticated = isAuth)
+            parseHomeFeedSongs(root)
+        }.getOrDefault(emptyList())
     }
 
     /** Identity of the signed-in account (account_menu endpoint). */
@@ -764,7 +803,11 @@ class InnerTubeMusicApi @Inject constructor(
         return findString(renderer, "setVideoId") ?: findString(renderer, "playlistSetVideoId")
     }
 
-    suspend fun searchSongs(query: String, limit: Int = 30): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
+    suspend fun searchSongs(
+        query: String,
+        limit: Int = 30,
+        prefetchStreams: Boolean = true,
+    ): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
         val config = getWebConfig()
         val body = buildJsonObject {
@@ -782,7 +825,37 @@ class InnerTubeMusicApi @Inject constructor(
             userAgent = WEB_USER_AGENT,
         )
         val results = parseSongRenderers(root).take(limit)
-        results.take(2).forEach { prefetchStream(it.videoId) }
+        if (prefetchStreams) results.take(2).forEach { prefetchStream(it.videoId) }
+        results
+    }
+
+    /** Anonymous YouTube Music radio for a seed video. This intentionally
+     * stays cookie-free so related-song playlists work without an account. */
+    suspend fun fetchRelatedSongs(
+        videoId: String,
+        limit: Int = 30,
+        prefetchStreams: Boolean = true,
+    ): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
+        if (videoId.isBlank() || limit <= 0) return@withContext emptyList()
+        val config = getWebConfig()
+        val root = post(
+            url = "$MUSIC_API/next?key=${config.apiKey}&prettyPrint=false",
+            body = buildJsonObject {
+                put("context", context("WEB_REMIX", config.clientVersion, config.visitorData))
+                put("videoId", videoId)
+                put("playlistId", "RDAMVM$videoId")
+                put("params", "wAEB")
+                put("isAudioOnly", true)
+            },
+            clientName = "WEB_REMIX",
+            clientVersion = config.clientVersion,
+            userAgent = WEB_USER_AGENT,
+            callTimeoutMs = RELATED_REQUEST_TIMEOUT_MS,
+        )
+        val results = parseSongRenderers(root)
+            .filterNot { it.videoId == videoId }
+            .take(limit)
+        if (prefetchStreams) results.take(2).forEach { prefetchStream(it.videoId) }
         results
     }
 
@@ -851,7 +924,7 @@ class InnerTubeMusicApi @Inject constructor(
                 heading.contains("song", ignoreCase = true) || heading.contains("track", ignoreCase = true) -> {
                     if (topSongs.isEmpty()) {
                         val parsed = parseSongRenderers(shelf)
-                        topSongs = parsed.map { track ->
+                        val previewTracks = parsed.map { track ->
                             com.lastwave.app.playback.PlayableTrack(
                                 title = track.title,
                                 artist = track.artist.takeUnless { it == "Unknown artist" } ?: title,
@@ -859,6 +932,37 @@ class InnerTubeMusicApi @Inject constructor(
                                 artworkUrl = track.artworkUrl ?: artworkUrl,
                                 videoId = track.videoId,
                             )
+                        }
+
+                        // YouTube Music artist overview only embeds 5 preview tracks in the initial shelf.
+                        // Follow the shelf's "Show all" / "More" endpoint (e.g. VLOLAK... or FEmusic_artist_more_tracks) to get full top tracks.
+                        val moreEndpoint = shelf.obj("bottomEndpoint")?.obj("browseEndpoint")
+                            ?: shelf.obj("bottomText")?.array("runs")?.firstOrNull()?.asObject()?.obj("navigationEndpoint")?.obj("browseEndpoint")
+                            ?: shelf.obj("title")?.array("runs")?.firstOrNull()?.asObject()?.obj("navigationEndpoint")?.obj("browseEndpoint")
+                            ?: shelf.obj("header")?.obj("musicShelfHeaderRenderer")?.obj("title")?.array("runs")?.firstOrNull()?.asObject()?.obj("navigationEndpoint")?.obj("browseEndpoint")
+                            ?: shelf.obj("header")?.obj("musicCarouselShelfBasicHeaderRenderer")?.obj("moreContentButton")?.obj("buttonRenderer")?.obj("navigationEndpoint")?.obj("browseEndpoint")
+
+                        val moreBrowseId = moreEndpoint?.string("browseId")
+                        val moreParams = moreEndpoint?.string("params")
+
+                        val fullTracks = if (!moreBrowseId.isNullOrBlank()) {
+                            runCatching {
+                                browseSongs(moreBrowseId, params = moreParams, limit = null).map { track ->
+                                    com.lastwave.app.playback.PlayableTrack(
+                                        title = track.title,
+                                        artist = track.artist.takeUnless { it == "Unknown artist" } ?: title,
+                                        album = track.album,
+                                        artworkUrl = track.artworkUrl ?: artworkUrl,
+                                        videoId = track.videoId,
+                                    )
+                                }
+                            }.getOrNull()
+                        } else null
+
+                        topSongs = if (!fullTracks.isNullOrEmpty()) {
+                            fullTracks
+                        } else {
+                            previewTracks
                         }
                     }
                 }
@@ -1041,7 +1145,7 @@ class InnerTubeMusicApi @Inject constructor(
     }
 
     /** Loads playable songs for an artist or album without opening YouTube. */
-    suspend fun browseSongs(browseId: String, limit: Int = 50): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
+    suspend fun browseSongs(browseId: String, params: String? = null, limit: Int? = null): List<YouTubeMusicTrack> = withContext(Dispatchers.IO) {
         require(browseId.isNotBlank()) { "Missing YouTube Music browse id" }
         val config = getWebConfig()
         val root = post(
@@ -1049,6 +1153,9 @@ class InnerTubeMusicApi @Inject constructor(
             body = buildJsonObject {
                 put("context", context("WEB_REMIX", config.clientVersion, config.visitorData))
                 put("browseId", browseId)
+                if (!params.isNullOrBlank()) {
+                    put("params", params)
+                }
             },
             clientName = "WEB_REMIX",
             clientVersion = config.clientVersion,
@@ -1056,14 +1163,37 @@ class InnerTubeMusicApi @Inject constructor(
         )
         val shelves = mutableListOf<JsonObject>()
         collectObjects(root, "musicShelfRenderer", shelves)
+        collectObjects(root, "musicPlaylistShelfRenderer", shelves)
         val primaryShelf = shelves.firstOrNull { shelf ->
             val heading = shelf.obj("title")?.array("runs")
                 ?.joinToString("") { it.asObject()?.string("text").orEmpty() }
             heading.equals("Songs", ignoreCase = true) || heading.equals("Tracks", ignoreCase = true)
         } ?: shelves.firstOrNull()
-        val songs = parseSongRenderers(primaryShelf ?: root).take(limit)
-        songs.take(2).forEach { prefetchStream(it.videoId) }
-        songs
+
+        val songs = mutableListOf<YouTubeMusicTrack>()
+        songs.addAll(parseSongRenderers(primaryShelf ?: root))
+
+        // Follow continuations to collect every song by the artist
+        var token = playlistShelfContinuationToken(root)
+        var page = 0
+        while (!token.isNullOrBlank() && page < MAX_CONTINUATION_PAGES && (limit == null || songs.size < limit)) {
+            val currentToken = token ?: break
+            val nextPage = runCatching {
+                browseContinuation(browseId, currentToken, authenticated = false)
+            }.getOrNull() ?: break
+            val pageSongs = parseSongRenderers(nextPage)
+            if (pageSongs.isEmpty()) break
+            val knownVideoIds = songs.mapTo(mutableSetOf()) { it.videoId }
+            val newSongs = pageSongs.filterNot { it.videoId in knownVideoIds }
+            if (newSongs.isEmpty()) break
+            songs.addAll(newSongs)
+            token = playlistShelfContinuationToken(nextPage)
+            page++
+        }
+
+        val result = if (limit != null) songs.take(limit) else songs
+        result.take(2).forEach { prefetchStream(it.videoId) }
+        result
     }
 
     private suspend fun searchEntities(
@@ -1523,7 +1653,7 @@ class InnerTubeMusicApi @Inject constructor(
         val state = status?.string("status")
         if (state != "OK") {
             val reason = status?.string("reason").orEmpty()
-            if (state != null && state in PERMANENT_PLAYABILITY_STATES) {
+            if (state == "UNPLAYABLE" && reason.isConfirmedUnavailableReason()) {
                 throw ConfirmedUnplayableMediaException(reason.ifBlank { state.orEmpty() })
             }
             throw IOException(reason.ifBlank { "Player status ${state ?: "missing"}" })
@@ -1752,22 +1882,14 @@ class InnerTubeMusicApi @Inject constructor(
             ?.message
             ?.takeIf(String::isNotBlank)
             ?.let { return it }
-        val diagnostic = causes.joinToString(" ") {
-            "${it::class.java.simpleName} ${it.message.orEmpty()}"
-        }.lowercase()
-        val confirmedMarkers = listOf(
-            "agerestricted", "age restricted", "confirm your age",
-            "geographicrestriction", "not available in your country",
-            "contentnotavailable", "video is unavailable", "video unavailable",
-            "privatecontent", "this video is private", "paidcontent",
-            "members-only",
-        )
-        return if (confirmedMarkers.any(diagnostic::contains)) {
-            causes.firstNotNullOfOrNull { it.message?.takeIf(String::isNotBlank) }
-                ?: "Media is unavailable"
-        } else {
-            null
+        return causes.firstNotNullOfOrNull { cause ->
+            cause.message?.takeIf { it.isConfirmedUnavailableReason() }
         }
+    }
+
+    private fun String.isConfirmedUnavailableReason(): Boolean {
+        val reason = lowercase()
+        return CONFIRMED_UNAVAILABLE_REASONS.any(reason::contains)
     }
 
     /** Keeps the stream cache from growing without bound over long sessions:
@@ -1786,19 +1908,27 @@ class InnerTubeMusicApi @Inject constructor(
         }
     }
 
-    suspend fun findBestMatch(title: String, artist: String): YouTubeMusicTrack {
+    suspend fun findBestMatch(
+        title: String,
+        artist: String,
+        prefetchStreams: Boolean = true,
+    ): YouTubeMusicTrack {
         val cacheKey = "${normalize(artist)}|${normalize(title)}"
         matchCache[cacheKey]?.let { return it }
-        val results = searchSongs(listOf(title, artist).filter { it.isNotBlank() }.joinToString(" "), 30)
+        val results = searchSongs(
+            query = listOf(title, artist).filter { it.isNotBlank() }.joinToString(" "),
+            limit = 30,
+            prefetchStreams = prefetchStreams,
+        )
         val best = results.maxByOrNull { candidate -> matchScore(candidate, title, artist) }
-            ?: throw ConfirmedUnplayableMediaException("No YouTube Music match found for $title")
+            ?: throw IOException("No YouTube Music match found for $title")
         val titleSimilarity = maxOf(
             similarity(best.title, title),
             similarity(baseTitle(best.title), baseTitle(title)),
         )
         val artistSimilarity = similarity(best.artist, artist)
         if (titleSimilarity < 72 || (artist.isNotBlank() && artistSimilarity < 50)) {
-            throw ConfirmedUnplayableMediaException("No reliable YouTube Music match found for $title by $artist")
+            throw IOException("No reliable YouTube Music match found for $title by $artist")
         }
         return best.also {
             if (matchCache.size > MAX_MATCH_CACHE_ENTRIES) matchCache.clear()
@@ -1806,10 +1936,14 @@ class InnerTubeMusicApi @Inject constructor(
         }
     }
 
-    suspend fun findBestMatchOrNull(title: String, artist: String): YouTubeMusicTrack? =
+    suspend fun findBestMatchOrNull(
+        title: String,
+        artist: String,
+        prefetchStreams: Boolean = true,
+    ): YouTubeMusicTrack? =
         try {
             kotlinx.coroutines.withTimeoutOrNull(2500L) {
-                findBestMatch(title, artist)
+                findBestMatch(title, artist, prefetchStreams)
             }
         } catch (_: Exception) {
             null
@@ -1961,6 +2095,9 @@ class InnerTubeMusicApi @Inject constructor(
         val renderers = mutableListOf<JsonObject>()
         collectObjects(root, "musicResponsiveListItemRenderer", renderers)
         val songs = renderers.mapNotNull(::parseSong).toMutableList()
+        val queueRenderers = mutableListOf<JsonObject>()
+        collectObjects(root, "playlistPanelVideoRenderer", queueRenderers)
+        songs.addAll(queueRenderers.mapNotNull(::parsePlaylistPanelSong))
         if (songs.isEmpty()) {
             val ytVideos = mutableListOf<JsonObject>()
             collectObjects(root, "playlistVideoRenderer", ytVideos)
@@ -2009,7 +2146,7 @@ class InnerTubeMusicApi @Inject constructor(
                 ?.string("browseId")?.startsWith("UC") == true
         }?.string("text") ?: details.mapNotNull { it.string("text") }
             .firstOrNull { it.isLikelyArtistDetail() }
-            ?: return null
+            ?: "Unknown artist"
         val album = details.firstOrNull { run ->
             run.obj("navigationEndpoint")?.obj("browseEndpoint")
                 ?.string("browseId")?.startsWith("MPRE") == true
@@ -2036,6 +2173,38 @@ class InnerTubeMusicApi @Inject constructor(
         val thumbnails = renderer.obj("thumbnail")?.array("thumbnails")
         val artwork = thumbnails?.lastOrNull()?.asObject()?.string("url")?.highResolutionArtwork()
         return YouTubeMusicTrack(videoId, title, artist, null, artwork, duration)
+    }
+
+    private fun parsePlaylistPanelSong(renderer: JsonObject): YouTubeMusicTrack? {
+        if (renderer.obj("unplayableText") != null) return null
+        val videoId = renderer.string("videoId")
+            ?: renderer.obj("navigationEndpoint")?.obj("watchEndpoint")?.string("videoId")
+            ?: return null
+        val title = renderer.obj("title")?.array("runs")
+            ?.joinToString("") { it.asObject()?.string("text").orEmpty() }
+            ?.trim()?.takeIf(String::isNotBlank)
+            ?: renderer.obj("title")?.string("simpleText")?.trim()?.takeIf(String::isNotBlank)
+            ?: return null
+        val detailRuns = (renderer.obj("longBylineText") ?: renderer.obj("shortBylineText"))
+            ?.array("runs")?.mapNotNull { it.asObject() }.orEmpty()
+        val artist = detailRuns.firstOrNull { run ->
+            run.obj("navigationEndpoint")?.obj("browseEndpoint")
+                ?.string("browseId")?.startsWith("UC") == true
+        }?.string("text") ?: detailRuns.mapNotNull { it.string("text") }
+            .firstOrNull { it.isLikelyArtistDetail() }
+            ?: "Unknown artist"
+        val album = detailRuns.firstOrNull { run ->
+            run.obj("navigationEndpoint")?.obj("browseEndpoint")
+                ?.string("browseId")?.startsWith("MPRE") == true
+        }?.string("text")
+        val duration = renderer.obj("lengthText")?.array("runs")
+            ?.mapNotNull { it.asObject()?.string("text") }
+            ?.firstNotNullOfOrNull(::parseDuration)
+        val artwork = renderer.obj("thumbnail")?.array("thumbnails")
+            ?.lastOrNull()?.asObject()?.string("url")?.let {
+                if (it.startsWith("//")) "https:$it" else it
+            }?.highResolutionArtwork()
+        return YouTubeMusicTrack(videoId, title, artist, album, artwork, duration)
     }
 
     private fun parseSong(renderer: JsonObject): YouTubeMusicTrack? {
@@ -2266,7 +2435,7 @@ class InnerTubeMusicApi @Inject constructor(
 
     private fun String.highResolutionArtwork(): String = when {
         (contains("googleusercontent.com") || contains("ggpht.com")) && '=' in this ->
-            substringBeforeLast('=') + "=w1200-h1200-l90-rj"
+            substringBeforeLast('=') + "=w512-h512-l90-rj"
         else -> this
     }
 
@@ -2381,6 +2550,8 @@ class InnerTubeMusicApi @Inject constructor(
         const val YT_HISTORY_BROWSE_ID = "FEmusic_history"
         const val YT_LIKED_BROWSE_ID = "VLLM"
         const val YT_HOME_BROWSE_ID = "FEmusic_home"
+        const val YT_NEW_RELEASES_BROWSE_ID = "FEmusic_new_releases"
+        const val YT_CHARTS_BROWSE_ID = "FEmusic_charts"
         const val MAX_CONTINUATION_PAGES = 600
         const val WRITE_ACTIONS_PER_REQUEST = 50
 
@@ -2394,6 +2565,7 @@ class InnerTubeMusicApi @Inject constructor(
         const val PLAYER_REQUEST_TIMEOUT_MS = 3_000L
         const val MAX_PLAYER_REQUEST_ATTEMPTS = 2
         const val CONFIG_REQUEST_TIMEOUT_MS = 4_000L
+        const val RELATED_REQUEST_TIMEOUT_MS = 8_000L
         const val SIGNATURE_TIMESTAMP_TIMEOUT_MS = 3_000L
         const val PO_TOKEN_FAST_WAIT_MS = 750L
         const val URL_EXPIRY_MARGIN_MS = 2 * 60 * 1000L
@@ -2405,12 +2577,16 @@ class InnerTubeMusicApi @Inject constructor(
 
         /** Upper bound for the last-resort direct NewPipe extraction. */
         const val FALLBACK_EXTRACT_TIMEOUT_MS = 12_000L
-        val PERMANENT_PLAYABILITY_STATES = setOf(
-            "UNPLAYABLE",
-            "LOGIN_REQUIRED",
-            "AGE_CHECK_REQUIRED",
-            "CONTENT_CHECK_REQUIRED",
-            "LIVE_STREAM_OFFLINE",
+        val CONFIRMED_UNAVAILABLE_REASONS = listOf(
+            "video has been removed",
+            "video has been deleted",
+            "video was removed",
+            "video was deleted",
+            "this video is private",
+            "this is a private video",
+            "not available in your country",
+            "blocked in your country",
+            "copyright claim",
         )
 
         /** How long a failed player client is skipped by the racer. */

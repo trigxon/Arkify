@@ -84,7 +84,7 @@ fun ExpressiveHeader(
         Surface(
             shape = HeaderShape,
             color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 2.dp,
+            tonalElevation = 0.dp,
             // No shadowElevation: a drop shadow under a shape with two
             // sharp top corners and two large rounded bottom ones reads as
             // an odd, hard-edged band right under the header rather than a
