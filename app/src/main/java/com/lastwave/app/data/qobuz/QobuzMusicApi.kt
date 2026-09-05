@@ -113,13 +113,13 @@ class QobuzMusicApi @Inject constructor(
     companion object {
         val BACKEND_BASE_URL: String
             get() = decodeSecretBytes(
-                com.lastwave.app.BuildConfig.QOBUZ_BACKEND_URL_BYTES,
+                com.lastwave.app.BuildConfig.LOSSLESS_BACKEND_URL_BYTES,
                 com.lastwave.app.BuildConfig.SECRET_MASK_BYTES
             )
 
         val BACKEND_API_KEY: String
             get() = decodeSecretBytes(
-                com.lastwave.app.BuildConfig.QOBUZ_API_KEY_BYTES,
+                com.lastwave.app.BuildConfig.LOSSLESS_API_KEY_BYTES,
                 com.lastwave.app.BuildConfig.SECRET_MASK_BYTES
             )
 
