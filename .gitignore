@@ -1,0 +1,59 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated build files
+build/
+**/build/
+.gradle/
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local configuration file (contains SDK location, private tokens)
+local.properties
+
+# Log files
+*.log
+
+# Keystore files
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# OS & Tooling
+.DS_Store
+Thumbs.db
+.acside/
+.codex/
+.codex*
+*.codex
+*.codex*
+*.pid
+
+# Credentials & Environment
+Screenshot/release.jks
+keystore_credentials.txt
+.env
+.wrangler/
+.gradle_home/
+# Bundled provider modules (.lwp packages) and packaging tools
+app/src/main/assets/modules/
+*.lwp
+tools/
+provider.js
+
