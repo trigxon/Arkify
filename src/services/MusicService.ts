@@ -1,3 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { metadataCache } from '../core/cache';
 import { appError, toAppError } from '../core/errors';
 import {
@@ -123,8 +126,39 @@ class MusicServiceImpl {
     return { track: await provider.getMetadata(parsed.id, signal) };
   }
 
-  /** Resolve a playable stream for a track. */
+  /** Resolve a playable stream for a track.
+   *
+   *  If a local file exists for this track (saved via DownloadService), return
+   *  it immediately — zero network, zero latency, works offline. The regular
+   *  resolver chain is only hit when nothing is cached on disk.
+   */
   async resolveStream(track: Track, signal?: AbortSignal) {
+    // Offline-first: prefer a previously downloaded file.
+    // Read the DownloadService index directly (no import cycle) and verify the
+    // file still exists before returning it. DirectStreamSource will handle
+    // file:// URLs, but this lets every call site benefit without passing
+    // audioUrl around.
+    if (Platform.OS !== 'web') {
+      try {
+        const raw = await AsyncStorage.getItem('audia:v1:downloads');
+        if (raw) {
+          const list = JSON.parse(raw) as { id: string; fileUri: string }[];
+          const hit = list.find((e) => e.id === track.id);
+          if (hit?.fileUri) {
+            try {
+              const info = await FileSystem.getInfoAsync(hit.fileUri);
+              if (info.exists) {
+                return {
+                  url: hit.fileUri,
+                  expiresAt: Number.MAX_SAFE_INTEGER,
+                  resolvedBy: 'offline-file',
+                };
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+    }
     return providers.forTrack(track).resolve(track, signal);
   }
 

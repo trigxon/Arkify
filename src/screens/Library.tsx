@@ -11,7 +11,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, X, Trash2 } from 'lucide-react-native';
+import { Plus, X, Trash2, Download, Share2 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { GlassCard } from '../components/common/GlassCard';
@@ -21,6 +21,7 @@ import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { Playlist, Track } from '../core/types';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
+import { DownloadService } from '../services/DownloadService';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -53,6 +54,7 @@ export default function LibraryScreen() {
   const [showImport, setShowImport] = useState(false);
   const [importUrl, setImportUrl] = useState('');
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [downloadedTracks, setDownloadedTracks] = useState<Track[]>([]);
   /** Playlists have their own page, so a tap navigates rather than expanding. */
   const openPlaylist = useCallback(
     (playlist: Playlist) => {
@@ -108,6 +110,22 @@ export default function LibraryScreen() {
     if (!playlist.tracks.length) return;
     playTrack(playlist.tracks[0], { tracks: playlist.tracks, label: playlist.name });
   };
+
+  // Keep Downloaded tab live.
+  React.useEffect(() => {
+    if (activeFilter !== 'Downloaded') return;
+    let cancelled = false;
+    (async () => {
+      const list = await DownloadService.getDownloadedTracks();
+      if (!cancelled) setDownloadedTracks(list);
+    })();
+    return () => { cancelled = true; };
+  }, [activeFilter]);
+
+  const refreshDownloads = React.useCallback(async () => {
+    const list = await DownloadService.getDownloadedTracks();
+    setDownloadedTracks(list);
+  }, []);
 
   /** Create an empty playlist, then open its page so it can be filled. */
   const onCreatePlaylist = () => {
@@ -303,9 +321,33 @@ export default function LibraryScreen() {
             ))}
 
           {activeFilter === 'Downloaded' && (
-            <Text style={styles.emptyHint}>
-              Audia streams on demand and doesn't store audio offline.
-            </Text>
+            downloadedTracks.length ? (
+              <View>
+                {downloadedTracks.map((track) => (
+                  <View key={track.id} style={styles.playlistRow}>
+                    <View style={{ flex: 1 }}>
+                      <TrackRow
+                        track={track}
+                        onPress={(t) => playTrack(t, { tracks: downloadedTracks, label: 'Downloaded' })}
+                        isPlaying={currentTrack?.id === track.id && isPlaying}
+                      />
+                    </View>
+                    <TouchableOpacity style={styles.deleteButton} onPress={async () => { await DownloadService.remove(track.id); await refreshDownloads(); }}>
+                      <Trash2 color={COLORS.text.muted} size={18} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => DownloadService.shareTrack(track)}>
+                      <Share2 color={COLORS.text.muted} size={18} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <Text style={[styles.emptyHint, { marginTop: SIZES.md }]}>Tap a track to play offline — zero network latency. Downloaded files survive app restarts.</Text>
+              </View>
+            ) : (
+              <View>
+                <Text style={styles.emptyHint}>No downloads yet.</Text>
+                <Text style={[styles.emptyHint, { color: COLORS.text.secondary, marginTop: 4 }]}>Open any track’s ••• menu → Download to save it for offline, instant playback.</Text>
+              </View>
+            )
           )}
         </View>
       </ScrollView>

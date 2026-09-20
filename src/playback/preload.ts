@@ -1,4 +1,5 @@
 import { Track } from '../core/types';
+import { DownloadService } from '../services/DownloadService';
 import { streamResolver } from '../providers/stream/StreamResolver';
 
 /**
@@ -24,11 +25,34 @@ class PreloadManager {
    * Passing null (or a track nothing can resolve) simply cancels whatever was
    * in flight -- reaching the end of a queue should not leave a request open.
    */
+  /** Warm the next N tracks — so Skip feels instant even after 2 quick taps. */
+  scheduleMany(tracks: (Track | null)[], n = 2): void {
+    const upcoming = tracks.filter(Boolean).slice(0, n) as Track[];
+    if (!upcoming.length) {
+      this.cancel();
+      return;
+    }
+    // If the immediate next is already warm/ warming, opportunistically warm +1 more.
+    this.schedule(upcoming[0]);
+    if (upcoming.length > 1) {
+      const second = upcoming[1];
+      // Fire second without cancelling first — use a detached resolve.
+      if (second.id !== this.targetId && !streamResolver.peek(second) && streamResolver.canResolve(second)) {
+        // Offline files need no warming.
+        if (DownloadService.isDownloaded(second.id)) return;
+        void streamResolver.resolve(second).catch(() => undefined);
+      }
+    }
+  }
+
   schedule(track: Track | null): void {
     if (!track) {
       this.cancel();
       return;
     }
+
+    // Offline files are already zero-latency — nothing to warm.
+    if (DownloadService.isDownloaded(track.id)) return;
 
     // Already the active target: leave the in-flight request alone.
     if (this.targetId === track.id) return;

@@ -10,10 +10,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, Heart, ListMusic, Plus, X } from 'lucide-react-native';
+import { Check, Heart, ListMusic, Plus, X, Download, Trash2, Share2 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS } from '../../constants/theme';
 import { Track } from '../../core/types';
 import { useLibrary } from '../../hooks/useLibrary';
+import { DownloadService } from '../../services/DownloadService';
 
 type Props = {
   /** The track being filed. Null closes the sheet. */
@@ -41,6 +42,9 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
 
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   /**
    * Keyboard height, applied as bottom inset on the sheet.
@@ -62,6 +66,13 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
   }, []);
 
   const liked = track ? isLiked(track.id) : false;
+
+  useEffect(() => {
+    if (!track) return;
+    setDownloaded(DownloadService.isDownloaded(track.id));
+    setDownloadError(null);
+    setDownloading(false);
+  }, [track?.id]);
 
   /** Newest-first, matching how Library orders them. */
   const ordered = useMemo(
@@ -166,6 +177,63 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
         )}
 
         <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
+          {/* Quick actions: Download / Share — fix for dead buttons */}
+          {!!track && (
+            <>
+              <TouchableOpacity
+                style={styles.row}
+                activeOpacity={0.7}
+                disabled={downloading}
+                onPress={async () => {
+                  if (!track) return;
+                  if (downloaded) {
+                    await DownloadService.remove(track.id);
+                    setDownloaded(false);
+                  } else {
+                    setDownloading(true);
+                    setDownloadError(null);
+                    try {
+                      await DownloadService.download(track);
+                      setDownloaded(true);
+                    } catch (e: any) {
+                      setDownloadError(e?.message ?? 'Download failed');
+                    } finally {
+                      setDownloading(false);
+                    }
+                  }
+                }}
+              >
+                <View style={styles.rowIcon}>
+                  {downloaded ? (
+                    <Trash2 color={COLORS.accent.green} size={20} />
+                  ) : (
+                    <Download color={COLORS.text.primary} size={20} />
+                  )}
+                </View>
+                <View style={styles.rowTextWrap}>
+                  <Text style={styles.rowLabel}>
+                    {downloading ? 'Downloading…' : downloaded ? 'Remove download' : 'Download'}
+                  </Text>
+                  <Text style={styles.rowMeta}>
+                    {downloaded ? 'Available offline' : 'Save for offline playback'}
+                  </Text>
+                </View>
+                {downloaded && <Check color={COLORS.accent.green} size={18} />}
+              </TouchableOpacity>
+              {downloadError && <Text style={styles.errorText}>{downloadError}</Text>}
+              <TouchableOpacity
+                style={styles.row}
+                activeOpacity={0.7}
+                onPress={() => track && DownloadService.shareTrack(track)}
+              >
+                <View style={styles.rowIcon}>
+                  <Share2 color={COLORS.text.primary} size={20} />
+                </View>
+                <Text style={styles.rowLabel}>Share</Text>
+              </TouchableOpacity>
+              <View style={styles.separator} />
+            </>
+          )}
           {/* Liked Songs is synthetic, so it toggles the like instead. */}
           <TouchableOpacity
             style={styles.row}
@@ -325,6 +393,18 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: COLORS.glassBorder,
+    marginVertical: SIZES.sm,
+  },
+  errorText: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.accent.red,
+    marginTop: 2,
+    marginLeft: SIZES.md,
   },
   empty: {
     fontFamily: FONTS.regular,

@@ -48,7 +48,8 @@
       "expo-asset",
       "./plugins/withCoreLibraryDesugaring",
       "./plugins/withAndroidAbis",
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "expo-sharing"
     ],
     "backgroundColor": "#050707"
   }

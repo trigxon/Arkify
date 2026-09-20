@@ -79,11 +79,18 @@ export function toAppError(e: unknown, fallback: ErrorKind = 'unknown'): AppErro
   const raw = e instanceof Error ? e.message : String(e);
 
   if (e instanceof Error && e.name === 'AbortError') {
-    return new AppError('timeout', MESSAGES.timeout, { detail: raw, cause: e });
+    return new AppError('timeout', MESSAGES.timeout, { detail: raw, cause: e, retryable: true });
   }
   // React Native / browser fetch both surface connectivity failures this way.
   if (/network request failed|fetch failed|failed to fetch|networkerror|enotfound|econnrefused|econnreset|etimedout|dns/i.test(raw)) {
     return new AppError('network', MESSAGES.network, { detail: raw, cause: e });
+  }
+
+  // YouTube InnerTube responses can be valid JSON with an embedded error (e.g. captcha challenge)
+  // that is sometimes surfaced as a normal string by the transport layer; surface it as a
+  // recoverable source error so the fallback endpoint / native path can still be tried.
+  if (/captcha|recaptcha/i.test(raw)) {
+    return new AppError('rate_limited', MESSAGES.rate_limited, { detail: raw, cause: e, retryable: true });
   }
 
   return new AppError(fallback, MESSAGES[fallback], { detail: raw, cause: e });
