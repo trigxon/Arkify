@@ -44,13 +44,18 @@ def sample_bg(img: Image.Image) -> tuple:
 
 
 def make_monochrome(img: Image.Image, size: int = 1024, threshold: int = 60) -> Image.Image:
-    """White silhouette with luminance-derived alpha; Android tints themed icons."""
+    """White silhouette with luminance-derived alpha; Android tints themed icons.
+
+    Built as a pure-white canvas whose alpha carries the silhouette, so every
+    pixel is RGB(255,255,255) and only the alpha channel varies — exactly what
+    the Android 13+ themed-icon pipeline expects.
+    """
     gray = img.convert("L").resize((size, size), Image.LANCZOS)
-    gray = gray.point(
+    alpha = gray.point(
         lambda v: 0 if v < threshold else min(255, int((v - threshold) * 255 / (220 - threshold)))
     )
-    mono = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    mono.paste(Image.new("RGBA", (size, size), (255, 255, 255, 255)), (0, 0), gray)
+    mono = Image.new("RGBA", (size, size), (255, 255, 255, 255))
+    mono.putalpha(alpha)
     return mono
 
 
