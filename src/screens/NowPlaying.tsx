@@ -95,7 +95,7 @@ export default function NowPlayingScreen() {
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerSub}>PLAYING FROM</Text>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {queueContext || 'NØTE'}
+              {queueContext || 'Audia'}
             </Text>
           </View>
           {/* Up Next already has its own toggle in the bottom row, so this

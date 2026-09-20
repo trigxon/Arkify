@@ -1,12 +1,12 @@
-import NoteNativeModule from './src/NoteNativeModule';
-import { NativeStreamResult, PlatformInfo } from './src/NoteNative.types';
+import AudiaNativeModule from './src/AudiaNativeModule';
+import { NativeStreamResult, PlatformInfo } from './src/AudiaNative.types';
 
-export * from './src/NoteNative.types';
-export { default as NoteNativeModule } from './src/NoteNativeModule';
+export * from './src/AudiaNative.types';
+export { default as AudiaNativeModule } from './src/AudiaNativeModule';
 
-/** True when this binary actually contains the NØTE native module. */
-export function isNoteNativeAvailable(): boolean {
-  return NoteNativeModule != null;
+/** True when this binary actually contains the Audia native module. */
+export function isAudiaNativeAvailable(): boolean {
+  return AudiaNativeModule != null;
 }
 
 /**
@@ -14,7 +14,7 @@ export function isNoteNativeAvailable(): boolean {
  * Returns null instead of throwing when the native module is absent.
  */
 export function getPlatformInfo(): PlatformInfo | null {
-  return NoteNativeModule?.getPlatformInfo() ?? null;
+  return AudiaNativeModule?.getPlatformInfo() ?? null;
 }
 
 /**
@@ -27,12 +27,12 @@ export function getPlatformInfo(): PlatformInfo | null {
 export async function resolveYouTubeStream(
   videoId: string
 ): Promise<NativeStreamResult> {
-  const module = NoteNativeModule;
+  const module = AudiaNativeModule;
   if (!module) {
     return {
       ok: false,
       reason: 'module_unavailable',
-      message: 'NoteNative is not present in this binary',
+      message: 'AudiaNative is not present in this binary',
     };
   }
 

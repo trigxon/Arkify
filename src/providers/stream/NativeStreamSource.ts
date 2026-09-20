@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import {
   NativeStreamFailureReason,
   resolveYouTubeStream,
-} from '../../../modules/note-native';
+} from '../../../modules/audia-native';
 import { AppError, appError, appErrorWithMessage } from '../../core/errors';
 import { ResolvedStream, Track } from '../../core/types';
 import { StreamSource } from './StreamResolver';
@@ -18,7 +18,7 @@ import { StreamSource } from './StreamResolver';
  */
 
 /**
- * Mirrors NoteNativeDownloader.USER_AGENT.
+ * Mirrors AudiaNativeDownloader.USER_AGENT.
  *
  * The native module reports the User-Agent it extracted with, and that is
  * the authoritative value. This fallback covers binaries built before that

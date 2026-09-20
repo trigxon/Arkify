@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * several times a second and must never turn into a storage write storm.
  */
 
-const PREFIX = 'note:v1:';
+const PREFIX = 'audia:v1:';
 const key = (k: string) => PREFIX + k;
 
 const pending = new Map<string, unknown>();

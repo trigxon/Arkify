@@ -3,7 +3,7 @@ const { withAppBuildGradle } = require('expo/config-plugins');
 /**
  * Enables Android core library desugaring in the generated app module.
  *
- * NewPipe Extractor (used by modules/note-native) calls java.time APIs that
+ * NewPipe Extractor (used by modules/audia-native) calls java.time APIs that
  * only exist natively from API 26. NØTE ships minSdk 24, so without the
  * desugared backport those calls would throw on Android 7.x devices.
  *

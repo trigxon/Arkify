@@ -1,8 +1,8 @@
 import { registerWebModule, NativeModule } from 'expo';
 
-import { NativeStreamResult, PlatformInfo } from './NoteNative.types';
+import { NativeStreamResult, PlatformInfo } from './AudiaNative.types';
 
-class NoteNativeModule extends NativeModule<{}> {
+class AudiaNativeModule extends NativeModule<{}> {
   getPlatformInfo(): PlatformInfo {
     return { platform: 'web', native: false };
   }
@@ -17,4 +17,4 @@ class NoteNativeModule extends NativeModule<{}> {
   }
 }
 
-export default registerWebModule(NoteNativeModule, 'NoteNativeModule');
+export default registerWebModule(AudiaNativeModule, 'AudiaNativeModule');

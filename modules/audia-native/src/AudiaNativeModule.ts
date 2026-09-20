@@ -1,8 +1,8 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 
-import { NativeStreamResult, PlatformInfo } from './NoteNative.types';
+import { NativeStreamResult, PlatformInfo } from './AudiaNative.types';
 
-declare class NoteNativeModule extends NativeModule<{}> {
+declare class AudiaNativeModule extends NativeModule<{}> {
   getPlatformInfo(): PlatformInfo;
   resolveYouTubeStream(videoId: string): Promise<NativeStreamResult>;
 }
@@ -12,4 +12,4 @@ declare class NoteNativeModule extends NativeModule<{}> {
  * development build made before this module existed. Callers must handle that,
  * which is why `index.ts` exposes the guarded helpers instead.
  */
-export default requireOptionalNativeModule<NoteNativeModule>('NoteNative');
+export default requireOptionalNativeModule<AudiaNativeModule>('AudiaNative');

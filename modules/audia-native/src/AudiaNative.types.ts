@@ -1,4 +1,4 @@
-/** Result of `NoteNative.getPlatformInfo()`. */
+/** Result of `AudiaNative.getPlatformInfo()`. */
 export type PlatformInfo = {
   /** Always 'android' when served by the Kotlin module; 'web' from the web shim. */
   platform: string;

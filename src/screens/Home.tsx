@@ -141,7 +141,7 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.greeting}>{greetingFor(new Date().getHours())}</Text>
             {!!profile.name && <Text style={styles.name}>{profile.name}.</Text>}
-            <Text style={styles.madeBy}>MADE BY SJBUILDS</Text>
+            <Text style={styles.madeBy}>MADE BY TRIGXON</Text>
           </View>
           <TouchableOpacity
             style={styles.avatar}

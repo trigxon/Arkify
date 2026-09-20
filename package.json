@@ -1,5 +1,5 @@
 {
-  "name": "note",
+  "name": "audia",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
@@ -40,5 +40,7 @@
   },
   "private": true,
   "license": "GPL-3.0-or-later",
-  "author": "Sanyam Jain"
+  "author": "ARK DURRANI <5073340abdulrehmankhandurrani@gmail.com>",
+  "homepage": "https://github.com/trigxon/Audia#readme",
+  "bugs": "https://github.com/trigxon/Audia/issues"
 }

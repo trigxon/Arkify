@@ -12,7 +12,7 @@ import NowPlayingScreen from '../screens/NowPlaying';
 
 const Stack = createNativeStackNavigator();
 
-const NoteTheme = {
+const AudiaTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
@@ -31,7 +31,7 @@ export const RootNavigator = () => {
   const initialRoute = profile.completed ? 'Main' : 'Onboarding';
 
   return (
-    <NavigationContainer theme={NoteTheme}>
+    <NavigationContainer theme={AudiaTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
