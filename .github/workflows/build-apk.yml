@@ -1,0 +1,93 @@
+name: Build Audia APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build release APK
+        # No release keystore in CI -> debug-signed APK, installable for testing.
+        # Provide credentials/keystore.json to produce a release-signed build.
+        run: cd android && ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          mkdir -p output
+          cp android/app/build/outputs/apk/release/app-release.apk output/Audia-v1.0.0.apk
+
+      - name: Compute SHA-256
+        run: |
+          cd output
+          sha256sum Audia-v1.0.0.apk > Audia-v1.0.0.apk.sha256
+          cat Audia-v1.0.0.apk.sha256
+
+      - name: Verify APK branding (label must be Audia)
+        run: |
+          ANDROID_HOME="$HOME/android-sdk"
+          if [ ! -d "$ANDROID_HOME" ]; then
+            ANDROID_HOME="$(dirname "$(dirname "$(which sdkmanager 2>/dev/null || echo /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager)")")"
+          fi
+          echo "Using ANDROID_HOME=$ANDROID_HOME"
+          BT="$ANDROID_HOME/build-tools"
+          AAPT="$(ls "$BT"/*/aapt2 2>/dev/null | sort -V | tail -1)"
+          echo "aapt2: $AAPT"
+          LABEL="$("$AAPT" dump badging output/Audia-v1.0.0.apk | grep -E "^application-label:|^application-label-zh" | head -1)"
+          echo "Detected label line: $LABEL"
+          echo "$LABEL" | grep -q "application-label:.*Audia" || {
+            echo "::error::APK application label is not 'Audia'"
+            exit 1
+          }
+          PKG="$("$AAPT" dump badging output/Audia-v1.0.0.apk | grep "^package:" | head -1)"
+          echo "Detected package line: $PKG"
+          echo "$PKG" | grep -q "com.trigxon.audia" || {
+            echo "::error::APK package is not com.trigxon.audia"
+            exit 1
+          }
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Audia-v1.0.0-apk
+          path: |
+            output/Audia-v1.0.0.apk
+            output/Audia-v1.0.0.apk.sha256
+          if-no-files-found: error
