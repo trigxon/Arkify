@@ -6,15 +6,15 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { PlayerProvider } from './src/hooks/usePlayer';
 import { LibraryProvider } from './src/hooks/useLibrary';
 import { COLORS } from './src/constants/theme';
-import { getPlatformInfo, isNoteNativeAvailable } from './modules/note-native';
+import { getPlatformInfo, isAudiaNativeAvailable } from './modules/audia-native';
 
 export default function App() {
   // Proof-of-connection for the Android native module. Dev-only, no UI impact.
   useEffect(() => {
     if (__DEV__) {
       console.log(
-        '[NoteNative] available:',
-        isNoteNativeAvailable(),
+        '[AudiaNative] available:',
+        isAudiaNativeAvailable(),
         'getPlatformInfo():',
         getPlatformInfo()
       );

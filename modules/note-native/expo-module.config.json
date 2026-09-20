@@ -1,9 +1,0 @@
-{
-  "platforms": ["apple", "android", "web"],
-  "apple": {
-    "modules": ["NoteNativeModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.notenative.NoteNativeModule"]
-  }
-}

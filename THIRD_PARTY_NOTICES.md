@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-NØTE incorporates the following third-party components. Their copyright
+Audia incorporates the following third-party components. Their copyright
 holders and license terms are reproduced or referenced below. Nothing in this
 file transfers ownership: each component remains the work of its authors.
 
@@ -18,7 +18,7 @@ file transfers ownership: each component remains the work of its authors.
 ### How it is used
 
 NewPipe Extractor is consumed as an **unmodified binary dependency**, declared
-in `modules/note-native/android/build.gradle` and fetched from JitPack:
+in `modules/audia-native/android/build.gradle` and fetched from JitPack:
 
 ```gradle
 implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.26.5'
@@ -28,14 +28,14 @@ No NewPipe source code has been copied into this repository, and no NewPipe
 source has been modified. The NewPipe *application* is not used or included —
 only the extractor library.
 
-`modules/note-native/android/src/main/java/expo/modules/notenative/NoteNativeDownloader.kt`
-is original NØTE code written against the extractor's public `Downloader`
+`modules/audia-native/android/src/main/java/expo/modules/audianative/AudiaNativeDownloader.kt`
+is original Audia code written against the extractor's public `Downloader`
 abstract class. It is not derived from NewPipe's own `DownloaderImpl`.
 
 ### Licensing consequence — resolved
 
 GPL-3.0-or-later is a copyleft license, so the combined work is also
-GPL-3.0-or-later. NØTE is therefore licensed GPL-3.0-or-later; see the root
+GPL-3.0-or-later. Audia is therefore licensed GPL-3.0-or-later; see the root
 `LICENSE` file. The MIT text that previously sat there came from the Expo
 project template and did not describe this combined work.
 
@@ -49,14 +49,14 @@ Their terms apply independently and are unaffected by this file.
 
 ## Expo module template
 
-`modules/note-native/` was scaffolded with `npx create-expo-module --local`. The
+`modules/audia-native/` was scaffolded with `npx create-expo-module --local`. The
 generated directory structure and boilerplate come from a template distributed
 by Expo (© 650 Industries, Inc.) under the **MIT License**.
 
-That MIT notice is reproduced in `modules/note-native/LICENSE` in acknowledgement
+That MIT notice is reproduced in `modules/audia-native/LICENSE` in acknowledgement
 of the scaffold's origin. It covers the generated boilerplate only. The original
-NØTE code in that directory — including `NoteNativeModule.kt` and
-`NoteNativeDownloader.kt` — is the work of Sanyam Jain and is licensed
+Audia code in that directory — including `AudiaNativeModule.kt` and
+`AudiaNativeDownloader.kt` — is the work of ARK DURRANI and is licensed
 GPL-3.0-or-later along with the rest of this project.
 
 ---

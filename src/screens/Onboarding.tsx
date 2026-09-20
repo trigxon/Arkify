@@ -39,7 +39,7 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.centerContent}>
-          <Text style={styles.title}>N Ø T E</Text>
+          <Text style={styles.title}>A U D I A</Text>
           <Text style={styles.tagline}>YOUR MUSIC. YOUR WAY.</Text>
         </View>
 
@@ -57,7 +57,7 @@ export default function OnboardingScreen() {
           
           <Text style={styles.footerText}>LISTEN FREELY.</Text>
           <Text style={styles.footerText}>LIVE FULLY.</Text>
-          <Text style={styles.madeBy}>MADE BY SJBUILDS</Text>
+          <Text style={styles.madeBy}>MADE BY TRIGXON</Text>
         </View>
       </View>
     </View>

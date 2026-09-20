@@ -1,4 +1,4 @@
-package expo.modules.notenative
+package expo.modules.audianative
 
 import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request
@@ -14,11 +14,11 @@ import java.util.zip.GZIPInputStream
  * Minimal HTTP transport for NewPipe Extractor.
  *
  * The extractor deliberately ships no networking of its own -- every consumer
- * supplies a Downloader. This is NØTE's own implementation (not taken from the
+ * supplies a Downloader. This is Audia's own implementation (not taken from the
  * NewPipe app), written against java.net so it adds no dependency that could
  * conflict with the OkHttp version React Native already bundles.
  */
-class NoteNativeDownloader : Downloader() {
+class AudiaNativeDownloader : Downloader() {
 
   companion object {
     /**
