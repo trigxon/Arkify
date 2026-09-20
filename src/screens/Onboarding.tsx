@@ -57,7 +57,7 @@ export default function OnboardingScreen() {
           
           <Text style={styles.footerText}>LISTEN FREELY.</Text>
           <Text style={styles.footerText}>LIVE FULLY.</Text>
-          <Text style={styles.madeBy}>MADE BY TRIGXON</Text>
+          <Text style={styles.madeBy}>MADE BY ARK DURRANI (PATHAN)</Text>
         </View>
       </View>
     </View>

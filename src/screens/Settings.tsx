@@ -139,7 +139,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Row label="Version" value={`${version}`} />
           <Divider />
-          <Row label="Made by" value="trigxon" />
+          <Row label="Made by" value="ARK DURRANI (PATHAN)" />
           <Divider />
           <LinkRow label="Source code" onPress={() => open(REPO_URL)} />
         </View>
@@ -149,7 +149,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.legalTitle}>Audia</Text>
           <Text style={styles.legalBody}>
-            Copyright © 2026 ARK DURRANI.{'\n\n'}
+            Copyright © 2026 ARK DURRANI (PATHAN).{'\n\n'}
             This program is free software: you can redistribute it and/or modify it
             under the terms of the GNU General Public License as published by the
             Free Software Foundation, either version 3 of the License, or (at your
@@ -174,7 +174,7 @@ export default function SettingsScreen() {
           <LinkRow label="NewPipeExtractor on GitHub" onPress={() => open(NEWPIPE_URL)} />
         </View>
 
-        <Text style={styles.footer}>MADE BY TRIGXON</Text>
+        <Text style={styles.footer}>MADE BY ARK DURRANI (PATHAN)</Text>
       </ScrollView>
     </View>
   );

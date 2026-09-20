@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version        = '1.0.0'
   s.summary        = 'Audia native module'
   s.description    = 'Audia\'s Android/iOS native surface for stream resolution'
-  s.author         = 'ARK DURRANI <5073340abdulrehmankhandurrani@gmail.com>'
+  s.author         = 'ARK DURRANI (PATHAN) <5073340abdulrehmankhandurrani@gmail.com>'
   s.homepage       = 'https://github.com/trigxon/Audia'
   s.platforms      = {
     :ios => '16.4',
