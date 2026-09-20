@@ -56,7 +56,7 @@ by Expo (© 650 Industries, Inc.) under the **MIT License**.
 That MIT notice is reproduced in `modules/audia-native/LICENSE` in acknowledgement
 of the scaffold's origin. It covers the generated boilerplate only. The original
 Audia code in that directory — including `AudiaNativeModule.kt` and
-`AudiaNativeDownloader.kt` — is the work of ARK DURRANI and is licensed
+`AudiaNativeDownloader.kt` — is the work of ARK DURRANI (PATHAN) and is licensed
 GPL-3.0-or-later along with the rest of this project.
 
 ---

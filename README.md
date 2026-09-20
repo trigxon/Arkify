@@ -147,7 +147,7 @@ project copyright notice is in [`COPYRIGHT`](COPYRIGHT).
 
 ```
 Audia — a music player for Android
-Copyright (C) 2026 ARK DURRANI
+Copyright (C) 2026 ARK DURRANI (PATHAN)
 
 This program is free software: you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software Foundation,
@@ -218,7 +218,7 @@ The NewPipe **application** is not used or bundled — only the extractor librar
 - Audia is **not affiliated with Team NewPipe.** NewPipe Extractor is used as an
   independent, unmodified library under its own license, and its authors have no
   involvement in this project.
-- Audia is an independent project maintained by **trigxon**.
+- Audia is an independent project maintained by **ARK DURRANI (PATHAN)** (trigxon).
 
 ## No content is hosted or distributed
 
@@ -278,7 +278,7 @@ contain provider-specific playback logic.
 
 ## Credits
 
-Developed and maintained by **ARK DURRANI** (**trigxon**).
+Developed and maintained by **ARK DURRANI (PATHAN)** (**trigxon**).
 
 Stream resolution is powered by the excellent
 [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) by Team NewPipe.
