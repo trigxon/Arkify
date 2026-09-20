@@ -62,7 +62,7 @@ Grab the signed APK from the **[latest release](https://github.com/trigxon/Audia
 Verify it before installing:
 
 ```
-SHA-256  <checksum of the new release APK — updated on release>
+SHA-256  6fe7352b6e3a4477d28d30e6e7ae16bd62bc0f4dd5e7e35b6c9654917efa6ceb
 ```
 
 ```bash
@@ -78,8 +78,10 @@ will warn you about installing from an unknown source — that warning is expect
 APK obtained outside the Play Store. Only install a build whose checksum matches the one
 published above, or one you compiled yourself from this repository.
 
-Requires Android 7.0 or newer. The release APK is signed with the project's own key; it is
-not affiliated with, reviewed by, or distributed by Google.
+Requires Android 7.0 or newer. The APK published here is built by CI and signed with a
+debug key for testing; a production release-signed build requires the maintainer's private
+keystore (see `plugins/withReleaseSigning.js`). This project is not affiliated with,
+reviewed by, or distributed by Google.
 
 ## Build from source
 
