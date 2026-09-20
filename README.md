@@ -62,7 +62,7 @@ Grab the signed APK from the **[latest release](https://github.com/trigxon/Audia
 Verify it before installing:
 
 ```
-SHA-256  6fe7352b6e3a4477d28d30e6e7ae16bd62bc0f4dd5e7e35b6c9654917efa6ceb
+SHA-256  764ba22018f8a908927fe65ddf7aad8e0e9557b6832ac5a83dd151d77bb495ac
 ```
 
 ```bash
