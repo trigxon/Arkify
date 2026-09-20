@@ -6,6 +6,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { PlayerProvider } from './src/hooks/usePlayer';
 import { LibraryProvider } from './src/hooks/useLibrary';
 import { COLORS } from './src/constants/theme';
+import { DownloadService } from './src/services/DownloadService';
 import { getPlatformInfo, isAudiaNativeAvailable } from './modules/audia-native';
 
 export default function App() {
@@ -19,6 +20,13 @@ export default function App() {
         getPlatformInfo()
       );
     }
+  }, []);
+
+  // Warm the download index early so the first Download tap is fast and
+  // so offline-stream checks don't pay the AsyncStorage cost on the
+  // first play.
+  useEffect(() => {
+    void DownloadService.init();
   }, []);
 
   return (

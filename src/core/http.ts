@@ -51,9 +51,13 @@ export async function fetchJson<T>(url: string, init: JsonInit = {}): Promise<T>
     signal,
   } = init;
 
+  if (signal?.aborted) throw new AppError('timeout', 'Request was cancelled.', { detail: `url=${url}` });
+
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    if (signal?.aborted) throw toAppError(new DOMException('AbortError', 'AbortError'), 'timeout');
+
     const { signal: linked, dispose } = linkedController(signal, timeoutMs);
 
     try {

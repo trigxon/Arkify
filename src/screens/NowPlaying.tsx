@@ -17,6 +17,7 @@ import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { PlaybackSourceSheet } from '../components/player/PlaybackSourceSheet';
 import { SeekBar } from '../components/player/SeekBar';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
+import { DownloadService } from '../services/DownloadService';
 import { Track } from '../core/types';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
@@ -193,7 +194,7 @@ export default function NowPlayingScreen() {
               size={24}
             />
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => currentTrack && DownloadService.shareTrack(currentTrack)}>
             <Share color={COLORS.text.secondary} size={24} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowQueue((v) => !v)}>

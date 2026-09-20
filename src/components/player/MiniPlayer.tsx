@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Play, Pause, MonitorSpeaker } from 'lucide-react-native';
 import { Track } from '../../core/types';
 import { useProgress } from '../../hooks/usePlayer';
@@ -36,26 +37,29 @@ const MiniPlayerProgress: React.FC = React.memo(() => {
 });
 MiniPlayerProgress.displayName = 'MiniPlayerProgress';
 
-export const MiniPlayer: React.FC<MiniPlayerProps> = ({ 
-  track, 
-  isPlaying, 
-  onPress, 
+export const MiniPlayer: React.FC<MiniPlayerProps> = ({
+  track,
+  isPlaying,
+  onPress,
   onPlayPause,
-  tabBarHeight = Platform.OS === 'ios' ? 88 : 68,
+  tabBarHeight,
   isLoading = false
 }) => {
+  const insets = useSafeAreaInsets();
   const [showSource, setShowSource] = useState(false);
+  // Tab bar height matches TabNavigator: 52 content + real bottom inset (or 8 fallback).
+  const resolvedTabBarHeight = tabBarHeight ?? 52 + Math.max(insets.bottom, 8);
 
 
   if (!track) return null;
 
   return (
-    <TouchableOpacity 
-      activeOpacity={0.9} 
+    <TouchableOpacity
+      activeOpacity={0.9}
       onPress={onPress}
       style={[
-        styles.positionContainer, 
-        { bottom: tabBarHeight } // Flush with the tab bar: no gap for content to show through
+        styles.positionContainer,
+        { bottom: resolvedTabBarHeight + 8 }
       ]}
     >
       <View style={[styles.container, SHADOWS.glass]}>
@@ -68,10 +72,23 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
           </View>
 
           <View style={styles.controls}>
-            <TouchableOpacity style={styles.iconButton} onPress={() => setShowSource(true)}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={(e) => {
+                // Don't bubble to the outer row — the row opens Now Playing.
+                (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
+                setShowSource(true);
+              }}
+            >
                <MonitorSpeaker color={COLORS.text.secondary} size={20} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.playButton} onPress={onPlayPause}>
+            <TouchableOpacity
+              style={styles.playButton}
+              onPress={(e) => {
+                (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
+                onPlayPause();
+              }}
+            >
               {isLoading ? (
                 <ActivityIndicator size="small" color={COLORS.text.primary} />
               ) : isPlaying ? (

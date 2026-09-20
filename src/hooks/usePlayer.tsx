@@ -188,8 +188,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (__DEV__) console.log('[playback] started', track.title);
         LibraryService.recordPlay(track);
 
-        // Warm exactly one track ahead, so pressing skip is instant.
-        preloader.schedule(queueRef.current.peekNext());
+        // Warm next 2 tracks so rapid skips are still instant.
+        // Reads upcoming directly (no snapshot needed) — queue is mutable.
+        {
+          const up = queueRef.current.upcoming;
+          if (up.length) preloader.scheduleMany(up, 2);
+        }
       } catch (e) {
         if (id !== loadId.current) return;
 
@@ -508,7 +512,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       persistQueue();
 
       if (wasEmpty) void loadCurrent({ autoPlay: true });
-      else preloader.schedule(queueRef.current.peekNext());
+      else {
+        const up = queueRef.current.upcoming;
+        if (up.length) preloader.scheduleMany(up, 2);
+      }
     },
     [bumpQueue, loadCurrent, persistQueue]
   );
@@ -562,7 +569,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     queueRef.current.toggleShuffle();
     bumpQueue();
     persistQueue();
-    preloader.schedule(queueRef.current.peekNext());
+    {
+      const up = queueRef.current.upcoming;
+      if (up.length) preloader.scheduleMany(up, 2);
+    }
   }, [bumpQueue, persistQueue]);
 
   const cycleRepeat = useCallback(() => {

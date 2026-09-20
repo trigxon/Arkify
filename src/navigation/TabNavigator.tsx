@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Search, Library, Clock } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
@@ -13,11 +14,17 @@ import HistoryScreen from '../screens/History';
 const Tab = createBottomTabNavigator();
 
 export const TabNavigator = () => {
+  const insets = useSafeAreaInsets();
+  // Use the real bottom inset so the bar never sits under the gesture bar or 3-button nav.
+  // Fallback 8 keeps spacing on devices that report 0 before the first layout pass.
+  const bottomInset = Math.max(insets.bottom, 8);
+  const barHeight = 52 + bottomInset;
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { height: barHeight, paddingBottom: bottomInset }],
         tabBarBackground: () => <View style={styles.tabBarBackground} />,
         tabBarActiveTintColor: COLORS.text.primary,
         tabBarInactiveTintColor: COLORS.text.secondary,
@@ -86,8 +93,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     elevation: 0,
     backgroundColor: 'transparent',
-    height: Platform.OS === 'ios' ? 88 : 68,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
     paddingTop: 8,
   },
   tabBarLabel: {
