@@ -26,8 +26,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        # Hosted runners ship the SDK preinstalled; just make sure licenses are
+        # accepted so AGP can auto-download the platform/build-tools it needs.
+        run: yes | "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -62,10 +64,7 @@ jobs:
 
       - name: Verify APK branding (label must be Audia)
         run: |
-          ANDROID_HOME="$HOME/android-sdk"
-          if [ ! -d "$ANDROID_HOME" ]; then
-            ANDROID_HOME="$(dirname "$(dirname "$(which sdkmanager 2>/dev/null || echo /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager)")")"
-          fi
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo "Using ANDROID_HOME=$ANDROID_HOME"
           BT="$ANDROID_HOME/build-tools"
           AAPT="$(ls "$BT"/*/aapt2 2>/dev/null | sort -V | tail -1)"
