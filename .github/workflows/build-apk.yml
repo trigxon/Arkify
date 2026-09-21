@@ -87,7 +87,14 @@ jobs:
 
       - name: Verify APK is release-signed
         run: |
-          "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/"*/apksigner verify --print-certs output/Audia-v1.1.0.apk | head -5
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          APKSIGNER="$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          echo "apksigner: $APKSIGNER"
+          "$APKSIGNER" verify --print-certs output/Audia-v1.1.0.apk
+          "$APKSIGNER" verify --print-certs output/Audia-v1.1.0.apk | grep -q "ARK DURRANI" || {
+            echo "::error::APK is not signed with Audia's release key"
+            exit 1
+          }
 
       - name: Rename APK
         run: |
