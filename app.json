@@ -44,6 +44,15 @@
           "recordAudioAndroid": false
         }
       ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#060808"
+        }
+      ],
       "expo-asset",
       "./plugins/withCoreLibraryDesugaring",
       "./plugins/withAndroidAbis",

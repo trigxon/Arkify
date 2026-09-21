@@ -1,9 +1,22 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, StyleProp, ViewStyle } from 'react-native';
-import { LucideIcon } from 'lucide-react-native';
+import { LucideIcon, Music } from 'lucide-react-native';
 import { ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../../constants/theme';
 import { Artwork } from './Artwork';
+
+/** Per-category hue pair for the browse tiles' ambient depth. */
+const CATEGORY_GLOWS: Record<string, [string, string]> = {
+  Charts: ['rgba(46, 204, 113, 0.16)', 'rgba(46, 204, 113, 0)'],
+  'New Releases': ['rgba(155, 89, 182, 0.16)', 'rgba(155, 89, 182, 0)'],
+  Moods: ['rgba(255, 159, 67, 0.15)', 'rgba(255, 159, 67, 0)'],
+  Indian: ['rgba(241, 196, 15, 0.14)', 'rgba(241, 196, 15, 0)'],
+  'Hip-Hop': ['rgba(93, 173, 226, 0.16)', 'rgba(93, 173, 226, 0)'],
+  Pop: ['rgba(244, 143, 177, 0.15)', 'rgba(244, 143, 177, 0)'],
+  EDM: ['rgba(61, 214, 195, 0.17)', 'rgba(61, 214, 195, 0)'],
+  Rock: ['rgba(236, 112, 99, 0.15)', 'rgba(236, 112, 99, 0)'],
+};
 
 // ---------------------------------------------------------------------------
 // MediaCard — artwork-led card for playlists / artists / albums
@@ -105,22 +118,37 @@ type CategoryTileProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export const CategoryTile: React.FC<CategoryTileProps> = ({ label, onPress, style }) => (
-  <TouchableOpacity
-    style={[styles.categoryTile, style]}
-    activeOpacity={0.75}
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityLabel={`Browse ${label}`}
-  >
-    <Text style={styles.categoryTileLabel} numberOfLines={2}>
-      {label}
-    </Text>
-    <View style={styles.categoryTileGlyph}>
-      <View style={[styles.categoryTileDot, { backgroundColor: COLORS.accent.primary }]} />
-    </View>
-  </TouchableOpacity>
-);
+/**
+ * Browse category tile: dark elevated card with a soft category-hued ambient
+ * wash and a corner icon chip. Artwork-free by design (no fake covers) —
+ * depth comes from the wash, not from invented imagery.
+ */
+export const CategoryTile: React.FC<CategoryTileProps> = ({ label, onPress, style }) => {
+  const glow = CATEGORY_GLOWS[label] ?? ['rgba(61, 214, 195, 0.14)', 'rgba(61, 214, 195, 0)'];
+
+  return (
+    <TouchableOpacity
+      style={[styles.categoryTile, style]}
+      activeOpacity={0.75}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Browse ${label}`}
+    >
+      <LinearGradient
+        colors={glow}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+      />
+      <View style={styles.categoryTileGlyph}>
+        <Music color={COLORS.accent.primary} size={14} strokeWidth={2.2} />
+      </View>
+      <Text style={[styles.categoryTileLabel, { position: 'relative' }]} numberOfLines={2}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   mediaCard: {
@@ -164,13 +192,15 @@ const styles = StyleSheet.create({
   },
 
   categoryTile: {
-    height: 88,
+    height: 96,
     borderRadius: SIZES.radius.md,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.hairline,
     padding: SIZES.md,
     justifyContent: 'flex-end',
+    overflow: 'hidden',
+    ...SHADOWS.ambient,
   },
   categoryTileLabel: {
     fontFamily: FONTS.medium,
@@ -179,13 +209,15 @@ const styles = StyleSheet.create({
   },
   categoryTileGlyph: {
     position: 'absolute',
-    top: SIZES.md,
-    right: SIZES.md,
-  },
-  categoryTileDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    opacity: 0.9,
+    top: SIZES.sm + 2,
+    right: SIZES.sm + 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(61, 214, 195, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(61, 214, 195, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -52,6 +52,8 @@ type PlayerContextType = {
   playNext: (tracks: Track | Track[]) => void;
   removeFromQueue: (trackId: string) => void;
   reorderQueue: (from: number, to: number) => void;
+  /** Reorder within the upcoming section; indices are relative to Up Next. */
+  reorderUpcomingInQueue: (from: number, to: number) => void;
   clearQueue: () => void;
   jumpTo: (trackId: string) => void;
 
@@ -547,6 +549,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     [bumpQueue, persistQueue]
   );
 
+  const reorderUpcomingInQueue = useCallback(
+    (from: number, to: number) => {
+      queueRef.current.reorderUpcoming(from, to);
+      bumpQueue();
+      persistQueue();
+    },
+    [bumpQueue, persistQueue]
+  );
+
   const clearQueue = useCallback(() => {
     queueRef.current.clearUpcoming();
     bumpQueue();
@@ -633,6 +644,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       playNext: playNextInQueue,
       removeFromQueue,
       reorderQueue,
+      reorderUpcomingInQueue,
       clearQueue,
       jumpTo,
 
@@ -666,6 +678,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       playNextInQueue,
       removeFromQueue,
       reorderQueue,
+      reorderUpcomingInQueue,
       clearQueue,
       jumpTo,
       toggleShuffle,

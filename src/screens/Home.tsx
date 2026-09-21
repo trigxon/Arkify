@@ -1,18 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Image,
   StyleSheet,
   Text,
   View,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, Play, Heart, Compass, Moon, Target, User } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
+import { Search, SlidersHorizontal, Play, Heart, Compass, Moon, Target, User, ChevronRight } from 'lucide-react-native';
+import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Artwork } from '../components/common/Artwork';
 import { SectionHeader, SkeletonList, ErrorState, EmptyState } from '../components/common/UI';
-import { QuickActionTile } from '../components/common/Cards';
 import { ScreenHeader } from '../components/common/ScreenHeader';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
@@ -44,7 +46,7 @@ const ACTIONS = [
 ] as const;
 
 const greetingFor = (hour: number) =>
-  hour < 12 ? 'Good morning.' : hour < 18 ? 'Good afternoon.' : 'Good evening.';
+  hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -130,7 +132,7 @@ export default function HomeScreen() {
 
   const playFeatured = useCallback(() => {
     if (!featured.length) return;
-    playTrack(featured[0], { tracks: featured, label: 'A calmer you' });
+    playTrack(featured[0], { tracks: featured, label: 'Made for you' });
   }, [featured, playTrack]);
 
   const listTracks = useMemo(
@@ -153,13 +155,14 @@ export default function HomeScreen() {
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
 
   const featuredTrack = featured[0];
+  const firstName = profile.name?.trim() || 'Audia';
 
   return (
     <View style={styles.container}>
       {/* Pinned: greeting + search stay put while the rest of the page scrolls. */}
-      <View style={[styles.stickyHeader, { paddingTop: insets.top + SIZES.lg }]}>
+      <View style={[styles.stickyHeader, { paddingTop: insets.top + SIZES.md }]}>
         <ScreenHeader
-          title={profile.name?.trim() ? profile.name : 'Audia'}
+          title={firstName}
           kicker={greetingFor(new Date().getHours())}
           right={
             <TouchableOpacity
@@ -187,7 +190,9 @@ export default function HomeScreen() {
           accessibilityLabel="Search songs, artists and albums"
         >
           <Search color={COLORS.text.secondary} size={SIZES.icon.md - 2} strokeWidth={2.2} />
-          <Text style={styles.searchText}>Songs, artists, albums</Text>
+          <Text style={styles.searchText}>Songs, artists, albums...</Text>
+          <View style={styles.searchDivider} />
+          <SlidersHorizontal color={COLORS.text.muted} size={SIZES.icon.sm} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -206,13 +211,14 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* Browse shortcuts — real queries on the Search screen. */}
+        {/* Browse shortcuts — real queries on the Search screen. First chip
+            (Music) reads active, per the reference. */}
         <View style={styles.pillsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {CATEGORIES.map((cat) => (
+            {CATEGORIES.map((cat, i) => (
               <TouchableOpacity
                 key={cat.label}
-                style={styles.chip}
+                style={[styles.chip, i === 0 && styles.chipActive]}
                 activeOpacity={0.75}
                 onPress={() => {
                   (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
@@ -221,38 +227,55 @@ export default function HomeScreen() {
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={`Browse ${cat.label}`}
+                accessibilityState={{ selected: i === 0 }}
               >
-                <Text style={styles.chipText}>{cat.label}</Text>
+                <Text style={[styles.chipText, i === 0 && styles.chipTextActive]}>{cat.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* Featured: the first track of the calm pick, artwork as the star. */}
+        {/* Featured: cinematic artwork-led card. The track's art colours the
+            room; text sits on a dark gradient; one teal play FAB. */}
         {featuredLoading ? (
           <View style={[styles.featuredCard, styles.featuredSkeleton]}>
             <SkeletonList rows={1} />
           </View>
         ) : featuredTrack ? (
           <TouchableOpacity
-            style={styles.featuredCard}
+            style={[styles.featuredCard, SHADOWS.ambient]}
             activeOpacity={0.85}
             onPress={playFeatured}
             accessibilityRole="button"
             accessibilityLabel={`Play featured: ${featuredTrack.title} by ${featuredTrack.artist.name}`}
           >
-            <Artwork uri={featuredTrack.albumImageUrl} size={72} radius={12} />
-            <View style={styles.featuredText}>
-              <Text style={styles.featuredKicker}>MADE FOR YOU</Text>
-              <Text style={styles.featuredTitle} numberOfLines={1}>
-                {featuredTrack.title}
-              </Text>
-              <Text style={styles.featuredSub} numberOfLines={1}>
-                {featuredTrack.artist.name}
-              </Text>
-            </View>
-            <View style={styles.featuredPlayBtn}>
-              <Play color="#04211D" size={SIZES.icon.md} fill="#04211D" />
+            {featuredTrack.albumImageUrl ? (
+              <Image
+                source={{ uri: featuredTrack.albumImageUrl }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+            ) : null}
+            <LinearGradient
+              colors={['rgba(6, 10, 10, 0.30)', 'rgba(6, 10, 10, 0.82)', 'rgba(4, 8, 8, 0.95)']}
+              locations={[0, 0.55, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+            <LinearGradient
+              colors={['rgba(61, 214, 195, 0.14)', 'rgba(61, 214, 195, 0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+
+            <View style={styles.featuredOverlay}>
+              <View style={styles.featuredText}>
+                <Text style={styles.featuredTitle}>Let the music{'\n'}find you</Text>
+                <Text style={styles.featuredSub}>Discover · Listen · Feel</Text>
+              </View>
+              <View style={styles.featuredPlayBtn}>
+                <Play color="#04211D" size={SIZES.icon.md} fill="#04211D" />
+              </View>
             </View>
           </TouchableOpacity>
         ) : starterError ? (
@@ -263,13 +286,15 @@ export default function HomeScreen() {
           />
         ) : null}
 
-        {/* Quick actions */}
+        {/* Quick access */}
+        <SectionHeader title="Quick access" />
         <View style={styles.actionsRow}>
           {ACTIONS.map((action) => (
-            <QuickActionTile
+            <QuickAccessTile
               key={action.id}
               Icon={action.Icon}
               label={action.label}
+              accent={action.id === 'liked'}
               loading={pendingAction === action.id}
               onPress={() => runAction(action)}
             />
@@ -277,7 +302,7 @@ export default function HomeScreen() {
         </View>
 
         <SectionHeader
-          title={hasRecents ? 'Recently played' : 'Start listening'}
+          title="Continue listening"
           actionLabel="Your library"
           onAction={() => navigation.navigate('LibraryTab' as never)}
         />
@@ -300,6 +325,21 @@ export default function HomeScreen() {
         ) : (
           <SkeletonList rows={3} />
         )}
+
+        {/* The reference's welcoming empty state, shown while there is no
+            listening history and the starter rows have not loaded. */}
+        {!hasRecents && starter.length === 0 && !featuredLoading && !starterError && (
+          <View style={styles.emptyRow}>
+            <View style={styles.emptyIconWrap}>
+              <User color={COLORS.text.secondary} size={SIZES.icon.md} />
+            </View>
+            <View style={styles.emptyText}>
+              <Text style={styles.emptyTitle}>No recent audio yet</Text>
+              <Text style={styles.emptyHint}>Play something and it will appear here.</Text>
+            </View>
+            <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
+          </View>
+        )}
       </ScrollView>
 
       <StatusBarScrim />
@@ -320,6 +360,43 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+/**
+ * Quick-access tile: icon + label on a dark tile. Liked gets the accent
+ * treatment (teal heart), matching the reference's emphasis.
+ */
+const QuickAccessTile: React.FC<{
+  Icon: typeof Heart;
+  label: string;
+  accent?: boolean;
+  loading?: boolean;
+  onPress: () => void;
+}> = ({ Icon, label, accent = false, loading = false, onPress }) => (
+  <TouchableOpacity
+    style={styles.actionTile}
+    activeOpacity={0.75}
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    accessibilityState={{ busy: loading }}
+  >
+    <View style={styles.actionTileIcon}>
+      {loading ? (
+        <ActivityIndicator size="small" color={COLORS.accent.primary} />
+      ) : (
+        <Icon
+          color={accent ? COLORS.accent.primary : COLORS.text.primary}
+          size={SIZES.icon.md - 2}
+          strokeWidth={2}
+          fill={accent ? COLORS.accent.primary : 'transparent'}
+        />
+      )}
+    </View>
+    <Text style={styles.actionTileLabel} numberOfLines={1}>
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -357,23 +434,30 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.hairline,
-    borderRadius: SIZES.radius.md,
+    borderRadius: SIZES.radius.pill,
     paddingHorizontal: SIZES.md,
     height: 48,
     marginTop: SIZES.md,
     marginBottom: SIZES.sm,
   },
   searchText: {
+    flex: 1,
     fontFamily: FONTS.regular,
     fontSize: TYPE.callout.fontSize,
     color: COLORS.text.muted,
     marginLeft: SIZES.sm,
   },
+  searchDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: COLORS.hairline,
+    marginRight: SIZES.sm,
+  },
   pillsContainer: {
-    marginBottom: SIZES.lg,
+    marginBottom: SIZES.md,
   },
   chip: {
-    paddingHorizontal: SIZES.md,
+    paddingHorizontal: SIZES.md + 2,
     paddingVertical: 8,
     borderRadius: SIZES.radius.pill,
     backgroundColor: COLORS.surface,
@@ -383,13 +467,97 @@ const styles = StyleSheet.create({
     minHeight: SIZES.touchTarget - 8,
     justifyContent: 'center',
   },
+  chipActive: {
+    backgroundColor: COLORS.accent.primary,
+    borderColor: COLORS.accent.primary,
+  },
   chipText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.primary,
   },
+  chipTextActive: {
+    color: '#04211D',
+    fontFamily: FONTS.semibold,
+  },
 
   featuredCard: {
+    height: 190,
+    borderRadius: SIZES.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    marginBottom: SIZES.lg,
+    overflow: 'hidden',
+    backgroundColor: COLORS.surface,
+  },
+  featuredSkeleton: {
+    minHeight: 190,
+    justifyContent: 'center',
+  },
+  featuredError: {
+    marginBottom: SIZES.lg,
+  },
+  featuredOverlay: {
+    flex: 1,
+    padding: SIZES.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  featuredText: {
+    flex: 1,
+    paddingRight: SIZES.md,
+  },
+  featuredTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: TYPE.title2.fontSize,
+    lineHeight: TYPE.title2.lineHeight + 2,
+    color: COLORS.text.primary,
+  },
+  featuredSub: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.secondary,
+    marginTop: SIZES.sm,
+  },
+  featuredPlayBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.accent.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.ambient,
+  },
+
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SIZES.xl,
+  },
+  actionTile: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: SIZES.radius.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    marginHorizontal: 4,
+  },
+  actionTileIcon: {
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SIZES.sm + 2,
+  },
+  actionTileLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.primary,
+  },
+
+  emptyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
@@ -397,49 +565,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.hairline,
     padding: SIZES.md,
-    marginBottom: SIZES.lg,
   },
-  featuredSkeleton: {
-    minHeight: 104,
+  emptyIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceElevated,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  featuredError: {
-    marginBottom: SIZES.lg,
-  },
-  featuredText: {
+  emptyText: {
     flex: 1,
-    marginHorizontal: SIZES.md,
+    marginLeft: SIZES.md,
   },
-  featuredKicker: {
+  emptyTitle: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.overline.fontSize,
-    letterSpacing: TYPE.overline.letterSpacing ?? 2.5,
-    color: COLORS.accent.primary,
-  },
-  featuredTitle: {
-    fontFamily: FONTS.semibold,
-    fontSize: TYPE.headline.fontSize,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.text.primary,
-    marginTop: 4,
   },
-  featuredSub: {
+  emptyHint: {
     fontFamily: FONTS.regular,
-    fontSize: TYPE.subheadline.fontSize,
+    fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.secondary,
     marginTop: 2,
-  },
-  featuredPlayBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.accent.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.xl,
   },
 });

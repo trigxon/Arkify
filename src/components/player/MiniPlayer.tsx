@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Play, Pause, MonitorSpeaker } from 'lucide-react-native';
+import { Heart, Play, Pause } from 'lucide-react-native';
 import { Track } from '../../core/types';
 import { useProgress } from '../../hooks/usePlayer';
-import { PlaybackSourceSheet } from './PlaybackSourceSheet';
+import { useLibrary } from '../../hooks/useLibrary';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../../constants/theme';
 import { Artwork } from '../common/Artwork';
 
@@ -38,6 +38,36 @@ const MiniPlayerProgress: React.FC = React.memo(() => {
 });
 MiniPlayerProgress.displayName = 'MiniPlayerProgress';
 
+/**
+ * Like button subtree — re-renders only when liked state changes.
+ */
+const MiniPlayerLike: React.FC<{ track: Track }> = ({ track }) => {
+  const { isLiked, toggleLike } = useLibrary();
+  const liked = isLiked(track.id);
+
+  return (
+    <TouchableOpacity
+      style={styles.iconButton}
+      onPress={(e) => {
+        (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
+        toggleLike(track);
+      }}
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+      accessibilityRole="button"
+      accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
+      accessibilityState={{ selected: liked }}
+    >
+      <Heart
+        color={liked ? COLORS.accent.primary : COLORS.text.secondary}
+        fill={liked ? COLORS.accent.primary : 'transparent'}
+        size={SIZES.icon.md - 2}
+        strokeWidth={2}
+      />
+    </TouchableOpacity>
+  );
+};
+MiniPlayerLike.displayName = 'MiniPlayerLike';
+
 export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   track,
   isPlaying,
@@ -47,9 +77,8 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   isLoading = false
 }) => {
   const insets = useSafeAreaInsets();
-  const [showSource, setShowSource] = useState(false);
-  // Tab bar height matches TabNavigator: 56 content + real bottom inset (or 8 fallback).
-  const resolvedTabBarHeight = tabBarHeight ?? 56 + Math.max(insets.bottom, 8);
+  // Tab bar height matches TabNavigator: 62 content + real bottom inset (or 8 fallback).
+  const resolvedTabBarHeight = tabBarHeight ?? 62 + Math.max(insets.bottom, 8);
 
   if (!track) return null;
 
@@ -63,7 +92,10 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
     >
       <View style={[styles.container, SHADOWS.glass]}>
         <View style={styles.content}>
-          <Artwork uri={track.albumImageUrl} size={44} radius={10} />
+          {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
+          <View style={styles.artworkWrap}>
+            <Artwork uri={track.albumImageUrl} size={42} radius={10} />
+          </View>
 
           <View style={styles.infoContainer}>
             <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
@@ -71,18 +103,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
           </View>
 
           <View style={styles.controls}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={(e) => {
-                // Don't bubble to the outer row — the row opens Now Playing.
-                (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
-                setShowSource(true);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Playback source"
-            >
-               <MonitorSpeaker color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
-            </TouchableOpacity>
+            <MiniPlayerLike track={track} />
             <TouchableOpacity
               style={styles.playButton}
               onPress={(e) => {
@@ -94,10 +115,14 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
             >
               {isLoading ? (
                 <ActivityIndicator size="small" color={COLORS.accent.primary} />
-              ) : isPlaying ? (
-                <Pause color={COLORS.text.primary} size={SIZES.icon.md + 2} fill={COLORS.text.primary} />
               ) : (
-                <Play color={COLORS.text.primary} size={SIZES.icon.md + 2} fill={COLORS.text.primary} />
+                <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
+                  {isPlaying ? (
+                    <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+                  ) : (
+                    <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+                  )}
+                </View>
               )}
             </TouchableOpacity>
           </View>
@@ -106,8 +131,6 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         {/* Progress: a hairline along the bottom edge of the bar. */}
         <MiniPlayerProgress />
       </View>
-
-      <PlaybackSourceSheet visible={showSource} onClose={() => setShowSource(false)} />
     </TouchableOpacity>
   );
 };
@@ -123,7 +146,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
     backgroundColor: COLORS.surfaceRaised,
-    borderColor: COLORS.hairline,
+    borderColor: 'rgba(61, 214, 195, 0.16)',
     borderWidth: 1,
   },
   content: {
@@ -131,9 +154,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
   },
+  artworkWrap: {
+    borderRadius: 12,
+    padding: 2,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(61, 214, 195, 0.18)',
+  },
   infoContainer: {
     flex: 1,
-    marginLeft: SIZES.md,
+    marginLeft: SIZES.sm + 2,
     justifyContent: 'center',
   },
   title: {
@@ -155,8 +185,22 @@ const styles = StyleSheet.create({
     padding: SIZES.sm,
   },
   playButton: {
-    padding: SIZES.sm,
+    padding: SIZES.xs,
     marginLeft: SIZES.xs,
+  },
+  playRing: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(61, 214, 195, 0.55)',
+    backgroundColor: COLORS.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playRingPlaying: {
+    borderColor: COLORS.accent.primary,
+    backgroundColor: COLORS.accent.soft,
   },
   progressTrack: {
     height: 2,

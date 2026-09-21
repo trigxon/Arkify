@@ -74,6 +74,12 @@ export const COLORS = {
     progressFill: '#3DD6C3',
     progressFillLegacy: '#FFFFFF',
   },
+
+  /** Ambient card washes — very low-alpha teal atmosphere for hero areas. */
+  atmosphere: {
+    soft: 'rgba(61, 214, 195, 0.06)',
+    medium: 'rgba(61, 214, 195, 0.10)',
+  },
 } as const;
 
 // ---------------------------------------------------------------------------

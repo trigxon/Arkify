@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Gender } from '../services/LibraryService';
 import { useLibrary } from '../hooks/useLibrary';
+import { PlaybackSourceSheet } from '../components/player/PlaybackSourceSheet';
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -41,6 +42,7 @@ export default function SettingsScreen() {
   const { profile, saveProfile, history, playlists, liked } = useLibrary();
 
   const [name, setName] = useState(profile.name);
+  const [showSource, setShowSource] = useState(false);
 
   const version =
     Constants.expoConfig?.version ?? Constants.manifest2?.extra?.expoClient?.version ?? '1.0.0';
@@ -144,6 +146,12 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* ---- Playback source (moved from the old mini-player entry point) ---- */}
+        <Text style={styles.sectionLabel}>PLAYBACK</Text>
+        <View style={styles.card}>
+          <LinkRow label="Playback source" onPress={() => setShowSource(true)} />
+        </View>
+
         {/* ---- About ---- */}
         <Text style={styles.sectionLabel}>ABOUT</Text>
         <View style={styles.card}>
@@ -155,7 +163,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ---- Legal ---- */}
-        <Text style={styles.sectionLabel}>LICENCE</Text>
+        <Text style={styles.sectionLabel}>LICENSE</Text>
         <View style={styles.card}>
           <Text style={styles.legalTitle}>Audia</Text>
           <Text style={styles.legalBody}>
@@ -186,6 +194,8 @@ export default function SettingsScreen() {
 
         <Text style={styles.footer}>MADE BY ARK DURRANI (PATHAN)</Text>
       </ScrollView>
+
+      <PlaybackSourceSheet visible={showSource} onClose={() => setShowSource(false)} />
     </View>
   );
 }

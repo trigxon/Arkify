@@ -121,10 +121,15 @@ export default function HistoryScreen() {
 
       {history.length === 0 ? (
         <View style={styles.emptyWrap}>
+          {/* The reference's premium empty state: elevated atmospheric card,
+              accent ring icon, title + support line, outlined Explore action. */}
           <EmptyState
             Icon={History}
             title="No listening history yet"
             hint="Play something and it will show up here."
+            actionLabel="Explore Music"
+            onAction={() => navigation.navigate('HomeTab' as never)}
+            accentAction
           />
         </View>
       ) : (
@@ -196,5 +201,7 @@ const styles = StyleSheet.create({
   },
   emptyWrap: {
     paddingHorizontal: SIZES.gutter,
+    flex: 1,
+    justifyContent: 'center',
   },
 });
