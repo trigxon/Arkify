@@ -289,7 +289,18 @@ export default function LibraryScreen() {
           {activeFilter === 'Artists' &&
             (derived.artists.length ? (
               derived.artists.map(artist => (
-                <View key={artist.name} style={styles.playlistRow}>
+                <TouchableOpacity
+                  key={artist.name}
+                  style={styles.playlistRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    // Real action: search this artist so their songs come up.
+                    navigation.navigate('SearchTab' as never);
+                    (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
+                      browseQuery: artist.name,
+                    });
+                  }}
+                >
                   <Image source={{ uri: artist.image }} style={styles.artistImage} />
                   <View style={styles.playlistInfo}>
                     <Text style={styles.playlistTitle}>{artist.name}</Text>
@@ -297,7 +308,7 @@ export default function LibraryScreen() {
                       Artist • {artist.count} {artist.count === 1 ? 'song' : 'songs'}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             ) : (
               <Text style={styles.emptyHint}>Artists appear here as you save music.</Text>
@@ -306,7 +317,17 @@ export default function LibraryScreen() {
           {activeFilter === 'Albums' &&
             (derived.albums.length ? (
               derived.albums.map(album => (
-                <View key={album.name} style={styles.playlistRow}>
+                <TouchableOpacity
+                  key={album.name}
+                  style={styles.playlistRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    navigation.navigate('SearchTab' as never);
+                    (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
+                      browseQuery: `${album.name} ${album.artist}`,
+                    });
+                  }}
+                >
                   <Image source={{ uri: album.image }} style={styles.playlistImage} />
                   <View style={styles.playlistInfo}>
                     <Text style={styles.playlistTitle}>{album.name}</Text>
@@ -314,7 +335,7 @@ export default function LibraryScreen() {
                       Album • {album.artist}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             ) : (
               <Text style={styles.emptyHint}>Albums appear here as you save music.</Text>

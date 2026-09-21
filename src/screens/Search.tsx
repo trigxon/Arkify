@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,10 +10,11 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search as SearchIcon, Mic, X } from 'lucide-react-native';
+import { Search as SearchIcon, X } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { GlassCard } from '../components/common/GlassCard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
@@ -23,13 +24,15 @@ import { SearchFilter, Track } from '../core/types';
 import { useSearch } from '../hooks/useSearch';
 import { usePlayer } from '../hooks/usePlayer';
 import { MusicService } from '../services/MusicService';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 
 const FILTERS: SearchFilter[] = ['All', 'Songs', 'Artists', 'Albums', 'Playlists'];
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  /** Set when Home's category pills (or another screen) jump in with a query. */
+  const route = useRoute<RouteProp<Record<string, { browseQuery?: string } | undefined>, string>>();
   const {
     query,
     setQuery,
@@ -169,6 +172,16 @@ export default function SearchScreen() {
   /** Track whose "add to playlist" sheet is open. */
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
 
+  // A category tap on Home lands here with a query to run immediately.
+  useEffect(() => {
+    const incoming = route.params?.browseQuery;
+    if (incoming && incoming.trim()) {
+      searchNow(incoming.trim());
+      navigation.setParams({ browseQuery: undefined } as never);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.browseQuery]);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -192,13 +205,11 @@ export default function SearchScreen() {
             returnKeyType="search"
             autoCorrect={false}
           />
-          <TouchableOpacity onPress={() => (query ? clear() : undefined)}>
-            {query ? (
+          {query ? (
+            <TouchableOpacity onPress={clear} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <X color={COLORS.text.secondary} size={20} />
-            ) : (
-              <Mic color={COLORS.text.secondary} size={20} />
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View style={styles.filtersContainer}>
@@ -226,11 +237,15 @@ export default function SearchScreen() {
                   activeOpacity={0.8}
                   onPress={() => searchNow(category.query)}
                 >
-                  <GlassCard intensity={20} style={[styles.categoryCard]}>
-                    {/* A subtle colored glow using a positioned view instead of gradient for simplicity */}
-                    <View style={[styles.categoryGlow, { backgroundColor: category.color }]} />
+                  <LinearGradient
+                    colors={[`${category.color}33`, 'rgba(9, 11, 11, 0.9)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.categoryCard}
+                  >
+                    <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
                     <Text style={styles.categoryName}>{category.name}</Text>
-                  </GlassCard>
+                  </LinearGradient>
                 </TouchableOpacity>
               ))}
             </View>
@@ -397,19 +412,20 @@ const styles = StyleSheet.create({
   categoryCard: {
     height: 100,
     padding: SIZES.md,
-    justifyContent: 'flex-start',
+    justifyContent: 'flex-end',
     alignItems: 'flex-start',
     overflow: 'hidden',
+    borderRadius: SIZES.radius.md,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
-  categoryGlow: {
+  categoryDot: {
     position: 'absolute',
-    right: -20,
-    bottom: -20,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    opacity: 0.3,
-    // Add a blur filter if running on web, otherwise rely on opacity
+    top: SIZES.md,
+    left: SIZES.md,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   categoryName: {
     fontFamily: FONTS.medium,

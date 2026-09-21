@@ -40,6 +40,40 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Restore stable signing key (cached across builds)
+        # A stable signature matters twice: Android refuses updates whose
+        # signature differs from the installed app, and a key that changes on
+        # every CI run makes each new APK look like a different (untrusted)
+        # app to Play Protect. The keystore is generated once, cached in the
+        # repo's Actions cache, and reused. It lives only in CI storage and
+        # the cache is scoped to this repository -- never committed. For a
+        # production build, add credentials/keystore.json instead and this
+        # step is simply bypassed by withReleaseSigning.
+        id: keystore
+        uses: actions/cache@v4
+        with:
+          path: credentials
+          key: audia-signing-keystore-v1
+
+      - name: Create signing key if missing
+        if: steps.keystore.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p credentials
+          KS=credentials/audia-release.keystore
+          keytool -genkeypair -v \
+            -keystore "$KS" -storetype PKCS12 \
+            -alias audia -keyalg RSA -keysize 2048 -validity 10950 \
+            -storepass audia-signing-2026 -keypass audia-signing-2026 \
+            -dname "CN=ARK DURRANI (PATHAN), OU=trigxon, O=trigxon, C=IN"
+          cat > credentials/keystore.json <<'JSON'
+          {
+            "keystorePath": "credentials/audia-release.keystore",
+            "storePassword": "audia-signing-2026",
+            "keyAlias": "audia",
+            "keyPassword": "audia-signing-2026"
+          }
+          JSON
+
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
 
@@ -47,20 +81,24 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Build release APK
-        # No release keystore in CI -> debug-signed APK, installable for testing.
-        # Provide credentials/keystore.json to produce a release-signed build.
+        # withReleaseSigning picks up credentials/keystore.json when present
+        # (CI always provides one); without it the build stays debug-signed.
         run: cd android && ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verify APK is release-signed
+        run: |
+          "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/"*/apksigner verify --print-certs output/Audia-v1.1.0.apk | head -5
 
       - name: Rename APK
         run: |
           mkdir -p output
-          cp android/app/build/outputs/apk/release/app-release.apk output/Audia-v1.0.0.apk
+          cp android/app/build/outputs/apk/release/app-release.apk output/Audia-v1.1.0.apk
 
       - name: Compute SHA-256
         run: |
           cd output
-          sha256sum Audia-v1.0.0.apk > Audia-v1.0.0.apk.sha256
-          cat Audia-v1.0.0.apk.sha256
+          sha256sum Audia-v1.1.0.apk > Audia-v1.1.0.apk.sha256
+          cat Audia-v1.1.0.apk.sha256
 
       - name: Verify APK branding (label must be Audia)
         run: |
@@ -69,13 +107,13 @@ jobs:
           BT="$ANDROID_HOME/build-tools"
           AAPT="$(ls "$BT"/*/aapt2 2>/dev/null | sort -V | tail -1)"
           echo "aapt2: $AAPT"
-          LABEL="$("$AAPT" dump badging output/Audia-v1.0.0.apk | grep -E "^application-label:|^application-label-zh" | head -1)"
+          LABEL="$("$AAPT" dump badging output/Audia-v1.1.0.apk | grep -E "^application-label:|^application-label-zh" | head -1)"
           echo "Detected label line: $LABEL"
           echo "$LABEL" | grep -q "application-label:.*Audia" || {
             echo "::error::APK application label is not 'Audia'"
             exit 1
           }
-          PKG="$("$AAPT" dump badging output/Audia-v1.0.0.apk | grep "^package:" | head -1)"
+          PKG="$("$AAPT" dump badging output/Audia-v1.1.0.apk | grep "^package:" | head -1)"
           echo "Detected package line: $PKG"
           echo "$PKG" | grep -q "com.trigxon.audia" || {
             echo "::error::APK package is not com.trigxon.audia"
@@ -85,8 +123,8 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Audia-v1.0.0-apk
+          name: Audia-v1.1.0-apk
           path: |
-            output/Audia-v1.0.0.apk
-            output/Audia-v1.0.0.apk.sha256
+            output/Audia-v1.1.0.apk
+            output/Audia-v1.1.0.apk.sha256
           if-no-files-found: error

@@ -26,7 +26,7 @@ export const TabNavigator = () => {
         headerShown: false,
         tabBarStyle: [styles.tabBar, { height: barHeight, paddingBottom: bottomInset }],
         tabBarBackground: () => <View style={styles.tabBarBackground} />,
-        tabBarActiveTintColor: COLORS.text.primary,
+        tabBarActiveTintColor: COLORS.accent.primary,
         tabBarInactiveTintColor: COLORS.text.secondary,
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabBarLabel,

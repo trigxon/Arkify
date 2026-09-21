@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
@@ -61,6 +61,14 @@ export default function HistoryScreen() {
   const { playTrack, currentTrack, isPlaying, isLoading, togglePlayPause } = usePlayer();
   const { history, clearHistory } = useLibrary();
 
+  /** Clearing is destructive, so it asks first. */
+  const confirmClear = useCallback(() => {
+    Alert.alert('Clear listening history?', 'This removes every entry. It cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Clear', style: 'destructive', onPress: () => clearHistory() },
+    ]);
+  }, [clearHistory]);
+
   const sections = useMemo(() => groupByDay(history), [history]);
 
   /** Playing from history queues the rest of the log behind it. */
@@ -99,7 +107,7 @@ export default function HistoryScreen() {
       <View style={[styles.header, { paddingTop: insets.top + SIZES.lg }]}>
         <Text style={styles.title}>History</Text>
         {history.length > 0 && (
-          <TouchableOpacity onPress={clearHistory} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity onPress={confirmClear} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Text style={styles.clear}>Clear</Text>
           </TouchableOpacity>
         )}

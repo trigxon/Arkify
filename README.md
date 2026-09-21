@@ -57,12 +57,12 @@ except the requests needed to search for and stream the audio you asked for.
 
 Grab the signed APK from the **[latest release](https://github.com/trigxon/Audia/releases/latest)**:
 
-**[⬇ Download Audia-v1.0.0.apk](https://github.com/trigxon/Audia/releases/latest/download/Audia-v1.0.0.apk)**
+**[⬇ Download Audia-v1.1.0.apk](https://github.com/trigxon/Audia/releases/latest/download/Audia-v1.1.0.apk)**
 
 Verify it before installing:
 
 ```
-SHA-256  764ba22018f8a908927fe65ddf7aad8e0e9557b6832ac5a83dd151d77bb495ac
+SHA-256  (see the .sha256 file published alongside each release asset)
 ```
 
 ```bash
@@ -77,6 +77,25 @@ Audia is **not distributed through Google Play**, so you install it by sideloadi
 will warn you about installing from an unknown source — that warning is expected for any
 APK obtained outside the Play Store. Only install a build whose checksum matches the one
 published above, or one you compiled yourself from this repository.
+
+#### If Google Play Protect blocks the install ("App blocked by Advanced Protection")
+
+This is a **device-side Google Play Protect gate for any app installed outside an app
+store** — it is not a defect in the APK, and it does not mean the file is harmful. Google
+screens sideloaded apps against Play Store metadata; an unlisted app cannot pass that
+check by construction. To install:
+
+1. Tap **Got it**, then open **Settings → Apps → Special access → Install unknown apps**
+   (path varies by OEM) and allow your browser/file manager to install APKs.
+2. If your device runs **Advanced Protection** (Android 16+ / Pixel with the toggled-on
+   mode), open **Settings → Security & privacy → Advanced Protection** and either turn it
+   off while you install, or keep it on and use **Install anyway** via the Play Protect
+   notification prompt that appears when you retry.
+3. On stock Android you can also retry the install and tap **Details → Install anyway**
+   on the Play Protect scan dialog.
+
+Only install a build downloaded from this repository's Releases page or compiled by you
+from source.
 
 Requires Android 7.0 or newer. The APK published here is built by CI and signed with a
 debug key for testing; a production release-signed build requires the maintainer's private
