@@ -165,6 +165,8 @@ type EmptyStateProps = {
   /** Optional retry affordance. */
   actionLabel?: string;
   onAction?: () => void;
+  /** Outlined accent action (e.g. Explore Music) instead of the quiet default. */
+  accentAction?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -174,24 +176,35 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   hint,
   actionLabel,
   onAction,
+  accentAction = false,
   style,
 }) => (
   <View style={[styles.stateCard, style]}>
     {Icon ? (
-      <View style={styles.stateIconWrap}>
-        <Icon color={COLORS.text.muted} size={SIZES.icon.md} />
+      <View style={accentAction ? styles.stateIconWrapLg : styles.stateIconWrap}>
+        <Icon
+          color={accentAction ? COLORS.accent.primary : COLORS.text.muted}
+          size={accentAction ? SIZES.icon.lg : SIZES.icon.md}
+        />
       </View>
     ) : null}
     <Text style={styles.stateTitle}>{title}</Text>
     {hint ? <Text style={styles.stateHint}>{hint}</Text> : null}
     {actionLabel && onAction ? (
       <TouchableOpacity
-        style={styles.stateAction}
+        style={[styles.stateAction, accentAction && styles.stateActionAccent]}
         onPress={onAction}
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
       >
-        <Text style={styles.stateActionLabel}>{actionLabel}</Text>
+        <Text
+          style={[
+            styles.stateActionLabel,
+            accentAction && { color: COLORS.accent.primary },
+          ]}
+        >
+          {actionLabel}
+        </Text>
       </TouchableOpacity>
     ) : null}
   </View>
@@ -364,6 +377,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SIZES.md,
   },
+  /** Large accent ring for the premium empty states (History, first playlist). */
+  stateIconWrapLg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: 'rgba(61, 214, 195, 0.35)',
+    backgroundColor: COLORS.accent.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SIZES.md,
+  },
   stateTitle: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
@@ -385,6 +410,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** Outlined accent pill, per the reference empty states. */
+  stateActionAccent: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(61, 214, 195, 0.45)',
   },
   stateActionLabel: {
     fontFamily: FONTS.medium,

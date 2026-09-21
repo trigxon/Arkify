@@ -195,6 +195,21 @@ export class Queue {
     this.position = this.order.indexOf(currentOrderValue);
   }
 
+  /**
+   * Move a track within the upcoming section, addressed relative to Up Next
+   * (0 = the next track to play). The UI reasons purely about the visible
+   "Up Next" list; the mapping to absolute order indices lives here.
+   */
+  reorderUpcoming(from: number, to: number): void {
+    if (from === to) return;
+    if (from < 0) return;
+
+    const start = this.position + 1;
+    if (start + from >= this.order.length) return;
+
+    this.reorder(start + from, start + to);
+  }
+
   clear(): void {
     this.tracks = [];
     this.order = [];

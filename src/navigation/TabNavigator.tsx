@@ -18,7 +18,7 @@ export const TabNavigator = () => {
   // Use the real bottom inset so the bar never sits under the gesture bar or 3-button nav.
   // Fallback 8 keeps spacing on devices that report 0 before the first layout pass.
   const bottomInset = Math.max(insets.bottom, 8);
-  const barHeight = 56 + bottomInset;
+  const barHeight = 62 + bottomInset;
 
   return (
     <Tab.Navigator
@@ -38,7 +38,9 @@ export const TabNavigator = () => {
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Home color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.8} fill={focused ? 'rgba(61,214,195,0.12)' : 'transparent'} />
+            <TabIcon focused={focused} label="Home">
+              <Home color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} fill={focused ? 'rgba(61,214,195,0.14)' : 'transparent'} />
+            </TabIcon>
           ),
         }}
       />
@@ -48,7 +50,9 @@ export const TabNavigator = () => {
         options={{
           tabBarLabel: 'Search',
           tabBarIcon: ({ color, focused }) => (
-            <Search color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.8} />
+            <TabIcon focused={focused} label="Search">
+              <Search color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} />
+            </TabIcon>
           ),
         }}
       />
@@ -58,7 +62,9 @@ export const TabNavigator = () => {
         options={{
           tabBarLabel: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <Clock color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.8} />
+            <TabIcon focused={focused} label="History">
+              <Clock color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} />
+            </TabIcon>
           ),
         }}
       />
@@ -68,13 +74,36 @@ export const TabNavigator = () => {
         options={{
           tabBarLabel: 'Library',
           tabBarIcon: ({ color, focused }) => (
-            <Library color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.8} />
+            <TabIcon focused={focused} label="Library">
+              <Library color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} fill={focused ? 'rgba(61,214,195,0.14)' : 'transparent'} />
+            </TabIcon>
           ),
         }}
       />
     </Tab.Navigator>
   );
 };
+
+/**
+ * Active indicator: a 3px accent bar above the icon, fading in/out with the
+ * focus change (the reference's subtle active treatment). Inactive tabs stay
+ * quiet — muted color, lower stroke weight — so the selected one reads first.
+ */
+const TabIcon: React.FC<{ focused: boolean; label: string; children: React.ReactNode }> = ({
+  focused,
+  label,
+  children,
+}) => (
+  <View
+    style={styles.tabIconWrap}
+    accessibilityRole="tab"
+    accessibilityLabel={label}
+    accessibilityState={{ selected: focused }}
+  >
+    <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
+    <View style={styles.tabIconGlyph}>{children}</View>
+  </View>
+);
 
 const styles = StyleSheet.create({
   tabBarBackground: {
@@ -93,12 +122,33 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     elevation: 0,
     backgroundColor: 'transparent',
-    paddingTop: 10,
+    paddingTop: 6,
+  },
+  tabIconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 48,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: -6,
+    width: 20,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+  },
+  tabIndicatorActive: {
+    backgroundColor: COLORS.accent.primary,
+  },
+  tabIconGlyph: {
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabBarLabel: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.micro.fontSize,
-    marginTop: 2,
+    marginTop: 3,
     letterSpacing: 0.2,
   },
 });

@@ -194,6 +194,25 @@ export default function SearchScreen() {
       >
         <Text style={styles.headerTitle}>Search</Text>
 
+        {/* Results summary action, per the reference's See-all treatment.
+            Shown only when a live result set exists. */}
+        {hasResults ? (
+          <View style={styles.seeAllRow}>
+            <Text style={styles.seeAllText}>
+              {results.tracks.length + results.artists.length + results.albums.length + results.playlists.length}{' '}
+              results
+            </Text>
+            <TouchableOpacity
+              onPress={Keyboard.dismiss}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss keyboard"
+            >
+              <Text style={styles.seeAllAction}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <View
           style={[styles.searchContainer, fieldFocused && styles.searchContainerFocused]}
         >
@@ -375,6 +394,22 @@ const styles = StyleSheet.create({
     lineHeight: TYPE.title1.lineHeight,
     color: COLORS.text.primary,
     marginBottom: SIZES.md,
+  },
+  seeAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SIZES.md,
+  },
+  seeAllText: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.muted,
+  },
+  seeAllAction: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.accent.primary,
   },
   searchContainer: {
     flexDirection: 'row',
