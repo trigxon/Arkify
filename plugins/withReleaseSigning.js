@@ -1,36 +1,101 @@
 const path = require('path');
-const { withAppBuildGradle, withDangerousMod } = require('expo/config-plugins');
 const fs = require('fs');
+const { withAppBuildGradle, withDangerousMod } = require('expo/config-plugins');
 
 /**
  * Signs release builds with Audia's own keystore instead of the debug key.
  *
- * The Expo template points the release buildType at signingConfigs.debug and
- * says so in a comment. A debug-signed APK installs fine, but the debug key is
- * a well-known shared secret, so anyone could publish an "update" over it.
+ * The Expo template points the release buildType at signingConfigs.debug.
+ * A debug-signed APK installs fine, but the debug key is a well-known shared
+ * secret, so anyone could publish an "update" over it, and every CI machine
+ * would produce a different identity for the same app.
  *
- * Credentials are read from credentials/keystore.json, which is gitignored
- * along with the keystore itself -- nothing secret is committed. If that file
- * is absent the plugin leaves the project untouched, so a fresh clone still
- * builds (debug-signed) without any setup.
+ * Credentials are resolved in this order (first match wins):
  *
- * This is a config plugin because android/ is generated and
- * `npx expo prebuild --clean` would discard a hand edit.
+ *   1. Environment variables  -- AUDIA_STORE_FILE, AUDIA_STORE_PASSWORD,
+ *                                AUDIA_KEY_ALIAS, AUDIA_KEY_PASSWORD
+ *      (recommended for CI secrets and for local one-off builds)
+ *
+ *   2. keystore.properties at the project root -- a gitignored Java
+ *      properties file:
+ *
+ *        storeFile=/absolute/path/to/audia-release.keystore
+ *        storePassword=...
+ *        keyAlias=audia
+ *        keyPassword=...
+ *
+ *   3. credentials/keystore.json -- the mechanism CI uses (see
+ *      .github/workflows/build-apk.yml, which generates the keystore into
+ *      the repo-scoped Actions cache):
+ *
+ *        { "keystorePath": "...", "storePassword": "...",
+ *          "keyAlias": "...", "keyPassword": "..." }
+ *
+ * If no mechanism provides a keystore, the plugin leaves the project
+ * untouched so a fresh clone still builds (debug-signed) without setup.
+ *
+ * Nothing secret is ever committed: the keystore file, keystore.properties
+ * and credentials/ are all gitignored. This is a config plugin because
+ * android/ is generated -- `npx expo prebuild --clean` would discard a hand
+ * edit to build.gradle.
  */
 
-const CREDENTIALS = 'credentials/keystore.json';
+function fromEnv() {
+  const { AUDIA_STORE_FILE, AUDIA_STORE_PASSWORD, AUDIA_KEY_ALIAS, AUDIA_KEY_PASSWORD } = process.env;
+  if (AUDIA_STORE_FILE && AUDIA_STORE_PASSWORD && AUDIA_KEY_ALIAS && AUDIA_KEY_PASSWORD) {
+    return {
+      keystorePath: AUDIA_STORE_FILE,
+      storePassword: AUDIA_STORE_PASSWORD,
+      keyAlias: AUDIA_KEY_ALIAS,
+      keyPassword: AUDIA_KEY_PASSWORD,
+      source: 'environment',
+    };
+  }
+  return null;
+}
 
-function readCredentials(projectRoot) {
-  const file = path.join(projectRoot, CREDENTIALS);
+function fromProperties(projectRoot) {
+  const file = path.join(projectRoot, 'keystore.properties');
+  if (!fs.existsSync(file)) return null;
+
+  try {
+    const parsed = Object.fromEntries(
+      fs
+        .readFileSync(file, 'utf8')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'))
+        .map((line) => {
+          const eq = line.indexOf('=');
+          return [line.slice(0, eq).trim(), line.slice(eq + 1).trim()];
+        })
+    );
+    if (parsed.storeFile && parsed.storePassword && parsed.keyAlias && parsed.keyPassword) {
+      return { ...parsed, source: 'keystore.properties' };
+    }
+  } catch {
+    /* fall through to the next mechanism */
+  }
+  return null;
+}
+
+function fromJson(projectRoot) {
+  const file = path.join(projectRoot, 'credentials', 'keystore.json');
   if (!fs.existsSync(file)) return null;
 
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (!parsed.keystorePath || !parsed.keyAlias) return null;
-    return parsed;
+    if (parsed.keystorePath && parsed.storePassword && parsed.keyAlias && parsed.keyPassword) {
+      return { ...parsed, source: 'credentials/keystore.json' };
+    }
   } catch {
-    return null;
+    /* fall through */
   }
+  return null;
+}
+
+function readCredentials(projectRoot) {
+  return fromEnv() || fromProperties(projectRoot) || fromJson(projectRoot);
 }
 
 /** Copy the keystore next to build.gradle, where Gradle's file() resolves it. */
@@ -38,14 +103,16 @@ function withKeystoreCopied(config, credentials) {
   return withDangerousMod(config, [
     'android',
     (cfg) => {
-      const from = path.join(cfg.modRequest.projectRoot, credentials.keystorePath);
+      const from = path.isAbsolute(credentials.keystorePath)
+        ? credentials.keystorePath
+        : path.join(cfg.modRequest.projectRoot, credentials.keystorePath);
       const to = path.join(cfg.modRequest.platformProjectRoot, 'app', 'release.keystore');
 
       if (fs.existsSync(from)) {
         fs.copyFileSync(from, to);
       } else {
         throw new Error(
-          `withReleaseSigning: keystore not found at ${credentials.keystorePath}`
+          `withReleaseSigning (${credentials.source}): keystore not found at ${credentials.keystorePath}`
         );
       }
       return cfg;
@@ -105,7 +172,7 @@ function withSigningConfig(config, credentials) {
     contents = contents.replace(
       releaseAnchor,
       [
-        '            // Signed with Audia’s own keystore via withReleaseSigning.',
+        `            // Signed with Audia's own keystore (via ${credentials.source}).`,
         '            signingConfig signingConfigs.release',
       ].join('\n')
     );
@@ -116,10 +183,10 @@ function withSigningConfig(config, credentials) {
 }
 
 module.exports = function withReleaseSigning(config) {
-  // Resolved lazily: config plugins run from the project root.
+  // Config plugins run from the project root.
   const credentials = readCredentials(process.cwd());
 
-  // No credentials checked out -> leave the debug signing in place rather than
+  // No credentials configured -> leave the debug signing in place rather than
   // failing the build for anyone who just cloned the repo.
   if (!credentials) return config;
 

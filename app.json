@@ -15,6 +15,7 @@
       }
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,9 +28,7 @@
         "WAKE_LOCK",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.trigxon.audia"
     },
@@ -48,7 +47,9 @@
       "expo-asset",
       "./plugins/withCoreLibraryDesugaring",
       "./plugins/withAndroidAbis",
+      "./plugins/withLeanPermissions",
       "./plugins/withReleaseSigning",
+      "./plugins/withReleaseManifestHardening",
       "expo-sharing"
     ],
     "backgroundColor": "#050707"
