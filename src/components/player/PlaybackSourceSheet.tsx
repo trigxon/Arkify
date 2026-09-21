@@ -24,7 +24,7 @@ const KINDS: EndpointKind[] = ['invidious', 'piped', 'custom'];
  *
  * Discovery (search, playlists, metadata) works out of the box. Actually
  * streaming audio goes through whichever authorized endpoint the user points
- * NØTE at -- their own, or one they are permitted to use -- which is why this
+ * Audia at -- their own, or one they are permitted to use -- which is why this
  * is configured here rather than shipped with a hard-coded server.
  */
 export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => void }> = ({
@@ -98,7 +98,7 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
           </View>
 
           <Text style={styles.explainer}>
-            Search and playlists work already. To stream audio, point NØTE at a
+            Search and playlists work already. To stream audio, point Audia at a
             playback service you're authorized to use.
           </Text>
 

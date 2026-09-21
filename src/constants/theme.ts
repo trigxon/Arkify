@@ -17,10 +17,14 @@ export const COLORS = {
   },
   
   accent: {
-    green: '#1DB954', // Subtle Spotify-like green but a bit distinct
-    greenGlow: 'rgba(29, 185, 84, 0.15)',
-    red: '#FF4444',
-    redGlow: 'rgba(255, 68, 68, 0.15)',
+    // Audia brand accent: cool aurora teal. Used for the active states that
+    // used to be flat white -- the brand now shows through the whole UI.
+    primary: '#3DD6C3',
+    glow: 'rgba(61, 214, 195, 0.14)',
+    green: '#3DD6C3', // legacy alias: the "green" accent is now Audia teal
+    greenGlow: 'rgba(61, 214, 195, 0.14)',
+    red: '#FF5A5A',
+    redGlow: 'rgba(255, 90, 90, 0.15)',
   },
   
   player: {

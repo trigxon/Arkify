@@ -4,9 +4,9 @@ import {
   Text,
   View,
   ScrollView,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, Play, Heart, Compass, Moon, Target, User } from 'lucide-react-native';
@@ -24,7 +24,15 @@ import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { useNavigation } from '@react-navigation/native';
 
-const CATEGORIES = ['Music', 'Podcasts', 'Radio'];
+/**
+ * Home categories are real browse shortcuts: each runs its query on the
+ * Search screen instead of flipping local state that changes nothing.
+ */
+const CATEGORIES: { label: string; query: string }[] = [
+  { label: 'Music', query: 'top music hits' },
+  { label: 'Podcasts', query: 'podcast episodes' },
+  { label: 'Radio', query: 'radio live mix' },
+];
 
 /** Each quick action maps to a real query, except Liked which uses the library. */
 const ACTIONS = [
@@ -40,7 +48,6 @@ const greetingFor = (hour: number) =>
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const [activeCategory, setActiveCategory] = useState('Music');
   const { playTrack, currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
   const { recentlyPlayed, liked, profile } = useLibrary();
 
@@ -50,31 +57,39 @@ export default function HomeScreen() {
   /** Shown before anything has been played: a live pick, not mock data. */
   const [starter, setStarter] = useState<Track[]>([]);
   const [starterError, setStarterError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const hasRecents = recentlyPlayed.length > 0;
+
+  /**
+   * Load (or reload) the home feeds: featured card + starter rows.
+   *
+   * Used by the mount effect and by pull-to-refresh, so a failed first load
+   * has a real recovery path instead of a "pull to retry" hint nothing wired
+   * up.
+   */
+  const loadHome = useCallback(async (): Promise<void> => {
+    try {
+      const results = await MusicService.search(FEATURED_QUERY, { limit: 10 });
+      setFeatured(results.tracks);
+      setStarter(results.tracks.slice(0, 3));
+      setStarterError(false);
+    } catch {
+      setStarterError(true);
+    }
+  }, []);
 
   // Prefetch a small starter set in the background so a fresh install is not
   // an empty screen. Cached, so this costs nothing on later launches.
   useEffect(() => {
-    let cancelled = false;
+    void loadHome();
+  }, [loadHome]);
 
-    (async () => {
-      try {
-        const results = await MusicService.search(FEATURED_QUERY, { limit: 10 });
-        if (cancelled) return;
-
-        setFeatured(results.tracks);
-        setStarter(results.tracks.slice(0, 3));
-        setStarterError(false);
-      } catch {
-        if (!cancelled) setStarterError(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadHome();
+    setRefreshing(false);
+  }, [loadHome]);
 
   const runAction = useCallback(
     async (action: (typeof ACTIONS)[number]) => {
@@ -141,7 +156,7 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.greeting}>{greetingFor(new Date().getHours())}</Text>
             {!!profile.name && <Text style={styles.name}>{profile.name}.</Text>}
-            <Text style={styles.madeBy}>MADE BY ARK DURRANI (PATHAN)</Text>
+            <Text style={styles.madeBy}>MADE BY ARK DURRANI (PATHAN) · TRIGXON</Text>
           </View>
           <TouchableOpacity
             style={styles.avatar}
@@ -149,7 +164,12 @@ export default function HomeScreen() {
             onPress={() => navigation.navigate('Settings' as never)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <User color={COLORS.text.secondary} size={26} />
+            {profile.name?.trim() ? (
+              <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
+            ) : (
+              <User color={COLORS.text.secondary} size={26} />
+            )
+            }
           </TouchableOpacity>
         </View>
 
@@ -169,15 +189,27 @@ export default function HomeScreen() {
           { paddingBottom: SIZES.bottomInset }
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.text.secondary}
+            colors={[COLORS.accent.green]}
+          />
+        }
       >
         <View style={styles.pillsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {CATEGORIES.map(cat => (
               <Pill
-                key={cat}
-                label={cat}
-                isActive={activeCategory === cat}
-                onPress={() => setActiveCategory(cat)}
+                key={cat.label}
+                label={cat.label}
+                onPress={() => {
+                  // Real browse shortcut: jumps to Search and runs the query.
+                  (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
+                    browseQuery: cat.query,
+                  });
+                }}
               />
             ))}
           </ScrollView>
@@ -185,11 +217,11 @@ export default function HomeScreen() {
 
         <GlassCard style={styles.featuredCard}>
           <View style={styles.featuredContent}>
-            <Text style={styles.featuredText}>A calmer you</Text>
-            <Text style={styles.featuredText}>A softer tomorrow.</Text>
+            <Text style={styles.featuredText}>Made for you</Text>
+            <Text style={styles.featuredSub}>A calmer you, a softer tomorrow.</Text>
           </View>
-          <TouchableOpacity style={styles.featuredPlayBtn} onPress={playFeatured}>
-            <Play color={COLORS.background} size={24} fill={COLORS.background} />
+          <TouchableOpacity style={styles.featuredPlayBtn} onPress={playFeatured} activeOpacity={0.85}>
+            <Play color="#04211D" size={24} fill="#04211D" />
           </TouchableOpacity>
         </GlassCard>
 
@@ -295,7 +327,8 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: 9,
     letterSpacing: 2.5,
-    color: COLORS.text.muted,
+    color: COLORS.accent.primary,
+    opacity: 0.75,
     marginTop: SIZES.xs,
   },
   greeting: {
@@ -312,11 +345,16 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.surfaceRaised,
+    backgroundColor: COLORS.accent.glow,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: 'rgba(61, 214, 195, 0.35)',
+  },
+  avatarInitial: {
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: COLORS.accent.primary,
   },
   searchBar: {
     flexDirection: 'row',
@@ -349,15 +387,20 @@ const styles = StyleSheet.create({
   },
   featuredText: {
     fontFamily: FONTS.medium,
-    fontSize: 16,
+    fontSize: 18,
     color: COLORS.text.primary,
-    opacity: 0.9,
+  },
+  featuredSub: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.text.secondary,
+    marginTop: 4,
   },
   featuredPlayBtn: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -110,8 +110,11 @@ export default function NowPlayingScreen() {
         </View>
 
         {/* Artwork */}
-        <View style={styles.artworkContainer}>
-          <Image source={{ uri: currentTrack.albumImageUrl }} style={styles.artwork} />
+        <View style={styles.artworkGlowWrap}>
+          <View style={styles.artworkGlow} />
+          <View style={styles.artworkContainer}>
+            <Image source={{ uri: currentTrack.albumImageUrl }} style={styles.artwork} />
+          </View>
         </View>
 
         {/* Track Info */}
@@ -162,13 +165,13 @@ export default function NowPlayingScreen() {
           <TouchableOpacity onPress={previous}>
             <SkipBack color={COLORS.text.primary} size={32} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.playButton} onPress={togglePlayPause}>
+          <TouchableOpacity style={styles.playButton} onPress={togglePlayPause} activeOpacity={0.85}>
             {busy ? (
-              <ActivityIndicator color={COLORS.background} />
+              <ActivityIndicator color="#04211D" />
             ) : isPlaying ? (
-              <Pause color={COLORS.background} size={32} fill={COLORS.background} />
+              <Pause color="#04211D" size={32} fill="#04211D" />
             ) : (
-              <Play color={COLORS.background} size={32} fill={COLORS.background} />
+              <Play color="#04211D" size={32} fill="#04211D" />
             )}
           </TouchableOpacity>
           <TouchableOpacity onPress={next}>
@@ -285,19 +288,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text.primary,
   },
-  artworkContainer: {
-    width: width - SIZES.lg * 2,
-    height: width - SIZES.lg * 2,
-    borderRadius: SIZES.radius.md,
-    overflow: 'hidden',
-    alignSelf: 'center',
-    elevation: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    marginBottom: SIZES.xl,
-  },
   artwork: {
     width: '100%',
     height: '100%',
@@ -350,12 +340,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.sm,
   },
   playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.text.primary,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: COLORS.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 8,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+  },
+  artworkGlowWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SIZES.xl,
+  },
+  artworkGlow: {
+    position: 'absolute',
+    width: width - SIZES.lg * 2 + 48,
+    height: width - SIZES.lg * 2 + 48,
+    borderRadius: (width - SIZES.lg * 2 + 48) / 2,
+    backgroundColor: COLORS.accent.glow,
+  },
+  artworkContainer: {
+    width: width - SIZES.lg * 2,
+    height: width - SIZES.lg * 2,
+    borderRadius: SIZES.radius.md,
+    overflow: 'hidden',
+    alignSelf: 'center',
+    elevation: 20,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.25,
+    shadowRadius: 40,
   },
   bottomActions: {
     flexDirection: 'row',

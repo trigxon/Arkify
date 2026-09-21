@@ -110,9 +110,12 @@ class DownloadServiceImpl {
   /**
    * Download a track's audio and store it locally.
    * Returns the local file uri. Subsequent plays will use it via audioUrl.
+   *
+   * onProgress reports 0..1 in phases: resolve (0.05), then byte progress
+   * scaled across the remaining range, then 1 on completion.
    */
   async download(track: Track, onProgress?: (p: number) => void): Promise<string> {
-    if (Platform.OS === 'web') throw new Error('Downloads not supported on web');
+    if (Platform.OS === 'web') throw new Error('Downloads are not supported on web');
     if (this.index === null) await this.init();
 
     // Already downloaded?
@@ -124,24 +127,65 @@ class DownloadServiceImpl {
       this.index = this.index!.filter((e) => e.id !== track.id);
     }
 
+    onProgress?.(0.02);
+
     // Resolve a playable URL (uses native extractor on Android, endpoints otherwise).
     const stream = await MusicService.resolveStream(track);
+    onProgress?.(0.08);
+
     const dir = await ensureDir();
     const fileUri = `${dir}${fileNameFor(track)}`;
 
-    const result = await FileSystem.downloadAsync(stream.url, fileUri, {
+    // downloadAsync has no progress callback, so poll the growing file while
+    // the transfer runs. Coarse but honest, and it lets the UI show motion.
+    const downloadPromise = FileSystem.downloadAsync(stream.url, fileUri, {
       headers: stream.headers ?? {},
     });
 
+    const started = Date.now();
+    let lastReported = 0.08;
+    const poll = setInterval(async () => {
+      try {
+        const info = await FileSystem.getInfoAsync(fileUri);
+        if (info.exists) {
+          const size = ((info as unknown as { size?: number }).size ?? 0) / 8_000_000; // assume ~8MB track
+          const p = Math.min(0.95, 0.08 + size * 0.87);
+          if (p > lastReported + 0.02) {
+            lastReported = p;
+            onProgress?.(p);
+          }
+        }
+      } catch {
+        /* file not created yet */
+      }
+    }, 400);
+
+    let result;
+    try {
+      result = await downloadPromise;
+    } finally {
+      clearInterval(poll);
+      void started;
+    }
+
     // Verify
     const info = await FileSystem.getInfoAsync(result.uri);
-    if (!info.exists) throw new Error('Download failed');
+    if (!info.exists) throw new Error('Download failed — the file never arrived');
+
+    const size = (info as unknown as { size?: number }).size ?? 0;
+    // A zero-byte file is a failed transfer that silently "succeeded".
+    if (size === 0) {
+      try {
+        await FileSystem.deleteAsync(result.uri, { idempotent: true });
+      } catch {}
+      throw new Error('Download failed — empty file, try again');
+    }
 
     const meta: DownloadedMeta = {
       id: track.id,
       track: { ...track },
       fileUri: result.uri,
-      size: (info as any).size ?? 0,
+      size,
       downloadedAt: Date.now(),
     };
     this.index!.unshift(meta);

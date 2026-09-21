@@ -45,6 +45,8 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  /** 0..1 — shown as a percentage on the download row while in flight. */
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   /**
    * Keyboard height, applied as bottom inset on the sheet.
@@ -72,6 +74,7 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
     setDownloaded(DownloadService.isDownloaded(track.id));
     setDownloadError(null);
     setDownloading(false);
+    setDownloadProgress(0);
   }, [track?.id]);
 
   /** Newest-first, matching how Library orders them. */
@@ -189,14 +192,20 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
                   if (downloaded) {
                     await DownloadService.remove(track.id);
                     setDownloaded(false);
+                    setDownloadProgress(0);
                   } else {
                     setDownloading(true);
                     setDownloadError(null);
+                    setDownloadProgress(0);
                     try {
-                      await DownloadService.download(track);
+                      await DownloadService.download(track, (p) =>
+                        setDownloadProgress(p)
+                      );
                       setDownloaded(true);
-                    } catch (e: any) {
-                      setDownloadError(e?.message ?? 'Download failed');
+                    } catch (e: unknown) {
+                      const msg =
+                        e instanceof Error ? e.message : 'Download failed';
+                      setDownloadError(msg);
                     } finally {
                       setDownloading(false);
                     }
@@ -212,11 +221,22 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
                 </View>
                 <View style={styles.rowTextWrap}>
                   <Text style={styles.rowLabel}>
-                    {downloading ? 'Downloading…' : downloaded ? 'Remove download' : 'Download'}
+                    {downloading
+                      ? `Downloading… ${Math.round(downloadProgress * 100)}%`
+                      : downloaded
+                        ? 'Remove download'
+                        : 'Download'}
                   </Text>
                   <Text style={styles.rowMeta}>
                     {downloaded ? 'Available offline' : 'Save for offline playback'}
                   </Text>
+                  {downloading && (
+                    <View style={styles.progressBar}>
+                      <View
+                        style={[styles.progressFill, { width: `${Math.max(4, downloadProgress * 100)}%` }]}
+                      />
+                    </View>
+                  )}
                 </View>
                 {downloaded && <Check color={COLORS.accent.green} size={18} />}
               </TouchableOpacity>
@@ -405,6 +425,17 @@ const styles = StyleSheet.create({
     color: COLORS.accent.red,
     marginTop: 2,
     marginLeft: SIZES.md,
+  },
+  progressBar: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: COLORS.glassBorder,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.accent.primary,
   },
   empty: {
     fontFamily: FONTS.regular,

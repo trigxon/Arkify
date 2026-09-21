@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   barFill: {
     height: '100%',
-    backgroundColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
     borderRadius: 2,
   },
   dot: {
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
     marginLeft: -6,
   },
   /** Slight grow while dragging, so the thumb reads as grabbed. */
