@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Play, Pause, MonitorSpeaker } from 'lucide-react-native';
 import { Track } from '../../core/types';
 import { useProgress } from '../../hooks/usePlayer';
 import { PlaybackSourceSheet } from './PlaybackSourceSheet';
-import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../../constants/theme';
+import { Artwork } from '../common/Artwork';
 
 interface MiniPlayerProps {
   track: Track | null;
@@ -30,7 +31,7 @@ const MiniPlayerProgress: React.FC = React.memo(() => {
     duration > 0 ? Math.min(100, Math.max(0, (position / duration) * 100)) : 0;
 
   return (
-    <View style={styles.progressTrack}>
+    <View style={styles.progressTrack} accessibilityElementsHidden>
       <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
     </View>
   );
@@ -47,9 +48,8 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const [showSource, setShowSource] = useState(false);
-  // Tab bar height matches TabNavigator: 52 content + real bottom inset (or 8 fallback).
-  const resolvedTabBarHeight = tabBarHeight ?? 52 + Math.max(insets.bottom, 8);
-
+  // Tab bar height matches TabNavigator: 56 content + real bottom inset (or 8 fallback).
+  const resolvedTabBarHeight = tabBarHeight ?? 56 + Math.max(insets.bottom, 8);
 
   if (!track) return null;
 
@@ -57,15 +57,14 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={onPress}
-      style={[
-        styles.positionContainer,
-        { bottom: resolvedTabBarHeight + 8 }
-      ]}
+      style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
     >
       <View style={[styles.container, SHADOWS.glass]}>
         <View style={styles.content}>
-          <Image source={{ uri: track.albumImageUrl }} style={styles.image} />
-          
+          <Artwork uri={track.albumImageUrl} size={44} radius={10} />
+
           <View style={styles.infoContainer}>
             <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
             <Text style={styles.artist} numberOfLines={1}>{track.artist.name}</Text>
@@ -79,8 +78,10 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
                 (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
                 setShowSource(true);
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Playback source"
             >
-               <MonitorSpeaker color={COLORS.text.secondary} size={20} />
+               <MonitorSpeaker color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.playButton}
@@ -88,19 +89,21 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
                 (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
                 onPlayPause();
               }}
+              accessibilityRole="button"
+              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={COLORS.text.primary} />
+                <ActivityIndicator size="small" color={COLORS.accent.primary} />
               ) : isPlaying ? (
-                <Pause color={COLORS.text.primary} size={24} fill={COLORS.text.primary} />
+                <Pause color={COLORS.text.primary} size={SIZES.icon.md + 2} fill={COLORS.text.primary} />
               ) : (
-                <Play color={COLORS.text.primary} size={24} fill={COLORS.text.primary} />
+                <Play color={COLORS.text.primary} size={SIZES.icon.md + 2} fill={COLORS.text.primary} />
               )}
             </TouchableOpacity>
           </View>
         </View>
-        
-        {/* Progress Bar */}
+
+        {/* Progress: a hairline along the bottom edge of the bar. */}
         <MiniPlayerProgress />
       </View>
 
@@ -117,38 +120,32 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   container: {
-    borderRadius: SIZES.radius.md,
+    borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
     backgroundColor: COLORS.surfaceRaised,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.hairline,
     borderWidth: 1,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-  },
-  image: {
-    width: 40,
-    height: 40,
-    borderRadius: SIZES.radius.sm,
-    backgroundColor: COLORS.surfaceLight,
+    padding: 10,
   },
   infoContainer: {
     flex: 1,
-    marginLeft: SIZES.sm,
+    marginLeft: SIZES.md,
     justifyContent: 'center',
   },
   title: {
     fontFamily: FONTS.medium,
-    fontSize: 14,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.primary,
   },
   artist: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
+    fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.secondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   controls: {
     flexDirection: 'row',
@@ -170,6 +167,6 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: COLORS.player.progressFill,
-  }
+    backgroundColor: COLORS.accent.primary,
+  },
 });

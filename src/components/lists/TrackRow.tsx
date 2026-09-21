@@ -3,13 +3,14 @@ import {
   StyleSheet,
   Text,
   View,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
+  TextStyle,
 } from 'react-native';
 import { MoreVertical } from 'lucide-react-native';
 import { Track } from '../../core/types';
-import { COLORS, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { Artwork } from '../common/Artwork';
 
 interface TrackRowProps {
   track: Track;
@@ -36,11 +37,18 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
 
   return (
     <TouchableOpacity
-      style={styles.container}
-      activeOpacity={0.7}
+      style={[styles.container, isPlaying && styles.containerPlaying]}
+      activeOpacity={0.6}
       onPress={handlePress}
+      delayPressIn={30}
+      accessibilityRole="button"
+      accessibilityLabel={
+        isPlaying
+          ? `Now playing: ${track.title} by ${track.artist.name}`
+          : `Play ${track.title} by ${track.artist.name}`
+      }
     >
-      <Image source={{ uri: track.albumImageUrl }} style={styles.image} />
+      <Artwork uri={track.albumImageUrl} size={48} radius={10} />
 
       <View style={styles.infoContainer}>
         <Text style={[styles.title, isPlaying && styles.playingTitle]} numberOfLines={1}>
@@ -51,13 +59,28 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
         </Text>
       </View>
 
+      {isPlaying && !isLoading ? (
+        // Tiny equalizer-style cue: three bars, no animation loop (cheap).
+        <View style={styles.eqWrap} accessible={false} importantForAccessibility="no-hide-descendants">
+          <View style={[styles.eqBar, { height: 8 }]} />
+          <View style={[styles.eqBar, { height: 14 }]} />
+          <View style={[styles.eqBar, { height: 10 }]} />
+        </View>
+      ) : null}
+
       {isLoading ? (
         <View style={styles.moreButton}>
-          <ActivityIndicator size="small" color={COLORS.text.secondary} />
+          <ActivityIndicator size="small" color={COLORS.accent.primary} />
         </View>
       ) : (
-        <TouchableOpacity style={styles.moreButton} onPress={handleMorePress}>
-          <MoreVertical color={COLORS.text.secondary} size={20} />
+        <TouchableOpacity
+          style={styles.moreButton}
+          onPress={handleMorePress}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={`More options for ${track.title}`}
+        >
+          <MoreVertical color={COLORS.text.muted} size={SIZES.icon.sm} />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -76,14 +99,12 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SIZES.sm,
-    paddingHorizontal: SIZES.md,
+    paddingVertical: 10,
+    paddingHorizontal: SIZES.sm,
+    borderRadius: SIZES.radius.md,
   },
-  image: {
-    width: 48,
-    height: 48,
-    borderRadius: SIZES.radius.sm,
-    backgroundColor: COLORS.surfaceLight,
+  containerPlaying: {
+    backgroundColor: COLORS.accent.soft,
   },
   infoContainer: {
     flex: 1,
@@ -92,19 +113,30 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: FONTS.medium,
-    fontSize: 16,
+    fontSize: TYPE.headline.fontSize,
     color: COLORS.text.primary,
     marginBottom: 2,
-  },
+  } as TextStyle,
   playingTitle: {
-    color: COLORS.accent.green,
+    color: COLORS.accent.primary,
   },
   artist: {
     fontFamily: FONTS.regular,
-    fontSize: 14,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
   },
+  eqWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+    marginRight: SIZES.sm,
+  },
+  eqBar: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: COLORS.accent.primary,
+  },
   moreButton: {
-    padding: SIZES.sm,
-  }
+    padding: SIZES.sm + 2,
+  },
 });

@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, ExternalLink, User } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Gender } from '../services/LibraryService';
 import { useLibrary } from '../hooks/useLibrary';
 
@@ -62,8 +62,10 @@ export default function SettingsScreen() {
           onPress={() => navigation.goBack()}
           style={styles.backButton}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
-          <ChevronLeft color={COLORS.text.primary} size={26} />
+          <ChevronLeft color={COLORS.text.primary} size={SIZES.icon.lg} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
@@ -79,7 +81,11 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <View style={styles.avatarRow}>
             <View style={styles.avatar}>
-              <User color={COLORS.text.secondary} size={28} />
+              {profile.name?.trim() ? (
+                <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
+              ) : (
+                <User color={COLORS.text.secondary} size={SIZES.icon.md + 2} />
+              )}
             </View>
             <View style={styles.avatarText}>
               <Text style={styles.avatarName} numberOfLines={1}>
@@ -102,6 +108,7 @@ export default function SettingsScreen() {
             placeholderTextColor={COLORS.text.muted}
             returnKeyType="done"
             maxLength={40}
+            accessibilityLabel="Your name"
           />
 
           <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>GENDER</Text>
@@ -114,6 +121,9 @@ export default function SettingsScreen() {
                   style={[styles.pill, active && styles.pillActive]}
                   activeOpacity={0.8}
                   onPress={() => saveProfile({ gender: option.value })}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ selected: active }}
                 >
                   <Text style={[styles.pillText, active && styles.pillTextActive]}>
                     {option.label}
@@ -195,9 +205,15 @@ const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
 );
 
 const LinkRow: React.FC<{ label: string; onPress: () => void }> = ({ label, onPress }) => (
-  <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={onPress}>
+  <TouchableOpacity
+    style={styles.row}
+    activeOpacity={0.7}
+    onPress={onPress}
+    accessibilityRole="link"
+    accessibilityLabel={label}
+  >
     <Text style={styles.rowLink}>{label}</Text>
-    <ExternalLink color={COLORS.text.secondary} size={16} />
+    <ExternalLink color={COLORS.text.secondary} size={SIZES.icon.xs + 2} />
   </TouchableOpacity>
 );
 
@@ -211,37 +227,37 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SIZES.sm,
-    paddingHorizontal: SIZES.md,
+    gap: SIZES.xs,
+    paddingHorizontal: SIZES.gutter,
     paddingBottom: SIZES.md,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: SIZES.touchTarget,
+    height: SIZES.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 26,
+    fontSize: TYPE.title2.fontSize,
     color: COLORS.text.primary,
   },
   sectionLabel: {
     fontFamily: FONTS.medium,
-    fontSize: 10,
-    letterSpacing: 2.5,
+    fontSize: TYPE.overline.fontSize,
+    letterSpacing: 2,
     color: COLORS.text.muted,
     marginTop: SIZES.lg,
     marginBottom: SIZES.sm,
-    marginHorizontal: SIZES.md,
+    marginHorizontal: SIZES.gutter,
   },
   card: {
-    marginHorizontal: SIZES.md,
+    marginHorizontal: SIZES.gutter,
     padding: SIZES.md,
-    borderRadius: SIZES.radius.md,
-    backgroundColor: COLORS.surfaceRaised,
+    borderRadius: SIZES.radius.lg,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.hairline,
   },
   avatarRow: {
     flexDirection: 'row',
@@ -255,27 +271,32 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: COLORS.accent.soft,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: 'rgba(61, 214, 195, 0.30)',
+  },
+  avatarInitial: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.title2.fontSize,
+    color: COLORS.accent.primary,
   },
   avatarText: {
     flex: 1,
   },
   avatarName: {
     fontFamily: FONTS.medium,
-    fontSize: 18,
+    fontSize: TYPE.title3.fontSize,
     color: COLORS.text.primary,
   },
   avatarMeta: {
     fontFamily: FONTS.regular,
-    fontSize: 13,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
     marginTop: 2,
   },
   fieldLabel: {
-    fontFamily: FONTS.regular,
-    fontSize: 10,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.micro.fontSize,
     letterSpacing: 2,
     color: COLORS.text.muted,
     marginBottom: SIZES.sm,
@@ -285,10 +306,12 @@ const styles = StyleSheet.create({
   },
   input: {
     fontFamily: FONTS.medium,
-    fontSize: 16,
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.primary,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: COLORS.surfaceElevated,
     borderRadius: SIZES.radius.sm,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
     paddingHorizontal: SIZES.md,
     paddingVertical: SIZES.sm + 4,
   },
@@ -302,20 +325,22 @@ const styles = StyleSheet.create({
     paddingVertical: SIZES.sm,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.surfaceLight,
+    borderColor: COLORS.hairline,
+    backgroundColor: COLORS.surfaceElevated,
+    minHeight: SIZES.touchTarget - 8,
+    justifyContent: 'center',
   },
   pillActive: {
-    backgroundColor: COLORS.text.primary,
-    borderColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
+    borderColor: COLORS.accent.primary,
   },
   pillText: {
     fontFamily: FONTS.medium,
-    fontSize: 13,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
   },
   pillTextActive: {
-    color: COLORS.background,
+    color: '#04211D',
   },
   statsRow: {
     flexDirection: 'row',
@@ -325,13 +350,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontFamily: FONTS.bold,
-    fontSize: 22,
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.title2.fontSize,
     color: COLORS.text.primary,
   },
   statLabel: {
     fontFamily: FONTS.regular,
-    fontSize: 11,
+    fontSize: TYPE.micro.fontSize,
     letterSpacing: 1,
     color: COLORS.text.secondary,
     marginTop: 2,
@@ -340,43 +365,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SIZES.sm + 2,
+    paddingVertical: 12,
+    minHeight: SIZES.touchTarget - 4,
   },
   rowLabel: {
     fontFamily: FONTS.regular,
-    fontSize: 15,
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.secondary,
   },
   rowValue: {
     fontFamily: FONTS.medium,
-    fontSize: 15,
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.primary,
   },
   rowLink: {
     fontFamily: FONTS.medium,
-    fontSize: 15,
-    color: COLORS.text.primary,
+    fontSize: TYPE.body.fontSize,
+    color: COLORS.accent.primary,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.glassBorder,
+    backgroundColor: COLORS.divider,
   },
   legalTitle: {
     fontFamily: FONTS.medium,
-    fontSize: 16,
+    fontSize: TYPE.headline.fontSize,
     color: COLORS.text.primary,
     marginBottom: SIZES.sm,
   },
   legalBody: {
     fontFamily: FONTS.regular,
-    fontSize: 13,
+    fontSize: TYPE.subheadline.fontSize,
     lineHeight: 19,
     color: COLORS.text.secondary,
     marginBottom: SIZES.sm,
   },
   footer: {
     fontFamily: FONTS.medium,
-    fontSize: 10,
+    fontSize: TYPE.overline.fontSize,
     letterSpacing: 3,
     color: COLORS.text.muted,
     textAlign: 'center',

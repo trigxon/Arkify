@@ -7,17 +7,17 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Image,
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, X, Trash2, Download, Share2 } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { Plus, X, Trash2, Download, Share2, ChevronRight, ListMusic, DownloadCloud } from 'lucide-react-native';
+import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
-import { GlassCard } from '../components/common/GlassCard';
 import { TrackRow } from '../components/lists/TrackRow';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { Artwork } from '../components/common/Artwork';
+import { EmptyState } from '../components/common/UI';
 import { Playlist, Track } from '../core/types';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
@@ -105,7 +105,6 @@ export default function LibraryScreen() {
     };
   }, [liked, playlists, recentlyPlayed]);
 
-
   const onPlayPlaylist = (playlist: Playlist) => {
     if (!playlist.tracks.length) return;
     playTrack(playlist.tracks[0], { tracks: playlist.tracks, label: playlist.name });
@@ -160,6 +159,7 @@ export default function LibraryScreen() {
           styles.scrollContent,
           { paddingTop: insets.top + SIZES.lg, paddingBottom: SIZES.bottomInset }
         ]}
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Your Library</Text>
@@ -169,17 +169,20 @@ export default function LibraryScreen() {
               setShowImport((v) => !v);
               clearImportError();
             }}
+            accessibilityRole="button"
+            accessibilityLabel={showImport ? 'Close create panel' : 'Create or import a playlist'}
+            accessibilityState={{ expanded: showImport }}
           >
             {showImport ? (
-              <X color={COLORS.text.primary} size={24} />
+              <X color={COLORS.text.primary} size={SIZES.icon.md} />
             ) : (
-              <Plus color={COLORS.text.primary} size={24} />
+              <Plus color={COLORS.accent.primary} size={SIZES.icon.md} />
             )}
           </TouchableOpacity>
         </View>
 
         {showImport && (
-          <GlassCard intensity={20} style={styles.importCard}>
+          <View style={styles.importCard}>
             <Text style={styles.importTitle}>New playlist</Text>
             <View style={styles.importRow}>
               <TextInput
@@ -191,14 +194,14 @@ export default function LibraryScreen() {
                 onSubmitEditing={onCreatePlaylist}
                 returnKeyType="done"
                 maxLength={60}
+                accessibilityLabel="Playlist name"
               />
               <TouchableOpacity
-                style={[
-                  styles.importButton,
-                  !newPlaylistName.trim() && styles.importButtonDisabled,
-                ]}
+                style={[styles.importButton, !newPlaylistName.trim() && styles.importButtonDisabled]}
                 onPress={onCreatePlaylist}
                 disabled={!newPlaylistName.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Create playlist"
               >
                 <Text style={styles.importButtonText}>Create</Text>
               </TouchableOpacity>
@@ -218,26 +221,29 @@ export default function LibraryScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="done"
+                accessibilityLabel="Playlist link"
               />
               <TouchableOpacity
                 style={styles.importButton}
                 onPress={onImport}
                 disabled={importing}
+                accessibilityRole="button"
+                accessibilityLabel="Import playlist"
               >
                 {importing ? (
-                  <ActivityIndicator size="small" color={COLORS.background} />
+                  <ActivityIndicator size="small" color="#04211D" />
                 ) : (
                   <Text style={styles.importButtonText}>Add</Text>
                 )}
               </TouchableOpacity>
             </View>
             {importError && <Text style={styles.importError}>{importError}</Text>}
-          </GlassCard>
+          </View>
         )}
 
         <View style={styles.filtersContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {FILTERS.map(filter => (
+            {FILTERS.map((filter) => (
               <Pill
                 key={filter}
                 label={filter}
@@ -250,48 +256,59 @@ export default function LibraryScreen() {
 
         <View style={styles.listContainer}>
           {activeFilter === 'Playlists' &&
-            allPlaylists.map(playlist => (
-              <View key={playlist.id}>
+            (allPlaylists.length ? (
+              allPlaylists.map((playlist) => (
                 <TouchableOpacity
-                  style={styles.playlistRow}
+                  key={playlist.id}
+                  style={styles.row}
                   activeOpacity={0.7}
                   onPress={() => openPlaylist(playlist)}
                   onLongPress={() => onPlayPlaylist(playlist)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open playlist ${playlist.name}, ${playlist.tracks.length} tracks`}
                 >
                   {playlist.coverImageUrl && playlist.coverImageUrl !== 'liked_songs_gradient' ? (
-                    <Image
-                      source={{ uri: playlist.coverImageUrl }}
-                      style={styles.playlistImage}
-                    />
+                    <Artwork uri={playlist.coverImageUrl} size={56} radius={12} />
                   ) : (
-                    <View style={[styles.playlistImage, styles.likedSongsGradient]} />
+                    <View style={[styles.rowArtwork, styles.likedSongsGradient]}>
+                      <ListMusic color="#04211D" size={SIZES.icon.sm + 2} />
+                    </View>
                   )}
-                  <View style={styles.playlistInfo}>
-                    <Text style={styles.playlistTitle}>{playlist.name}</Text>
-                    <Text style={styles.playlistSubtitle}>
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>{playlist.name}</Text>
+                    <Text style={styles.rowSubtitle} numberOfLines={1}>
                       {playlist.id === 'liked'
-                        ? `${playlist.tracks.length} songs`
+                        ? `Playlist • ${playlist.tracks.length} ${playlist.tracks.length === 1 ? 'song' : 'songs'}`
                         : `Playlist • ${playlist.creator} • ${playlist.tracks.length}`}
                     </Text>
                   </View>
+                  <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
                   {playlist.id !== 'liked' && (
                     <TouchableOpacity
-                      style={styles.deleteButton}
+                      style={styles.rowAction}
                       onPress={() => deletePlaylist(playlist.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete playlist ${playlist.name}`}
                     >
-                      <Trash2 color={COLORS.text.muted} size={18} />
+                      <Trash2 color={COLORS.text.muted} size={SIZES.icon.sm} />
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
-              </View>
+              ))
+            ) : (
+              <EmptyState
+                Icon={ListMusic}
+                title="No playlists yet"
+                hint="Tap + to create or import one."
+              />
             ))}
 
           {activeFilter === 'Artists' &&
             (derived.artists.length ? (
-              derived.artists.map(artist => (
+              derived.artists.map((artist) => (
                 <TouchableOpacity
                   key={artist.name}
-                  style={styles.playlistRow}
+                  style={styles.row}
                   activeOpacity={0.7}
                   onPress={() => {
                     // Real action: search this artist so their songs come up.
@@ -300,26 +317,32 @@ export default function LibraryScreen() {
                       browseQuery: artist.name,
                     });
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Search artist ${artist.name}`}
                 >
-                  <Image source={{ uri: artist.image }} style={styles.artistImage} />
-                  <View style={styles.playlistInfo}>
-                    <Text style={styles.playlistTitle}>{artist.name}</Text>
-                    <Text style={styles.playlistSubtitle}>
+                  <Artwork uri={artist.image} size={56} round />
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>{artist.name}</Text>
+                    <Text style={styles.rowSubtitle} numberOfLines={1}>
                       Artist • {artist.count} {artist.count === 1 ? 'song' : 'songs'}
                     </Text>
                   </View>
+                  <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={styles.emptyHint}>Artists appear here as you save music.</Text>
+              <EmptyState
+                title="No artists yet"
+                hint="Artists appear here as you save music."
+              />
             ))}
 
           {activeFilter === 'Albums' &&
             (derived.albums.length ? (
-              derived.albums.map(album => (
+              derived.albums.map((album) => (
                 <TouchableOpacity
                   key={album.name}
-                  style={styles.playlistRow}
+                  style={styles.row}
                   activeOpacity={0.7}
                   onPress={() => {
                     navigation.navigate('SearchTab' as never);
@@ -327,25 +350,31 @@ export default function LibraryScreen() {
                       browseQuery: `${album.name} ${album.artist}`,
                     });
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Search album ${album.name}`}
                 >
-                  <Image source={{ uri: album.image }} style={styles.playlistImage} />
-                  <View style={styles.playlistInfo}>
-                    <Text style={styles.playlistTitle}>{album.name}</Text>
-                    <Text style={styles.playlistSubtitle}>
+                  <Artwork uri={album.image} size={56} radius={12} />
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>{album.name}</Text>
+                    <Text style={styles.rowSubtitle} numberOfLines={1}>
                       Album • {album.artist}
                     </Text>
                   </View>
+                  <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
                 </TouchableOpacity>
               ))
             ) : (
-              <Text style={styles.emptyHint}>Albums appear here as you save music.</Text>
+              <EmptyState
+                title="No albums yet"
+                hint="Albums appear here as you save music."
+              />
             ))}
 
           {activeFilter === 'Downloaded' && (
             downloadedTracks.length ? (
               <View>
                 {downloadedTracks.map((track) => (
-                  <View key={track.id} style={styles.playlistRow}>
+                  <View key={track.id} style={styles.downloadedRow}>
                     <View style={{ flex: 1 }}>
                       <TrackRow
                         track={track}
@@ -353,21 +382,34 @@ export default function LibraryScreen() {
                         isPlaying={currentTrack?.id === track.id && isPlaying}
                       />
                     </View>
-                    <TouchableOpacity style={styles.deleteButton} onPress={async () => { await DownloadService.remove(track.id); await refreshDownloads(); }}>
-                      <Trash2 color={COLORS.text.muted} size={18} />
+                    <TouchableOpacity
+                      style={styles.rowAction}
+                      onPress={async () => { await DownloadService.remove(track.id); await refreshDownloads(); }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove download ${track.title}`}
+                    >
+                      <Trash2 color={COLORS.text.muted} size={SIZES.icon.sm} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteButton} onPress={() => DownloadService.shareTrack(track)}>
-                      <Share2 color={COLORS.text.muted} size={18} />
+                    <TouchableOpacity
+                      style={styles.rowAction}
+                      onPress={() => DownloadService.shareTrack(track)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Share ${track.title}`}
+                    >
+                      <Share2 color={COLORS.text.muted} size={SIZES.icon.sm} />
                     </TouchableOpacity>
                   </View>
                 ))}
-                <Text style={[styles.emptyHint, { marginTop: SIZES.md }]}>Tap a track to play offline — zero network latency. Downloaded files survive app restarts.</Text>
+                <Text style={styles.downloadedHint}>
+                  Tap a track to play offline — zero network latency. Downloads survive app restarts.
+                </Text>
               </View>
             ) : (
-              <View>
-                <Text style={styles.emptyHint}>No downloads yet.</Text>
-                <Text style={[styles.emptyHint, { color: COLORS.text.secondary, marginTop: 4 }]}>Open any track’s ••• menu → Download to save it for offline, instant playback.</Text>
-              </View>
+              <EmptyState
+                Icon={DownloadCloud}
+                title="No downloads yet"
+                hint="Open any track's ••• menu → Download to save it for offline, instant playback."
+              />
             )
           )}
         </View>
@@ -394,7 +436,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scrollContent: {
-    paddingHorizontal: SIZES.md,
+    paddingHorizontal: SIZES.gutter,
   },
   header: {
     flexDirection: 'row',
@@ -403,76 +445,28 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.md,
   },
   headerTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: 28,
+    fontFamily: FONTS.bold,
+    fontSize: TYPE.title1.fontSize,
+    lineHeight: TYPE.title1.lineHeight,
     color: COLORS.text.primary,
   },
   addButton: {
-    padding: SIZES.sm,
-  },
-  filtersContainer: {
-    marginBottom: SIZES.xl,
-  },
-  listContainer: {
-    flex: 1,
-  },
-  playlistRow: {
-    flexDirection: 'row',
+    width: SIZES.touchTarget,
+    height: SIZES.touchTarget,
     alignItems: 'center',
-    marginBottom: SIZES.md,
-    paddingVertical: SIZES.xs,
-  },
-  playlistImage: {
-    width: 64,
-    height: 64,
-    borderRadius: SIZES.radius.sm,
-    backgroundColor: COLORS.surfaceLight,
-  },
-  artistImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.surfaceLight,
-  },
-  likedSongsGradient: {
-    backgroundColor: '#8A2BE2', // Simple fallback for linear gradient
-  },
-  playlistInfo: {
-    flex: 1,
-    marginLeft: SIZES.md,
     justifyContent: 'center',
   },
-  playlistTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  playlistSubtitle: {
-    fontFamily: FONTS.regular,
-    fontSize: 14,
-    color: COLORS.text.secondary,
-  },
-  deleteButton: {
-    padding: SIZES.sm,
-  },
-  expandedTracks: {
-    marginBottom: SIZES.md,
-  },
-  emptyHint: {
-    fontFamily: FONTS.regular,
-    fontSize: 14,
-    color: COLORS.text.muted,
-    paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
-  },
   importCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
     padding: SIZES.md,
     marginBottom: SIZES.md,
   },
   importTitle: {
     fontFamily: FONTS.medium,
-    fontSize: 14,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.primary,
     marginBottom: SIZES.sm,
   },
@@ -482,43 +476,98 @@ const styles = StyleSheet.create({
   },
   importInput: {
     flex: 1,
-    height: 40,
+    height: 44,
     fontFamily: FONTS.regular,
-    fontSize: 14,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.text.primary,
-    backgroundColor: COLORS.glass,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.hairline,
     borderRadius: SIZES.radius.sm,
     paddingHorizontal: SIZES.sm,
   },
   importButton: {
     marginLeft: SIZES.sm,
-    height: 40,
-    minWidth: 56,
+    height: 44,
+    minWidth: 72,
     paddingHorizontal: SIZES.md,
     borderRadius: SIZES.radius.sm,
-    backgroundColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   importButtonDisabled: {
     opacity: 0.4,
   },
-  panelDivider: {
-    height: 1,
-    backgroundColor: COLORS.glassBorder,
-    marginVertical: SIZES.md,
-  },
   importButtonText: {
     fontFamily: FONTS.medium,
-    fontSize: 14,
-    color: COLORS.background,
+    fontSize: TYPE.callout.fontSize,
+    color: '#04211D',
   },
   importError: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.accent.red,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.status.error,
     marginTop: SIZES.sm,
+  },
+  panelDivider: {
+    height: 1,
+    backgroundColor: COLORS.divider,
+    marginVertical: SIZES.md,
+  },
+  filtersContainer: {
+    marginBottom: SIZES.lg,
+  },
+  listContainer: {
+    flex: 1,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SIZES.sm + 2,
+    minHeight: SIZES.touchTarget + 24,
+  },
+  rowArtwork: {
+    width: 56,
+    height: 56,
+    borderRadius: SIZES.radius.sm,
+    backgroundColor: COLORS.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  likedSongsGradient: {
+    backgroundColor: COLORS.accent.primary,
+  },
+  rowInfo: {
+    flex: 1,
+    marginLeft: SIZES.md,
+    justifyContent: 'center',
+  },
+  rowTitle: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.headline.fontSize,
+    color: COLORS.text.primary,
+    marginBottom: 2,
+  },
+  rowSubtitle: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.secondary,
+  },
+  rowAction: {
+    padding: SIZES.sm,
+    marginLeft: SIZES.xs,
+  },
+  downloadedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  downloadedHint: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.muted,
+    marginTop: SIZES.md,
+    paddingHorizontal: SIZES.sm,
+    lineHeight: 18,
   },
 });
