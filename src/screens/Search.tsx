@@ -6,19 +6,18 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search as SearchIcon, X } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { Search as SearchIcon, X, SearchX, WifiOff } from 'lucide-react-native';
+import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
-import { GlassCard } from '../components/common/GlassCard';
-import { LinearGradient } from 'expo-linear-gradient';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { CategoryTile } from '../components/common/Cards';
+import { SectionHeader, EmptyState, ErrorState, SkeletonList } from '../components/common/UI';
 import { BROWSE_CATEGORIES } from '../data/catalog';
 import { SearchFilter, Track } from '../core/types';
 import { useSearch } from '../hooks/useSearch';
@@ -49,6 +48,7 @@ export default function SearchScreen() {
 
   const { playTrack, currentTrack, isPlaying, togglePlayPause } = usePlayer();
   const [expandingId, setExpandingId] = useState<string | null>(null);
+  const [fieldFocused, setFieldFocused] = useState(false);
 
   const isBrowsing = query.trim().length === 0;
 
@@ -190,24 +190,38 @@ export default function SearchScreen() {
           styles.scrollContent,
           { paddingTop: insets.top + SIZES.lg, paddingBottom: SIZES.bottomInset },
         ]}
+        showsVerticalScrollIndicator={false}
       >
         <Text style={styles.headerTitle}>Search</Text>
 
-        <View style={styles.searchContainer}>
-          <SearchIcon color={COLORS.text.secondary} size={20} />
+        <View
+          style={[styles.searchContainer, fieldFocused && styles.searchContainerFocused]}
+        >
+          <SearchIcon
+            color={fieldFocused ? COLORS.accent.primary : COLORS.text.secondary}
+            size={SIZES.icon.md - 2}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Songs, artists, albums..."
-            placeholderTextColor={COLORS.text.secondary}
+            placeholderTextColor={COLORS.text.muted}
             value={query}
             onChangeText={setQuery}
+            onFocus={() => setFieldFocused(true)}
+            onBlur={() => setFieldFocused(false)}
             onSubmitEditing={() => searchNow(query)}
             returnKeyType="search"
             autoCorrect={false}
+            accessibilityLabel="Search query"
           />
           {query ? (
-            <TouchableOpacity onPress={clear} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <X color={COLORS.text.secondary} size={20} />
+            <TouchableOpacity
+              onPress={clear}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <X color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -227,56 +241,45 @@ export default function SearchScreen() {
 
         {isBrowsing ? (
           <>
-            <Text style={styles.sectionTitle}>Browse Audia</Text>
-
+            <SectionHeader title="Browse Audia" />
             <View style={styles.categoriesGrid}>
               {BROWSE_CATEGORIES.map((category) => (
-                <TouchableOpacity
+                <CategoryTile
                   key={category.id}
-                  style={styles.categoryCardWrapper}
-                  activeOpacity={0.8}
+                  label={category.name}
                   onPress={() => searchNow(category.query)}
-                >
-                  <LinearGradient
-                    colors={[`${category.color}33`, 'rgba(9, 11, 11, 0.9)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.categoryCard}
-                  >
-                    <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
-                    <Text style={styles.categoryName}>{category.name}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                  style={styles.categoryCardWrapper}
+                />
               ))}
             </View>
           </>
         ) : (
           <>
             {error && (
-              <TouchableOpacity activeOpacity={0.8} onPress={retry}>
-                <GlassCard intensity={20} style={styles.stateCard}>
-                  <Text style={styles.stateText}>{error}</Text>
-                  <Text style={styles.stateHint}>Tap to try again</Text>
-                </GlassCard>
-              </TouchableOpacity>
+              <ErrorState
+                message={error}
+                onRetry={retry}
+                style={styles.stateCard}
+                Icon={WifiOff}
+              />
             )}
 
             {isSearching && !hasResults && (
-              <View style={styles.stateCenter}>
-                <ActivityIndicator color={COLORS.text.secondary} />
-              </View>
+              <SkeletonList rows={5} />
             )}
 
             {!isSearching && !error && !hasResults && (
-              <GlassCard intensity={20} style={styles.stateCard}>
-                <Text style={styles.stateText}>No results for "{query.trim()}"</Text>
-                <Text style={styles.stateHint}>Try a different spelling or filter</Text>
-              </GlassCard>
+              <EmptyState
+                Icon={SearchX}
+                title={`No results for "${query.trim()}"`}
+                hint="Try a different spelling or filter."
+                style={styles.stateCard}
+              />
             )}
 
             {results.tracks.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>Songs</Text>
+                <SectionHeader title="Songs" />
                 <View style={styles.resultsList}>
                   {results.tracks.map((track) => (
                     <TrackRow
@@ -293,7 +296,7 @@ export default function SearchScreen() {
 
             {results.artists.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>Artists</Text>
+                <SectionHeader title="Artists" />
                 <View style={styles.resultsList}>
                   {artistRows.map((row) => (
                     <TrackRow
@@ -309,7 +312,7 @@ export default function SearchScreen() {
 
             {results.albums.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>Albums</Text>
+                <SectionHeader title="Albums" />
                 <View style={styles.resultsList}>
                   {albumRows.map((row) => (
                     <TrackRow
@@ -325,7 +328,7 @@ export default function SearchScreen() {
 
             {results.playlists.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>Playlists</Text>
+                <SectionHeader title="Playlists" />
                 <View style={styles.resultsList}>
                   {playlistRows.map((row) => (
                     <TrackRow
@@ -364,41 +367,39 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scrollContent: {
-    paddingHorizontal: SIZES.md,
+    paddingHorizontal: SIZES.gutter,
   },
   headerTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: 28,
+    fontFamily: FONTS.bold,
+    fontSize: TYPE.title1.fontSize,
+    lineHeight: TYPE.title1.lineHeight,
     color: COLORS.text.primary,
     marginBottom: SIZES.md,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.hairline,
     borderRadius: SIZES.radius.md,
     paddingHorizontal: SIZES.md,
-    height: 56,
-    marginBottom: SIZES.lg,
+    height: 52,
+    marginBottom: SIZES.md,
+  },
+  searchContainerFocused: {
+    borderColor: COLORS.accent.primary,
   },
   searchInput: {
     flex: 1,
     height: '100%',
     fontFamily: FONTS.regular,
-    fontSize: 16,
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.primary,
     marginLeft: SIZES.sm,
   },
   filtersContainer: {
-    marginBottom: SIZES.xl,
-  },
-  sectionTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: 18,
-    color: COLORS.text.primary,
-    marginBottom: SIZES.md,
+    marginBottom: SIZES.lg,
   },
   categoriesGrid: {
     flexDirection: 'row',
@@ -406,52 +407,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   categoryCardWrapper: {
-    width: '48%',
-    marginBottom: SIZES.md,
-  },
-  categoryCard: {
-    height: 100,
-    padding: SIZES.md,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    overflow: 'hidden',
-    borderRadius: SIZES.radius.md,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-  },
-  categoryDot: {
-    position: 'absolute',
-    top: SIZES.md,
-    left: SIZES.md,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  categoryName: {
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: COLORS.text.primary,
+    width: '48.5%',
+    marginBottom: SIZES.sm,
+    marginRight: 0,
   },
   resultsList: {
     marginBottom: SIZES.lg,
   },
   stateCard: {
-    padding: SIZES.md,
     marginBottom: SIZES.lg,
-  },
-  stateText: {
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-    color: COLORS.text.primary,
-  },
-  stateHint: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.text.secondary,
-    marginTop: 4,
-  },
-  stateCenter: {
-    paddingVertical: SIZES.xl,
-    alignItems: 'center',
   },
 });

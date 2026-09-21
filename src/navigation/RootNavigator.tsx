@@ -18,6 +18,9 @@ const AudiaTheme = {
     ...DefaultTheme.colors,
     background: COLORS.background,
     text: COLORS.text.primary,
+    primary: COLORS.accent.primary,
+    border: COLORS.hairline,
+    card: COLORS.background,
   },
 };
 

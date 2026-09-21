@@ -5,14 +5,15 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, Play, Heart, Compass, Moon, Target, User } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
-import { Pill } from '../components/common/Pill';
-import { GlassCard } from '../components/common/GlassCard';
+import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
+import { Artwork } from '../components/common/Artwork';
+import { SectionHeader, SkeletonList, ErrorState, EmptyState } from '../components/common/UI';
+import { QuickActionTile } from '../components/common/Cards';
+import { ScreenHeader } from '../components/common/ScreenHeader';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { Track } from '../core/types';
@@ -43,7 +44,7 @@ const ACTIONS = [
 ] as const;
 
 const greetingFor = (hour: number) =>
-  hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
+  hour < 12 ? 'Good morning.' : hour < 18 ? 'Good afternoon.' : 'Good evening.';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -53,6 +54,7 @@ export default function HomeScreen() {
 
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [featured, setFeatured] = useState<Track[]>([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
 
   /** Shown before anything has been played: a live pick, not mock data. */
   const [starter, setStarter] = useState<Track[]>([]);
@@ -76,6 +78,8 @@ export default function HomeScreen() {
       setStarterError(false);
     } catch {
       setStarterError(true);
+    } finally {
+      setFeaturedLoading(false);
     }
   }, []);
 
@@ -148,38 +152,42 @@ export default function HomeScreen() {
   /** Track whose "add to playlist" sheet is open. */
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
 
+  const featuredTrack = featured[0];
+
   return (
     <View style={styles.container}>
       {/* Pinned: greeting + search stay put while the rest of the page scrolls. */}
       <View style={[styles.stickyHeader, { paddingTop: insets.top + SIZES.lg }]}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{greetingFor(new Date().getHours())}</Text>
-            {!!profile.name && <Text style={styles.name}>{profile.name}.</Text>}
-            <Text style={styles.madeBy}>MADE BY ARK DURRANI (PATHAN) · TRIGXON</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.avatar}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Settings' as never)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            {profile.name?.trim() ? (
-              <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
-            ) : (
-              <User color={COLORS.text.secondary} size={26} />
-            )
-            }
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={profile.name?.trim() ? profile.name : 'Audia'}
+          kicker={greetingFor(new Date().getHours())}
+          right={
+            <TouchableOpacity
+              style={styles.avatar}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Settings' as never)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
+            >
+              {profile.name?.trim() ? (
+                <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
+              ) : (
+                <User color={COLORS.text.secondary} size={SIZES.icon.lg - 2} />
+              )}
+            </TouchableOpacity>
+          }
+        />
 
         <TouchableOpacity
           style={styles.searchBar}
           activeOpacity={0.8}
           onPress={() => navigation.navigate('SearchTab' as never)}
+          accessibilityRole="button"
+          accessibilityLabel="Search songs, artists and albums"
         >
-          <Search color={COLORS.text.secondary} size={20} />
-          <Text style={styles.searchText}>Search for songs, artists, or more...</Text>
+          <Search color={COLORS.text.secondary} size={SIZES.icon.md - 2} strokeWidth={2.2} />
+          <Text style={styles.searchText}>Songs, artists, albums</Text>
         </TouchableOpacity>
       </View>
 
@@ -194,94 +202,104 @@ export default function HomeScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={COLORS.text.secondary}
-            colors={[COLORS.accent.green]}
+            colors={[COLORS.accent.primary]}
           />
         }
       >
+        {/* Browse shortcuts — real queries on the Search screen. */}
         <View style={styles.pillsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {CATEGORIES.map(cat => (
-              <Pill
+            {CATEGORIES.map((cat) => (
+              <TouchableOpacity
                 key={cat.label}
-                label={cat.label}
+                style={styles.chip}
+                activeOpacity={0.75}
                 onPress={() => {
-                  // Real browse shortcut: jumps to Search and runs the query.
                   (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
                     browseQuery: cat.query,
                   });
                 }}
-              />
+                accessibilityRole="button"
+                accessibilityLabel={`Browse ${cat.label}`}
+              >
+                <Text style={styles.chipText}>{cat.label}</Text>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        <GlassCard style={styles.featuredCard}>
-          <View style={styles.featuredContent}>
-            <Text style={styles.featuredText}>Made for you</Text>
-            <Text style={styles.featuredSub}>A calmer you, a softer tomorrow.</Text>
+        {/* Featured: the first track of the calm pick, artwork as the star. */}
+        {featuredLoading ? (
+          <View style={[styles.featuredCard, styles.featuredSkeleton]}>
+            <SkeletonList rows={1} />
           </View>
-          <TouchableOpacity style={styles.featuredPlayBtn} onPress={playFeatured} activeOpacity={0.85}>
-            <Play color="#04211D" size={24} fill="#04211D" />
+        ) : featuredTrack ? (
+          <TouchableOpacity
+            style={styles.featuredCard}
+            activeOpacity={0.85}
+            onPress={playFeatured}
+            accessibilityRole="button"
+            accessibilityLabel={`Play featured: ${featuredTrack.title} by ${featuredTrack.artist.name}`}
+          >
+            <Artwork uri={featuredTrack.albumImageUrl} size={72} radius={12} />
+            <View style={styles.featuredText}>
+              <Text style={styles.featuredKicker}>MADE FOR YOU</Text>
+              <Text style={styles.featuredTitle} numberOfLines={1}>
+                {featuredTrack.title}
+              </Text>
+              <Text style={styles.featuredSub} numberOfLines={1}>
+                {featuredTrack.artist.name}
+              </Text>
+            </View>
+            <View style={styles.featuredPlayBtn}>
+              <Play color="#04211D" size={SIZES.icon.md} fill="#04211D" />
+            </View>
           </TouchableOpacity>
-        </GlassCard>
+        ) : starterError ? (
+          <ErrorState
+            message="Couldn't load suggestions."
+            retryLabel="Pull down to retry"
+            style={styles.featuredError}
+          />
+        ) : null}
 
-        {/* Quick action buttons row (Liked, Discover, Chill, Focus) */}
+        {/* Quick actions */}
         <View style={styles.actionsRow}>
-          {ACTIONS.map(action => (
-            <TouchableOpacity
+          {ACTIONS.map((action) => (
+            <QuickActionTile
               key={action.id}
-              style={styles.actionTouchable}
-              activeOpacity={0.8}
+              Icon={action.Icon}
+              label={action.label}
+              loading={pendingAction === action.id}
               onPress={() => runAction(action)}
-            >
-              <GlassCard style={styles.actionCard} intensity={20}>
-                <View style={styles.actionIconPlaceholder}>
-                  {pendingAction === action.id ? (
-                    <ActivityIndicator size="small" color={COLORS.text.secondary} />
-                  ) : (
-                    <action.Icon color={COLORS.text.secondary} size={18} />
-                  )}
-                </View>
-                <Text style={styles.actionText}>{action.label}</Text>
-              </GlassCard>
-            </TouchableOpacity>
+            />
           ))}
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {hasRecents ? 'Recently Played' : 'Start Listening'}
-          </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('LibraryTab' as never)}>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
+        <SectionHeader
+          title={hasRecents ? 'Recently played' : 'Start listening'}
+          actionLabel="Your library"
+          onAction={() => navigation.navigate('LibraryTab' as never)}
+        />
 
-        <View style={styles.listContainer}>
-          {listTracks.length > 0 ? (
-            listTracks.map(track => (
-              <TrackRow
-                key={track.id}
-                track={track}
-                onPress={handleTrackPress}
-                onMorePress={setAddingTrack}
-                isPlaying={currentTrack?.id === track.id && isPlaying}
-              />
-            ))
-          ) : (
-            <GlassCard intensity={20} style={styles.emptyCard}>
-              <Text style={styles.emptyText}>
-                {starterError ? "Couldn't load suggestions." : 'Finding something for you...'}
-              </Text>
-              <Text style={styles.emptyHint}>
-                {starterError
-                  ? 'Check your connection and pull to retry.'
-                  : 'Search for anything to get started.'}
-              </Text>
-            </GlassCard>
-          )}
-        </View>
-
+        {listTracks.length > 0 ? (
+          listTracks.map((track) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              onPress={handleTrackPress}
+              onMorePress={setAddingTrack}
+              isPlaying={currentTrack?.id === track.id && isPlaying}
+            />
+          ))
+        ) : starterError ? (
+          <EmptyState
+            title="Nothing here yet"
+            hint="Check your connection and pull down to retry."
+          />
+        ) : (
+          <SkeletonList rows={3} />
+        )}
       </ScrollView>
 
       <StatusBarScrim />
@@ -309,160 +327,119 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   scrollContent: {
-    paddingHorizontal: SIZES.md,
+    paddingHorizontal: SIZES.gutter,
+    paddingTop: SIZES.md,
   },
   stickyHeader: {
-    paddingHorizontal: SIZES.md,
+    paddingHorizontal: SIZES.gutter,
     paddingBottom: SIZES.sm,
     backgroundColor: COLORS.background,
     zIndex: 20,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SIZES.lg,
-  },
-  madeBy: {
-    fontFamily: FONTS.medium,
-    fontSize: 9,
-    letterSpacing: 2.5,
-    color: COLORS.accent.primary,
-    opacity: 0.75,
-    marginTop: SIZES.xs,
-  },
-  greeting: {
-    fontFamily: FONTS.regular,
-    fontSize: 20,
-    color: COLORS.text.secondary,
-  },
-  name: {
-    fontFamily: FONTS.medium,
-    fontSize: 28,
-    color: COLORS.text.primary,
-  },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.accent.glow,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.accent.soft,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.35)',
+    borderColor: 'rgba(61, 214, 195, 0.30)',
   },
   avatarInitial: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.headline.fontSize,
     color: COLORS.accent.primary,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.hairline,
     borderRadius: SIZES.radius.md,
-    padding: SIZES.md,
-    marginBottom: SIZES.md,
+    paddingHorizontal: SIZES.md,
+    height: 48,
+    marginTop: SIZES.md,
+    marginBottom: SIZES.sm,
   },
   searchText: {
     fontFamily: FONTS.regular,
-    fontSize: 14,
-    color: COLORS.text.secondary,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.muted,
     marginLeft: SIZES.sm,
   },
   pillsContainer: {
     marginBottom: SIZES.lg,
   },
-  featuredCard: {
-    padding: SIZES.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.md,
-  },
-  featuredContent: {
+  chip: {
+    paddingHorizontal: SIZES.md,
+    paddingVertical: 8,
+    borderRadius: SIZES.radius.pill,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    marginRight: SIZES.sm,
+    minHeight: SIZES.touchTarget - 8,
     justifyContent: 'center',
   },
-  featuredText: {
+  chipText: {
     fontFamily: FONTS.medium,
-    fontSize: 18,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.primary,
+  },
+
+  featuredCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    padding: SIZES.md,
+    marginBottom: SIZES.lg,
+  },
+  featuredSkeleton: {
+    minHeight: 104,
+    justifyContent: 'center',
+  },
+  featuredError: {
+    marginBottom: SIZES.lg,
+  },
+  featuredText: {
+    flex: 1,
+    marginHorizontal: SIZES.md,
+  },
+  featuredKicker: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.overline.fontSize,
+    letterSpacing: TYPE.overline.letterSpacing ?? 2.5,
+    color: COLORS.accent.primary,
+  },
+  featuredTitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.headline.fontSize,
+    color: COLORS.text.primary,
+    marginTop: 4,
   },
   featuredSub: {
     fontFamily: FONTS.regular,
-    fontSize: 13,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   featuredPlayBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: COLORS.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: SIZES.xl,
-  },
-  actionTouchable: {
-    flex: 1,
-  },
-  actionCard: {
-    flex: 1,
-    marginHorizontal: 4,
-    paddingVertical: SIZES.md,
-    alignItems: 'center',
-  },
-  actionIconPlaceholder: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginBottom: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionText: {
-    fontFamily: FONTS.regular,
-    fontSize: 10,
-    color: COLORS.text.secondary,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.sm,
-    paddingHorizontal: SIZES.xs,
-  },
-  sectionTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: 18,
-    color: COLORS.text.primary,
-  },
-  seeAll: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.text.secondary,
-  },
-  listContainer: {
-    marginBottom: SIZES.xl,
-  },
-  emptyCard: {
-    padding: SIZES.md,
-  },
-  emptyText: {
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-    color: COLORS.text.primary,
-  },
-  emptyHint: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.text.secondary,
-    marginTop: 4,
   },
 });

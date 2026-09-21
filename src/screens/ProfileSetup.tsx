@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, SIZES } from '../constants/theme';
+import { COLORS, FONTS, SIZES, TYPE } from '../constants/theme';
 import { Gender } from '../services/LibraryService';
 import { useLibrary } from '../hooks/useLibrary';
 
@@ -38,6 +38,7 @@ export default function ProfileSetupScreen() {
 
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender>('unspecified');
+  const [nameFocused, setNameFocused] = useState(false);
 
   const finish = () => {
     Keyboard.dismiss();
@@ -59,9 +60,11 @@ export default function ProfileSetupScreen() {
         <View style={styles.form}>
           <Text style={styles.label}>NAME</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, nameFocused && styles.inputFocused]}
             value={name}
             onChangeText={setName}
+            onFocus={() => setNameFocused(true)}
+            onBlur={() => setNameFocused(false)}
             placeholder="Your name"
             placeholderTextColor={COLORS.text.muted}
             autoCapitalize="words"
@@ -69,6 +72,7 @@ export default function ProfileSetupScreen() {
             returnKeyType="done"
             onSubmitEditing={finish}
             maxLength={40}
+            accessibilityLabel="Your name"
           />
 
           <Text style={[styles.label, styles.labelSpaced]}>GENDER</Text>
@@ -81,6 +85,9 @@ export default function ProfileSetupScreen() {
                   style={[styles.genderPill, active && styles.genderPillActive]}
                   activeOpacity={0.8}
                   onPress={() => setGender(option.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ selected: active }}
                 >
                   <Text style={[styles.genderText, active && styles.genderTextActive]}>
                     {option.label}
@@ -92,12 +99,18 @@ export default function ProfileSetupScreen() {
         </View>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + SIZES.xl }]}>
-          <TouchableOpacity style={styles.button} activeOpacity={0.8} onPress={finish}>
+          <TouchableOpacity
+            style={styles.button}
+            activeOpacity={0.85}
+            onPress={finish}
+            accessibilityRole="button"
+            accessibilityLabel="Continue"
+          >
             <Text style={styles.buttonText}>
               {name.trim() ? `Continue as ${name.trim()}` : 'Continue'}
             </Text>
             <View style={styles.iconCircle}>
-              <ArrowRight color={COLORS.text.primary} size={20} />
+              <ArrowRight color="#04211D" size={SIZES.icon.sm + 2} />
             </View>
           </TouchableOpacity>
         </View>
@@ -116,21 +129,22 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.xxl,
   },
   kicker: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.overline.fontSize,
     letterSpacing: 3,
     color: COLORS.text.muted,
     marginBottom: SIZES.md,
   },
   title: {
     fontFamily: FONTS.bold,
-    fontSize: 34,
+    fontSize: TYPE.title1.fontSize + 4,
+    lineHeight: TYPE.title1.lineHeight + 6,
     color: COLORS.text.primary,
     marginBottom: SIZES.sm,
   },
   subtitle: {
     fontFamily: FONTS.regular,
-    fontSize: 14,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.text.secondary,
     lineHeight: 20,
   },
@@ -138,8 +152,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.micro.fontSize,
     letterSpacing: 2,
     color: COLORS.text.muted,
     marginBottom: SIZES.sm,
@@ -149,14 +163,17 @@ const styles = StyleSheet.create({
   },
   input: {
     fontFamily: FONTS.medium,
-    fontSize: 18,
+    fontSize: TYPE.title3.fontSize,
     color: COLORS.text.primary,
-    backgroundColor: COLORS.surfaceRaised,
+    backgroundColor: COLORS.surface,
     borderRadius: SIZES.radius.md,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.hairline,
     paddingHorizontal: SIZES.md,
     paddingVertical: SIZES.md,
+  },
+  inputFocused: {
+    borderColor: COLORS.accent.primary,
   },
   genderRow: {
     flexDirection: 'row',
@@ -168,20 +185,22 @@ const styles = StyleSheet.create({
     paddingVertical: SIZES.sm + 2,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.surfaceRaised,
+    borderColor: COLORS.hairline,
+    backgroundColor: COLORS.surface,
+    minHeight: SIZES.touchTarget - 6,
+    justifyContent: 'center',
   },
   genderPillActive: {
-    backgroundColor: COLORS.text.primary,
-    borderColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
+    borderColor: COLORS.accent.primary,
   },
   genderText: {
     fontFamily: FONTS.medium,
-    fontSize: 14,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.text.secondary,
   },
   genderTextActive: {
-    color: COLORS.background,
+    color: '#04211D',
   },
   footer: {
     paddingTop: SIZES.lg,
@@ -190,24 +209,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surfaceRaised,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.accent.primary,
     borderRadius: SIZES.radius.pill,
     paddingVertical: SIZES.md,
     paddingHorizontal: SIZES.lg,
+    minHeight: SIZES.touchTarget + 8,
   },
   buttonText: {
-    fontFamily: FONTS.medium,
-    fontSize: 18,
-    color: COLORS.text.primary,
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.headline.fontSize,
+    color: '#04211D',
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(4, 33, 29, 0.14)',
   },
 });

@@ -2,8 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowRight } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
-import { COLORS, FONTS, SIZES } from '../constants/theme';
+import { COLORS, FONTS, SIZES, TYPE } from '../constants/theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -19,15 +18,17 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Abstract Background Elements */}
-      <View style={styles.blob1} />
-      <View style={styles.blob2} />
-      
-      <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
-
+      {/* Quiet cinematic backdrop: one soft accent bloom, deep falloff. */}
+      <LinearGradient
+        colors={['rgba(61, 214, 195, 0.10)', 'rgba(6, 8, 8, 0)']}
+        locations={[0, 0.6]}
+        start={{ x: 0.2, y: 0.1 }}
+        end={{ x: 0.8, y: 0.9 }}
+        style={StyleSheet.absoluteFill}
+      />
       <LinearGradient
         colors={['transparent', COLORS.background]}
-        locations={[0.5, 1]}
+        locations={[0.55, 1]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -39,22 +40,25 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.centerContent}>
+          <View style={styles.accentRule} />
           <Text style={styles.title}>A U D I A</Text>
           <Text style={styles.tagline}>YOUR MUSIC. YOUR WAY.</Text>
         </View>
 
         <View style={styles.bottomContent}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.button}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             onPress={() => navigation.replace('ProfileSetup')}
+            accessibilityRole="button"
+            accessibilityLabel="Get started"
           >
             <Text style={styles.buttonText}>Get Started</Text>
             <View style={styles.iconCircle}>
-              <ArrowRight color={COLORS.text.primary} size={20} />
+              <ArrowRight color="#04211D" size={SIZES.icon.sm + 2} />
             </View>
           </TouchableOpacity>
-          
+
           <Text style={styles.footerText}>LISTEN FREELY.</Text>
           <Text style={styles.footerText}>LIVE FULLY.</Text>
           <Text style={styles.madeBy}>MADE BY ARK DURRANI (PATHAN)</Text>
@@ -69,28 +73,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  blob1: {
-    position: 'absolute',
-    top: height * 0.1,
-    left: -width * 0.2,
-    width: width,
-    height: width,
-    borderRadius: width / 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  blob2: {
-    position: 'absolute',
-    top: height * 0.3,
-    right: -width * 0.3,
-    width: width * 1.2,
-    height: width * 1.2,
-    borderRadius: width * 0.6,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
   content: {
     flex: 1,
     padding: SIZES.xl,
@@ -103,24 +85,31 @@ const styles = StyleSheet.create({
   },
   subtitleTop: {
     fontFamily: FONTS.medium,
-    fontSize: 10,
-    letterSpacing: 2,
+    fontSize: TYPE.overline.fontSize,
+    letterSpacing: 3,
     color: COLORS.text.secondary,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   centerContent: {
     alignItems: 'center',
   },
+  accentRule: {
+    width: 28,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: COLORS.accent.primary,
+    marginBottom: SIZES.lg,
+  },
   title: {
     fontFamily: FONTS.regular,
-    fontSize: 48,
-    letterSpacing: 12,
+    fontSize: TYPE.display.fontSize,
+    letterSpacing: TYPE.display.letterSpacing,
     color: COLORS.text.primary,
     marginBottom: SIZES.md,
   },
   tagline: {
     fontFamily: FONTS.medium,
-    fontSize: 10,
+    fontSize: TYPE.overline.fontSize,
     letterSpacing: 3,
     color: COLORS.text.secondary,
   },
@@ -132,19 +121,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.glass,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.accent.primary,
     borderRadius: SIZES.radius.pill,
     paddingVertical: SIZES.md,
-    paddingHorizontal: SIZES.xl,
+    paddingHorizontal: SIZES.lg,
     width: '100%',
+    minHeight: SIZES.touchTarget + 8,
     marginBottom: SIZES.xl,
   },
   buttonText: {
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: COLORS.text.primary,
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.headline.fontSize,
+    color: '#04211D',
     flex: 1,
     textAlign: 'center',
   },
@@ -152,13 +140,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(4, 33, 29, 0.14)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   madeBy: {
     fontFamily: FONTS.medium,
-    fontSize: 10,
+    fontSize: TYPE.overline.fontSize,
     letterSpacing: 3,
     color: COLORS.text.muted,
     marginTop: SIZES.md,
@@ -166,9 +154,9 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontFamily: FONTS.medium,
-    fontSize: 10,
+    fontSize: TYPE.overline.fontSize,
     letterSpacing: 2,
     color: COLORS.text.muted,
-    lineHeight: 16,
-  }
+    lineHeight: 18,
+  },
 });

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Keyboard,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,9 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, Heart, ListMusic, Plus, X, Download, Trash2, Share2 } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS } from '../../constants/theme';
+import { Check, Heart, ListMusic, Plus, Download, Trash2, Share2 } from 'lucide-react-native';
+import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { BottomSheet } from '../common/BottomSheet';
 import { Track } from '../../core/types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { DownloadService } from '../../services/DownloadService';
@@ -30,7 +29,6 @@ type Props = {
  * know about it.
  */
 export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
-  const insets = useSafeAreaInsets();
   const {
     playlists,
     addToPlaylist,
@@ -113,245 +111,192 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
   }, [newName, track, createPlaylist, close]);
 
   return (
-    <Modal
+    <BottomSheet
       visible={track !== null}
-      transparent
-      animationType="slide"
-      onRequestClose={close}
+      onClose={close}
+      title="Add to playlist"
+      subtitle={track?.title}
+      keyboardHeight={keyboardHeight}
     >
-      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={close} />
-
-      <View
-        style={[
-          styles.sheet,
-          {
-            paddingBottom:
-              keyboardHeight > 0 ? SIZES.lg : insets.bottom + SIZES.lg,
-            bottom: keyboardHeight,
-          },
-        ]}
-      >
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Add to playlist</Text>
-            {!!track && (
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {track.title}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity onPress={close} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <X color={COLORS.text.secondary} size={22} />
+      {creating ? (
+        <View style={styles.createRow}>
+          <TextInput
+            style={styles.input}
+            value={newName}
+            onChangeText={setNewName}
+            placeholder="Playlist name"
+            placeholderTextColor={COLORS.text.muted}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={createAndAdd}
+            maxLength={60}
+            accessibilityLabel="New playlist name"
+          />
+          <TouchableOpacity
+            style={[styles.createButton, !newName.trim() && styles.disabled]}
+            onPress={createAndAdd}
+            disabled={!newName.trim()}
+            accessibilityRole="button"
+            accessibilityLabel="Create playlist"
+          >
+            <Text style={styles.createButtonText}>Create</Text>
           </TouchableOpacity>
         </View>
-
-        {creating ? (
-          <View style={styles.createRow}>
-            <TextInput
-              style={styles.input}
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="Playlist name"
-              placeholderTextColor={COLORS.text.muted}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={createAndAdd}
-              maxLength={60}
-            />
-            <TouchableOpacity
-              style={[styles.createButton, !newName.trim() && styles.disabled]}
-              onPress={createAndAdd}
-              disabled={!newName.trim()}
-            >
-              <Text style={styles.createButtonText}>Create</Text>
-            </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.row}
+          activeOpacity={0.7}
+          onPress={() => setCreating(true)}
+          accessibilityRole="button"
+          accessibilityLabel="New playlist"
+        >
+          <View style={styles.rowIcon}>
+            <Plus color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
           </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.row}
-            activeOpacity={0.7}
-            onPress={() => setCreating(true)}
-          >
-            <View style={styles.rowIcon}>
-              <Plus color={COLORS.text.primary} size={20} />
-            </View>
-            <Text style={styles.rowLabel}>New playlist</Text>
-          </TouchableOpacity>
-        )}
+          <Text style={styles.rowLabel}>New playlist</Text>
+        </TouchableOpacity>
+      )}
 
-        <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
-          {/* Quick actions: Download / Share — fix for dead buttons */}
-          {!!track && (
-            <>
-              <TouchableOpacity
-                style={styles.row}
-                activeOpacity={0.7}
-                disabled={downloading}
-                onPress={async () => {
-                  if (!track) return;
-                  if (downloaded) {
-                    await DownloadService.remove(track.id);
-                    setDownloaded(false);
-                    setDownloadProgress(0);
-                  } else {
-                    setDownloading(true);
-                    setDownloadError(null);
-                    setDownloadProgress(0);
-                    try {
-                      await DownloadService.download(track, (p) =>
-                        setDownloadProgress(p)
-                      );
-                      setDownloaded(true);
-                    } catch (e: unknown) {
-                      const msg =
-                        e instanceof Error ? e.message : 'Download failed';
-                      setDownloadError(msg);
-                    } finally {
-                      setDownloading(false);
-                    }
+      <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
+        {/* Quick actions: Download / Share */}
+        {!!track && (
+          <>
+            <TouchableOpacity
+              style={styles.row}
+              activeOpacity={0.7}
+              disabled={downloading}
+              onPress={async () => {
+                if (!track) return;
+                if (downloaded) {
+                  await DownloadService.remove(track.id);
+                  setDownloaded(false);
+                  setDownloadProgress(0);
+                } else {
+                  setDownloading(true);
+                  setDownloadError(null);
+                  setDownloadProgress(0);
+                  try {
+                    await DownloadService.download(track, (p) =>
+                      setDownloadProgress(p)
+                    );
+                    setDownloaded(true);
+                  } catch (e: unknown) {
+                    const msg =
+                      e instanceof Error ? e.message : 'Download failed';
+                    setDownloadError(msg);
+                  } finally {
+                    setDownloading(false);
                   }
-                }}
-              >
-                <View style={styles.rowIcon}>
-                  {downloaded ? (
-                    <Trash2 color={COLORS.accent.green} size={20} />
-                  ) : (
-                    <Download color={COLORS.text.primary} size={20} />
-                  )}
-                </View>
-                <View style={styles.rowTextWrap}>
-                  <Text style={styles.rowLabel}>
-                    {downloading
-                      ? `Downloading… ${Math.round(downloadProgress * 100)}%`
-                      : downloaded
-                        ? 'Remove download'
-                        : 'Download'}
-                  </Text>
-                  <Text style={styles.rowMeta}>
-                    {downloaded ? 'Available offline' : 'Save for offline playback'}
-                  </Text>
-                  {downloading && (
-                    <View style={styles.progressBar}>
-                      <View
-                        style={[styles.progressFill, { width: `${Math.max(4, downloadProgress * 100)}%` }]}
-                      />
-                    </View>
-                  )}
-                </View>
-                {downloaded && <Check color={COLORS.accent.green} size={18} />}
-              </TouchableOpacity>
-              {downloadError && <Text style={styles.errorText}>{downloadError}</Text>}
-              <TouchableOpacity
-                style={styles.row}
-                activeOpacity={0.7}
-                onPress={() => track && DownloadService.shareTrack(track)}
-              >
-                <View style={styles.rowIcon}>
-                  <Share2 color={COLORS.text.primary} size={20} />
-                </View>
-                <Text style={styles.rowLabel}>Share</Text>
-              </TouchableOpacity>
-              <View style={styles.separator} />
-            </>
-          )}
-          {/* Liked Songs is synthetic, so it toggles the like instead. */}
-          <TouchableOpacity
-            style={styles.row}
-            activeOpacity={0.7}
-            onPress={() => track && toggleLike(track)}
-          >
-            <View style={styles.rowIcon}>
-              <Heart
-                color={liked ? COLORS.accent.green : COLORS.text.primary}
-                fill={liked ? COLORS.accent.green : 'transparent'}
-                size={20}
-              />
-            </View>
-            <Text style={styles.rowLabel}>Liked Songs</Text>
-            {liked && <Check color={COLORS.accent.green} size={18} />}
-          </TouchableOpacity>
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                downloaded ? 'Remove download' : 'Download for offline playback'
+              }
+            >
+              <View style={styles.rowIcon}>
+                {downloaded ? (
+                  <Trash2 color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
+                ) : (
+                  <Download color={COLORS.text.primary} size={SIZES.icon.sm + 2} />
+                )}
+              </View>
+              <View style={styles.rowTextWrap}>
+                <Text style={styles.rowLabel}>
+                  {downloading
+                    ? `Downloading… ${Math.round(downloadProgress * 100)}%`
+                    : downloaded
+                      ? 'Remove download'
+                      : 'Download'}
+                </Text>
+                <Text style={styles.rowMeta}>
+                  {downloaded ? 'Available offline' : 'Save for offline playback'}
+                </Text>
+                {downloading && (
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[styles.progressFill, { width: `${Math.max(4, downloadProgress * 100)}%` }]}
+                    />
+                  </View>
+                )}
+              </View>
+              {downloaded && <Check color={COLORS.accent.primary} size={SIZES.icon.xs + 4} />}
+            </TouchableOpacity>
+            {downloadError && <Text style={styles.errorText}>{downloadError}</Text>}
+            <TouchableOpacity
+              style={styles.row}
+              activeOpacity={0.7}
+              onPress={() => track && DownloadService.shareTrack(track)}
+              accessibilityRole="button"
+              accessibilityLabel="Share track"
+            >
+              <View style={styles.rowIcon}>
+                <Share2 color={COLORS.text.primary} size={SIZES.icon.sm + 2} />
+              </View>
+              <Text style={styles.rowLabel}>Share</Text>
+            </TouchableOpacity>
+            <View style={styles.separator} />
+          </>
+        )}
+        {/* Liked Songs is synthetic, so it toggles the like instead. */}
+        <TouchableOpacity
+          style={styles.row}
+          activeOpacity={0.7}
+          onPress={() => track && toggleLike(track)}
+          accessibilityRole="button"
+          accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
+        >
+          <View style={styles.rowIcon}>
+            <Heart
+              color={liked ? COLORS.accent.primary : COLORS.text.primary}
+              fill={liked ? COLORS.accent.primary : 'transparent'}
+              size={SIZES.icon.sm + 2}
+            />
+          </View>
+          <Text style={styles.rowLabel}>Liked Songs</Text>
+          {liked && <Check color={COLORS.accent.primary} size={SIZES.icon.xs + 4} />}
+        </TouchableOpacity>
 
-          {ordered.map((playlist) => {
-            const alreadyIn = playlist.tracks.some((t) => t.id === track?.id);
+        {ordered.map((playlist) => {
+          const alreadyIn = playlist.tracks.some((t) => t.id === track?.id);
 
-            return (
-              <TouchableOpacity
-                key={playlist.id}
-                style={styles.row}
-                activeOpacity={0.7}
-                onPress={() => toggleIn(playlist.id, alreadyIn)}
-              >
-                <View style={styles.rowIcon}>
-                  <ListMusic color={COLORS.text.primary} size={20} />
-                </View>
-                <View style={styles.rowTextWrap}>
-                  <Text style={styles.rowLabel} numberOfLines={1}>
-                    {playlist.name}
-                  </Text>
-                  <Text style={styles.rowMeta}>
-                    {playlist.tracks.length}{' '}
-                    {playlist.tracks.length === 1 ? 'track' : 'tracks'}
-                  </Text>
-                </View>
-                {alreadyIn && <Check color={COLORS.accent.green} size={18} />}
-              </TouchableOpacity>
-            );
-          })}
+          return (
+            <TouchableOpacity
+              key={playlist.id}
+              style={styles.row}
+              activeOpacity={0.7}
+              onPress={() => toggleIn(playlist.id, alreadyIn)}
+              accessibilityRole="button"
+              accessibilityLabel={`${alreadyIn ? 'Remove from' : 'Add to'} ${playlist.name}`}
+            >
+              <View style={styles.rowIcon}>
+                <ListMusic color={COLORS.text.primary} size={SIZES.icon.sm + 2} />
+              </View>
+              <View style={styles.rowTextWrap}>
+                <Text style={styles.rowLabel} numberOfLines={1}>
+                  {playlist.name}
+                </Text>
+                <Text style={styles.rowMeta}>
+                  {playlist.tracks.length}{' '}
+                  {playlist.tracks.length === 1 ? 'track' : 'tracks'}
+                </Text>
+              </View>
+              {alreadyIn && <Check color={COLORS.accent.primary} size={SIZES.icon.xs + 4} />}
+            </TouchableOpacity>
+          );
+        })}
 
-          {ordered.length === 0 && !creating && (
-            <Text style={styles.empty}>
-              No playlists yet. Create one above.
-            </Text>
-          )}
-        </ScrollView>
-      </View>
-    </Modal>
+        {ordered.length === 0 && !creating && (
+          <Text style={styles.empty}>
+            No playlists yet. Create one above.
+          </Text>
+        )}
+      </ScrollView>
+    </BottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    maxHeight: '75%',
-    backgroundColor: COLORS.surfaceRaised,
-    borderTopLeftRadius: SIZES.radius.lg,
-    borderTopRightRadius: SIZES.radius.lg,
-    borderTopWidth: 1,
-    borderColor: COLORS.glassBorder,
-    paddingTop: SIZES.lg,
-    paddingHorizontal: SIZES.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.md,
-  },
-  headerText: {
-    flex: 1,
-    marginRight: SIZES.md,
-  },
-  title: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: COLORS.text.primary,
-  },
-  subtitle: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
   list: {
     flexGrow: 0,
   },
@@ -360,14 +305,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SIZES.sm + 4,
     gap: SIZES.md,
+    minHeight: SIZES.touchTarget,
   },
   rowIcon: {
     width: 40,
     height: 40,
-    borderRadius: SIZES.radius.sm,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: COLORS.surfaceElevated,
   },
   rowTextWrap: {
     flex: 1,
@@ -375,12 +321,12 @@ const styles = StyleSheet.create({
   rowLabel: {
     flex: 1,
     fontFamily: FONTS.medium,
-    fontSize: 16,
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.primary,
   },
   rowMeta: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
+    fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.secondary,
     marginTop: 2,
   },
@@ -393,9 +339,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: FONTS.medium,
-    fontSize: 16,
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.primary,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
     borderRadius: SIZES.radius.sm,
     paddingHorizontal: SIZES.md,
     paddingVertical: SIZES.sm + 4,
@@ -404,25 +352,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.md,
     paddingVertical: SIZES.sm + 4,
     borderRadius: SIZES.radius.sm,
-    backgroundColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
+    minHeight: SIZES.touchTarget - 4,
+    justifyContent: 'center',
   },
   createButtonText: {
     fontFamily: FONTS.medium,
-    fontSize: 15,
-    color: COLORS.background,
+    fontSize: TYPE.callout.fontSize,
+    color: '#04211D',
   },
   disabled: {
     opacity: 0.4,
   },
   separator: {
     height: 1,
-    backgroundColor: COLORS.glassBorder,
+    backgroundColor: COLORS.divider,
     marginVertical: SIZES.sm,
   },
   errorText: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.accent.red,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.status.error,
     marginTop: 2,
     marginLeft: SIZES.md,
   },
@@ -439,7 +389,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     fontFamily: FONTS.regular,
-    fontSize: 14,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.text.secondary,
     paddingVertical: SIZES.lg,
   },

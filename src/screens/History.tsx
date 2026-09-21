@@ -1,12 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
-import { GlassCard } from '../components/common/GlassCard';
+import { EmptyState } from '../components/common/UI';
+import { History } from 'lucide-react-native';
 import { Track } from '../core/types';
 import { HistoryEntry } from '../services/LibraryService';
 import { usePlayer } from '../hooks/usePlayer';
@@ -107,7 +108,12 @@ export default function HistoryScreen() {
       <View style={[styles.header, { paddingTop: insets.top + SIZES.lg }]}>
         <Text style={styles.title}>History</Text>
         {history.length > 0 && (
-          <TouchableOpacity onPress={confirmClear} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity
+            onPress={confirmClear}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Clear listening history"
+          >
             <Text style={styles.clear}>Clear</Text>
           </TouchableOpacity>
         )}
@@ -115,12 +121,11 @@ export default function HistoryScreen() {
 
       {history.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <GlassCard intensity={20} style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No listening history yet.</Text>
-            <Text style={styles.emptyHint}>
-              Play something and it will show up here.
-            </Text>
-          </GlassCard>
+          <EmptyState
+            Icon={History}
+            title="No listening history yet"
+            hint="Play something and it will show up here."
+          />
         </View>
       ) : (
         <SectionList
@@ -163,45 +168,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingLeft: SIZES.md,
+    paddingLeft: SIZES.gutter,
     // Leave room for the floating settings button pinned top-right.
     paddingRight: SIZES.xxl + SIZES.lg,
     paddingBottom: SIZES.md,
   },
   title: {
     fontFamily: FONTS.bold,
-    fontSize: 32,
+    fontSize: TYPE.title1.fontSize,
+    lineHeight: TYPE.title1.lineHeight,
     color: COLORS.text.primary,
   },
   clear: {
-    fontFamily: FONTS.regular,
-    fontSize: 14,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.text.secondary,
   },
   sectionTitle: {
     fontFamily: FONTS.medium,
-    fontSize: 13,
-    letterSpacing: 1,
-    color: COLORS.text.secondary,
-    paddingHorizontal: SIZES.md,
+    fontSize: TYPE.footnote.fontSize,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: COLORS.text.muted,
+    paddingHorizontal: SIZES.gutter,
     paddingTop: SIZES.lg,
     paddingBottom: SIZES.sm,
   },
   emptyWrap: {
-    paddingHorizontal: SIZES.md,
-  },
-  emptyCard: {
-    padding: SIZES.lg,
-  },
-  emptyText: {
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: COLORS.text.primary,
-    marginBottom: SIZES.xs,
-  },
-  emptyHint: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.text.secondary,
+    paddingHorizontal: SIZES.gutter,
   },
 });

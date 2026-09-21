@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import { COLORS, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 
 interface PillProps {
   label: string;
@@ -9,16 +9,20 @@ interface PillProps {
   style?: StyleProp<ViewStyle>;
 }
 
+/** Filter chip: quiet when idle, accent-understated when selected. */
 export const Pill: React.FC<PillProps> = ({ label, isActive, onPress, style }) => {
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
       style={[
         styles.container,
         isActive ? styles.activeContainer : styles.inactiveContainer,
-        style
+        style,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={`Filter: ${label}`}
+      accessibilityState={{ selected: !!isActive }}
     >
       <Text style={[
         styles.label,
@@ -36,25 +40,26 @@ const styles = StyleSheet.create({
     paddingVertical: SIZES.sm,
     borderRadius: SIZES.radius.pill,
     marginRight: SIZES.sm,
+    minHeight: SIZES.touchTarget - 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
   activeContainer: {
-    backgroundColor: COLORS.text.primary,
+    backgroundColor: COLORS.accent.primary,
   },
   inactiveContainer: {
-    backgroundColor: COLORS.glass,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: COLORS.hairline,
   },
   label: {
     fontFamily: FONTS.medium,
-    fontSize: 14,
+    fontSize: TYPE.subheadline.fontSize,
   },
   activeLabel: {
-    color: COLORS.background,
+    color: '#04211D',
   },
   inactiveLabel: {
     color: COLORS.text.primary,
-  }
+  },
 });
