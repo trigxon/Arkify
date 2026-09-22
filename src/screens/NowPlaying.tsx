@@ -8,7 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Dimensions,
+  useWindowDimensions,
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,19 +16,19 @@ import {
   ChevronDown,
   EllipsisVertical,
   Heart,
+  MoreHorizontal,
   Play,
   Pause,
+  SkipBack,
+  SkipForward,
   Repeat,
   Repeat1,
   Shuffle,
   Share,
-  SkipBack,
-  SkipForward,
-  Timer,
   Mic,
-  MoreHorizontal,
-  ListMusic,
   AudioLines,
+  Timer,
+  ListMusic,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
@@ -44,190 +44,115 @@ import { usePlayer, useProgress } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
 import { useNavigation } from '@react-navigation/native';
 
-const { width } = Dimensions.get('window');
-
-type PlayerState = ReturnType<typeof usePlayer>;
-
 /** Tactile press: quick scale-down, spring back. Short and interruptible. */
 function usePressScale() {
   const value = useRef(new Animated.Value(1)).current;
-  const onPressIn = () =>
-    Animated.spring(value, { toValue: 0.92, useNativeDriver: true, speed: 40, bounciness: 4 }).start();
-  const onPressOut = () =>
-    Animated.spring(value, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
+  const onPressIn = () => Animated.spring(value, { toValue: 0.92, useNativeDriver: true, speed: 40, bounciness: 4 }).start();
+  const onPressOut = () => Animated.spring(value, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
   return { animatedStyle: { transform: [{ scale: value }] }, onPressIn, onPressOut };
 }
 
 // ---------------------------------------------------------------------------
-// Transport controls — one row, shared by the player and lyrics views
+// Lyrics view — the reference's focused lyrics layout with Lyrics/About tabs
 // ---------------------------------------------------------------------------
 
-type ControlsProps = Pick<
-  PlayerState,
-  'shuffle' | 'repeat' | 'previous' | 'next' | 'toggleShuffle' | 'cycleRepeat' | 'togglePlayPause'
-> & { isPlaying: boolean; busy: boolean };
-
-const PlayerControls: React.FC<ControlsProps> = ({
-  isPlaying,
-  busy,
-  shuffle,
-  repeat,
-  previous,
-  next,
-  toggleShuffle,
-  cycleRepeat,
-  togglePlayPause,
-}) => {
-  const press = usePressScale();
-
-  return (
-    <View style={styles.controls}>
-      <TouchableOpacity
-        onPress={toggleShuffle}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        accessibilityRole="button"
-        accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle off'}
-        accessibilityState={{ selected: shuffle }}
-      >
-        <Shuffle
-          color={shuffle ? COLORS.accent.primary : COLORS.text.secondary}
-          size={SIZES.icon.lg - 2}
-          strokeWidth={2}
-        />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={previous}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        accessibilityRole="button"
-        accessibilityLabel="Previous track"
-      >
-        <SkipBack color={COLORS.text.primary} size={SIZES.icon.xl} fill={COLORS.text.primary} />
-      </TouchableOpacity>
-
-      <Animated.View style={press.animatedStyle}>
-        <View style={styles.playRing}>
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={togglePlayPause}
-            onPressIn={press.onPressIn}
-            onPressOut={press.onPressOut}
-            activeOpacity={1}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-          >
-            {busy ? (
-              <ActivityIndicator color="#04211D" />
-            ) : isPlaying ? (
-              <Pause color="#04211D" size={SIZES.icon.play} fill="#04211D" />
-            ) : (
-              <Play color="#04211D" size={SIZES.icon.play} fill="#04211D" />
-            )}
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      <TouchableOpacity
-        onPress={next}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        accessibilityRole="button"
-        accessibilityLabel="Next track"
-      >
-        <SkipForward color={COLORS.text.primary} size={SIZES.icon.xl} fill={COLORS.text.primary} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={cycleRepeat}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        accessibilityRole="button"
-        accessibilityLabel={`Repeat mode: ${
-          repeat === 'off' ? 'off' : repeat === 'all' ? 'repeat all' : 'repeat one'
-        }`}
-        accessibilityState={{ selected: repeat !== 'off' }}
-      >
-        {repeat === 'one' ? (
-          <Repeat1 color={COLORS.accent.primary} size={SIZES.icon.lg - 2} strokeWidth={2} />
-        ) : (
-          <Repeat
-            color={repeat === 'all' ? COLORS.accent.primary : COLORS.text.secondary}
-            size={SIZES.icon.lg - 2}
-            strokeWidth={2}
-          />
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Lyrics — the reference's focused reading layout
-// ---------------------------------------------------------------------------
-
-const LyricsView: React.FC<{ lyrics: Lyrics | null; loading: boolean }> = ({ lyrics, loading }) => {
+const LyricsView: React.FC<{
+  track: Track;
+  lyrics: Lyrics | null;
+  loading: boolean;
+  onSeek?: (seconds: number) => void;
+  onRetry?: () => void;
+}> = ({ track, lyrics, loading, onSeek, onRetry }) => {
   const { position } = useProgress();
   const scrollRef = useRef<ScrollView>(null);
   const activeIndexRef = useRef(-1);
 
   const activeIndex = useMemo(
     () => (lyrics?.synced ? LyricsService.activeLineIndex(lyrics, position) : -1),
-    // Twice a second is plenty for a line highlight.
     [lyrics, Math.floor(position * 2)]
   );
 
-  // Keep the active line in view. Runs only when the line actually changes.
+  // Keep the active line centred. Runs only when the line actually changes.
   useEffect(() => {
     if (activeIndex < 0 || activeIndex === activeIndexRef.current) return;
     activeIndexRef.current = activeIndex;
-    scrollRef.current?.scrollTo({ y: Math.max(0, activeIndex * 46 - 120), animated: true });
+    scrollRef.current?.scrollTo({ y: Math.max(0, activeIndex * 48 - 130), animated: true });
   }, [activeIndex]);
 
-  if (loading) {
-    return (
-      <View style={styles.lyricsCenter}>
-        <ActivityIndicator color={COLORS.text.muted} />
-      </View>
-    );
-  }
-
-  if (!lyrics || lyrics.lines.length === 0) {
-    return (
-      <View style={styles.lyricsCenter}>
-        <AudioLines color={COLORS.text.muted} size={SIZES.icon.xl} />
-        <Text style={styles.lyricsEmptyTitle}>No lyrics available</Text>
-        <Text style={styles.lyricsEmptyHint}>
-          Lyrics aren't set up for this track. Playback is unaffected.
-        </Text>
-      </View>
-    );
-  }
-
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={styles.lyricsScroll}
-      contentContainerStyle={styles.lyricsContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {lyrics.lines.map((line, i) => {
-        const isActive = lyrics.synced && i === activeIndex;
-        return (
-          <Text
-            key={i}
-            style={[
-              styles.lyricLine,
-              isActive && styles.lyricLineActive,
-              lyrics.synced && !isActive && styles.lyricLineDim,
-            ]}
-          >
-            {line.text || ' '}
+    <View style={styles.lyricsWrap}>
+      {/* Track header: small artwork + title/artist + Roman English pill */}
+      <View style={styles.lyricsHeader}>
+        <Artwork uri={track.albumImageUrl} size={44} radius={10} />
+        <View style={styles.lyricsHeaderText}>
+          <Text style={styles.lyricsTitle} numberOfLines={1}>{track.title}</Text>
+          <Text style={styles.lyricsArtist} numberOfLines={1}>{track.artist.name}</Text>
+        </View>
+        <View style={styles.romanBadge}>
+          <Text style={styles.romanBadgeText}>Roman English</Text>
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.lyricsLoading}>
+          <ActivityIndicator color={COLORS.accent.primary} size="large" />
+          <Text style={styles.lyricsLoadingText}>Loading Roman English lyrics...</Text>
+        </View>
+      ) : !lyrics || lyrics.lines.length === 0 ? (
+        <View style={styles.lyricsEmpty}>
+          <AudioLines color={COLORS.text.muted} size={SIZES.icon.lg} />
+          <Text style={styles.lyricsEmptyTitle}>Lyrics unavailable</Text>
+          <Text style={styles.lyricsEmptyHint}>
+            Could not fetch Roman English lyrics for this track right now.
           </Text>
-        );
-      })}
-      <Text style={styles.lyricsSource}>
-        {lyrics.source}
-        {lyrics.synced ? ' · synced' : ''}
-      </Text>
-    </ScrollView>
+          {onRetry && (
+            <TouchableOpacity style={styles.retryLyricsButton} onPress={onRetry}>
+              <Text style={styles.retryLyricsText}>Retry</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <ScrollView
+          ref={scrollRef}
+          style={styles.lyricsScroll}
+          contentContainerStyle={styles.lyricsContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {lyrics.lines.map((line, i) => {
+            const isActive = lyrics.synced && i === activeIndex;
+            return (
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.75}
+                disabled={!lyrics.synced || line.time === undefined || !onSeek}
+                onPress={() => {
+                  if (line.time !== undefined && onSeek) {
+                    onSeek(line.time);
+                  }
+                }}
+                style={styles.lyricLineRow}
+              >
+                <Text
+                  style={[
+                    styles.lyricLine,
+                    isActive && styles.lyricLineActive,
+                    lyrics.synced && !isActive && styles.lyricLineDim,
+                  ]}
+                >
+                  {line.text || ' '}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          <View style={styles.lyricsFooter}>
+            <Text style={styles.lyricsSource}>
+              {lyrics.source}
+              {lyrics.synced ? ' · Live Synced' : ''}
+            </Text>
+          </View>
+        </ScrollView>
+      )}
+    </View>
   );
 };
 
@@ -236,6 +161,7 @@ const LyricsView: React.FC<{ lyrics: Lyrics | null; loading: boolean }> = ({ lyr
 // ---------------------------------------------------------------------------
 
 export default function NowPlayingScreen() {
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const {
@@ -247,6 +173,7 @@ export default function NowPlayingScreen() {
     error,
     retry,
     seekTo,
+    seekBy,
     next,
     previous,
     shuffle,
@@ -267,33 +194,41 @@ export default function NowPlayingScreen() {
   const [view, setView] = useState<'player' | 'lyrics' | 'about'>('player');
   const [showQueue, setShowQueue] = useState(false);
   const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
-  /** Which sheet face the timer shortcut opens. */
-  const [actionFace, setActionFace] = useState<'actions' | 'sleep'>('actions');
 
-  // Lyrics: fetched for the current track from whatever provider the app
-  // ships with (none by default — the UI shows the graceful empty state).
+  // Responsive artwork sizing so all controls stay comfortably on-screen
+  const isCompact = height < 740;
+  const isUltraCompact = height < 640;
+
+  const artworkSize = useMemo(() => {
+    const reservedVertical = isUltraCompact ? 280 : isCompact ? 330 : 380;
+    const verticalMax = Math.max(140, height - (insets.top + insets.bottom + reservedVertical));
+    const horizontalMax = Math.max(140, width - SIZES.lg * 2);
+    return Math.min(horizontalMax, verticalMax, isUltraCompact ? 220 : isCompact ? 270 : 330);
+  }, [width, height, insets.top, insets.bottom, isCompact, isUltraCompact]);
+
+  // Lyrics: fetched for the current track in Roman English
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
 
-  useEffect(() => {
+  const loadLyrics = useCallback(() => {
     if (!currentTrack) return;
-    let cancelled = false;
     setLyrics(null);
     setLyricsLoading(true);
     LyricsService.get(currentTrack)
       .then((result) => {
-        if (!cancelled) setLyrics(result);
+        setLyrics(result);
       })
       .finally(() => {
-        if (!cancelled) setLyricsLoading(false);
+        setLyricsLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentTrack?.id]);
+  }, [currentTrack]);
 
-  // Sleep timer: wired here so the picker controls real playback pause
-  // through the app's own play/pause path.
+  useEffect(() => {
+    loadLyrics();
+  }, [loadLyrics]);
+
+  // Sleep timer: wired here so the action sheet's picker controls real
+  // playback pause through the app's own play/pause path.
   const handleSleepTimer = useCallback(
     (minutes: number | null) => {
       if (minutes === null) {
@@ -301,6 +236,8 @@ export default function NowPlayingScreen() {
         return;
       }
       SleepTimer.start(minutes, () => {
+        // Fires through the same toggle used by the play button, so the UI,
+        // notification controls and engine state all stay in sync.
         if (isPlaying) togglePlayPause();
       });
       Alert.alert('Sleep timer', `Playback will pause in ${minutes} minutes.`);
@@ -308,10 +245,12 @@ export default function NowPlayingScreen() {
     [isPlaying, togglePlayPause]
   );
 
-  const openSheet = useCallback((track: Track, face: 'actions' | 'sleep') => {
-    setActionFace(face);
-    setActionsTrack(track);
-  }, []);
+  const play = usePressScale();
+
+  if (!currentTrack) return null;
+
+  const liked = isLiked(currentTrack.id);
+  const busy = isLoading || isBuffering;
 
   /** Artist/album lookup: real search navigation, same as Library rows. */
   const goToString = (q: string) => {
@@ -319,56 +258,14 @@ export default function NowPlayingScreen() {
     setActionsTrack(null);
     navigation.goBack();
     navigation.navigate('Main' as never);
+    // SearchTab picks up browseQuery params from other screens; run the
+    // lookup through the same route param Home's chips use.
     setTimeout(() => {
       (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
         browseQuery: q,
       });
     }, 80);
   };
-
-  if (!currentTrack) return null;
-
-  const liked = isLiked(currentTrack.id);
-  const busy = isLoading || isBuffering;
-  const inLyrics = view !== 'player';
-
-  /** The taller timer/queue shortcuts under the transport. */
-  const utilityRow = (withLyrics: boolean) => (
-    <View style={styles.utilityRow}>
-      <TouchableOpacity
-        style={styles.utilityButton}
-        onPress={() => openSheet(currentTrack, 'sleep')}
-        accessibilityRole="button"
-        accessibilityLabel="Sleep timer"
-      >
-        <Timer color={COLORS.text.secondary} size={SIZES.icon.md} strokeWidth={1.9} />
-      </TouchableOpacity>
-
-      {withLyrics ? (
-        <TouchableOpacity
-          style={styles.lyricsPill}
-          activeOpacity={0.85}
-          onPress={() => setView('lyrics')}
-          accessibilityRole="button"
-          accessibilityLabel="Show lyrics"
-        >
-          <Mic color={COLORS.accent.primary} size={SIZES.icon.sm + 2} strokeWidth={1.9} />
-          <Text style={styles.lyricsPillText}>Lyrics</Text>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.utilitySpacer} />
-      )}
-
-      <TouchableOpacity
-        style={styles.utilityButton}
-        onPress={() => setShowQueue(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Show queue"
-      >
-        <ListMusic color={COLORS.text.secondary} size={SIZES.icon.md} strokeWidth={1.9} />
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
@@ -384,171 +281,253 @@ export default function NowPlayingScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View
-        style={[
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top, paddingBottom: insets.bottom + SIZES.sm },
+          {
+            paddingTop: insets.top + (isCompact ? 4 : SIZES.xs),
+            paddingBottom: insets.bottom + (isCompact ? SIZES.xs : SIZES.md),
+          },
         ]}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        {/* Header — per the references: collapse on the left, context in the
-            middle, share / actions on the right. */}
-        {inLyrics ? (
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.headerIcon}
-              accessibilityRole="button"
-              accessibilityLabel="Close player"
-            >
-              <ChevronDown color={COLORS.text.primary} size={SIZES.icon.lg} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setView('player')}
-              style={styles.headerIcon}
-              accessibilityRole="button"
-              accessibilityLabel="Show artwork"
-            >
-              <MoreHorizontal color={COLORS.text.primary} size={SIZES.icon.md} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerIcon}
-              onPress={() => openSheet(currentTrack, 'actions')}
-              accessibilityRole="button"
-              accessibilityLabel="Track actions"
-            >
-              <EllipsisVertical color={COLORS.text.primary} size={SIZES.icon.md} />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.headerIcon}
-              accessibilityRole="button"
-              accessibilityLabel="Close player"
-            >
-              <ChevronDown color={COLORS.text.primary} size={SIZES.icon.lg} />
-            </TouchableOpacity>
-            <Text style={styles.headerContext} numberOfLines={1}>
-              Playing from {queueContext || 'Audia'}
-            </Text>
-            <TouchableOpacity
-              style={styles.headerIcon}
-              onPress={() => {
-                void DownloadService.shareTrack(currentTrack);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Share track"
-            >
-              <Share color={COLORS.text.primary} size={SIZES.icon.md} strokeWidth={1.9} />
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Header: collapse · Playing from · actions */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.headerIcon}
+            accessibilityRole="button"
+            accessibilityLabel="Close player"
+          >
+            <ChevronDown color={COLORS.text.primary} size={SIZES.icon.lg} />
+          </TouchableOpacity>
+
+          {view === 'player' ? (
+            <>
+              {/* Full player: one line of context, share at the right. */}
+              <Text style={styles.headerContext} numberOfLines={1}>
+                Playing from {queueContext || 'Audia'}
+              </Text>
+              <TouchableOpacity
+                style={styles.headerIcon}
+                onPress={() => {
+                  void DownloadService.shareTrack(currentTrack);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Share track"
+              >
+                <Share color={COLORS.text.primary} size={SIZES.icon.md} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {/* Lyrics view, per the reference: ••• returns to the artwork,
+                  ⋮ opens the track's actions. */}
+              <TouchableOpacity
+                style={styles.headerIcon}
+                onPress={() => setView('player')}
+                accessibilityRole="button"
+                accessibilityLabel="Show artwork"
+              >
+                <MoreHorizontal color={COLORS.text.primary} size={SIZES.icon.md} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerIcon}
+                onPress={() => setActionsTrack(currentTrack)}
+                accessibilityRole="button"
+                accessibilityLabel="Track actions"
+              >
+                <EllipsisVertical color={COLORS.text.primary} size={SIZES.icon.md} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
 
         {view === 'player' ? (
           <>
             {/* Artwork hero */}
-            <View style={styles.artworkSection}>
-              <View style={styles.artworkGlow} />
-              <View style={[styles.artworkContainer, SHADOWS.artwork]}>
+            <View style={[styles.artworkGlowWrap, isCompact && { marginTop: 4 }]}>
+              <View
+                style={[
+                  styles.artworkGlow,
+                  {
+                    width: artworkSize + 36,
+                    height: artworkSize + 36,
+                    borderRadius: (artworkSize + 36) / 2,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.artworkContainer,
+                  { width: artworkSize, height: artworkSize },
+                  SHADOWS.artwork,
+                ]}
+              >
                 <Artwork
                   uri={currentTrack.albumImageUrl}
-                  size={width - SIZES.lg * 2}
-                  radius={22}
+                  size={artworkSize}
+                  radius={SIZES.radius.xl}
                 />
               </View>
             </View>
 
-            <View style={styles.bottomSection}>
-              {/* Track info + like */}
-              <View style={styles.infoContainer}>
-                <View style={styles.textInfo}>
-                  <Text style={styles.trackTitle} numberOfLines={1}>
-                    {currentTrack.title}
-                  </Text>
-                  <Text style={styles.trackArtist} numberOfLines={1}>
-                    {currentTrack.artist.name}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => toggleLike(currentTrack)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
-                  accessibilityState={{ selected: liked }}
-                >
-                  <Heart
-                    color={liked ? COLORS.accent.primary : COLORS.text.primary}
-                    fill={liked ? COLORS.accent.primary : 'transparent'}
-                    size={SIZES.icon.lg + 2}
-                    strokeWidth={1.9}
-                  />
-                </TouchableOpacity>
+            {/* Track Info */}
+            <View
+              style={[
+                styles.infoContainer,
+                isCompact && { marginTop: SIZES.md, marginBottom: SIZES.sm },
+              ]}
+            >
+              <View style={styles.textInfo}>
+                <Text style={styles.trackTitle} numberOfLines={1}>{currentTrack.title}</Text>
+                <Text style={styles.trackArtist} numberOfLines={1}>{currentTrack.artist.name}</Text>
               </View>
+              <TouchableOpacity
+                onPress={() => toggleLike(currentTrack)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
+                accessibilityState={{ selected: liked }}
+              >
+                <Heart
+                  color={liked ? COLORS.accent.primary : COLORS.text.primary}
+                  fill={liked ? COLORS.accent.primary : 'transparent'}
+                  size={SIZES.icon.lg + 2}
+                />
+              </TouchableOpacity>
+            </View>
 
-              {/* SeekBar owns its own measurement, gesture handling and position
-                  subscription, so this screen never re-renders on a tick. */}
-              <SeekBar onSeek={seekTo} />
+            {/* Progress. SeekBar owns its own measurement, gesture handling and
+                position subscription, so this screen no longer re-renders on every
+                playback tick. */}
+            <SeekBar onSeek={seekTo} />
 
-              {/* Error state — never leaves the player stuck */}
-              {error && (
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={retry}
-                  style={styles.errorBanner}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Playback error: ${error}. Tap to retry.`}
-                >
-                  <Text style={styles.errorText} numberOfLines={2}>
-                    {error}
-                  </Text>
-                  <Text style={styles.errorHint}>Tap to retry</Text>
-                </TouchableOpacity>
-              )}
+            {/* Error state -- never leaves the player stuck */}
+            {error && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={retry}
+                style={styles.errorBanner}
+                accessibilityRole="button"
+                accessibilityLabel={`Playback error: ${error}. Tap to retry.`}
+              >
+                <Text style={styles.errorText} numberOfLines={2}>{error}</Text>
+                <Text style={styles.errorHint}>Tap to retry</Text>
+              </TouchableOpacity>
+            )}
 
-              <PlayerControls
-                isPlaying={isPlaying}
-                busy={busy}
-                shuffle={shuffle}
-                repeat={repeat}
-                previous={previous}
-                next={next}
-                toggleShuffle={toggleShuffle}
-                cycleRepeat={cycleRepeat}
-                togglePlayPause={togglePlayPause}
-              />
+            {/* Main Controls */}
+            <View
+              style={[
+                styles.controlsContainer,
+                isCompact && { marginBottom: SIZES.md },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={toggleShuffle}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle off'}
+                accessibilityState={{ selected: shuffle }}
+              >
+                <Shuffle color={shuffle ? COLORS.accent.primary : COLORS.text.secondary} size={SIZES.icon.md + 2} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={previous}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Previous track"
+              >
+                <SkipBack color={COLORS.text.primary} size={SIZES.icon.xl} />
+              </TouchableOpacity>
+              <Animated.View style={[play.animatedStyle, styles.playButtonWrap]}>
+                <View style={styles.playRing}>
+                  <TouchableOpacity
+                    style={styles.playButton}
+                    onPress={togglePlayPause}
+                    onPressIn={play.onPressIn}
+                    onPressOut={play.onPressOut}
+                    activeOpacity={1}
+                    accessibilityRole="button"
+                    accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {busy ? (
+                      <ActivityIndicator color={COLORS.text.dark} />
+                    ) : isPlaying ? (
+                      <Pause color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                    ) : (
+                      <Play color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+              <TouchableOpacity
+                onPress={next}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Next track"
+              >
+                <SkipForward color={COLORS.text.primary} size={SIZES.icon.xl} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={cycleRepeat}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Repeat mode: ${repeat === 'off' ? 'off' : repeat === 'all' ? 'repeat all' : 'repeat one'}`}
+                accessibilityState={{ selected: repeat !== 'off' }}
+              >
+                {repeat === 'one' ? (
+                  <Repeat1 color={COLORS.accent.primary} size={SIZES.icon.md + 2} />
+                ) : (
+                  <Repeat
+                    color={repeat === 'all' ? COLORS.accent.primary : COLORS.text.secondary}
+                    size={SIZES.icon.md + 2}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
 
-              {utilityRow(true)}
+            {/* Bottom row, per the reference: timer · Lyrics pill · queue. */}
+            <View style={styles.bottomActions}>
+              <TouchableOpacity
+                style={styles.bottomIcon}
+                onPress={() => setActionsTrack(currentTrack)}
+                accessibilityRole="button"
+                accessibilityLabel="Sleep timer"
+              >
+                <Timer color={COLORS.text.secondary} size={SIZES.icon.md} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.lyricsPill}
+                onPress={() => setView('lyrics')}
+                accessibilityRole="button"
+                accessibilityLabel="Open lyrics"
+              >
+                <Mic color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
+                <Text style={styles.lyricsPillText}>Lyrics</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.bottomIcon}
+                onPress={() => setShowQueue(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Show queue"
+              >
+                <ListMusic color={COLORS.text.secondary} size={SIZES.icon.md} />
+              </TouchableOpacity>
             </View>
           </>
         ) : (
           <>
-            {/* Track row, per the lyrics reference */}
-            <View style={styles.lyricsTrackRow}>
-              <Artwork uri={currentTrack.albumImageUrl} size={46} radius={8} />
-              <View style={styles.lyricsTrackText}>
-                <Text style={styles.lyricsTrackTitle} numberOfLines={1}>
-                  {currentTrack.title}
-                </Text>
-                <Text style={styles.lyricsTrackArtist} numberOfLines={1}>
-                  {currentTrack.artist.name}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => openSheet(currentTrack, 'actions')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="Track actions"
-              >
-                <EllipsisVertical color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Lyrics / About tabs */}
+            {/* Lyrics / About tabs, per the reference. */}
             <View style={styles.tabRow}>
               <TouchableOpacity
                 style={[styles.tabChip, view === 'lyrics' && styles.tabChipActive]}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
                 onPress={() => setView('lyrics')}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: view === 'lyrics' }}
@@ -560,7 +539,7 @@ export default function NowPlayingScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.tabChip, view === 'about' && styles.tabChipActive]}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
                 onPress={() => setView('about')}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: view === 'about' }}
@@ -573,28 +552,24 @@ export default function NowPlayingScreen() {
             </View>
 
             {view === 'lyrics' ? (
-              <LyricsView lyrics={lyrics} loading={lyricsLoading} />
+              <LyricsView
+                track={currentTrack}
+                lyrics={lyrics}
+                loading={lyricsLoading}
+                onSeek={seekTo}
+                onRetry={loadLyrics}
+              />
             ) : (
-              <ScrollView
-                style={styles.aboutScroll}
-                contentContainerStyle={styles.aboutContent}
-                showsVerticalScrollIndicator={false}
-              >
+              <View style={styles.aboutWrap}>
                 <View style={styles.aboutArtwork}>
                   <Artwork uri={currentTrack.albumImageUrl} size={148} radius={SIZES.radius.lg} />
                 </View>
-                <Text style={styles.aboutTitle} numberOfLines={2}>
-                  {currentTrack.title}
-                </Text>
-                <Text style={styles.aboutArtist} numberOfLines={1}>
-                  {currentTrack.artist.name}
-                </Text>
+                <Text style={styles.aboutTitle} numberOfLines={2}>{currentTrack.title}</Text>
+                <Text style={styles.aboutArtist} numberOfLines={1}>{currentTrack.artist.name}</Text>
                 {currentTrack.album ? (
                   <View style={styles.aboutRow}>
                     <Text style={styles.aboutLabel}>ALBUM</Text>
-                    <Text style={styles.aboutValue} numberOfLines={1}>
-                      {currentTrack.album}
-                    </Text>
+                    <Text style={styles.aboutValue} numberOfLines={1}>{currentTrack.album}</Text>
                   </View>
                 ) : null}
                 <View style={styles.aboutRow}>
@@ -609,27 +584,95 @@ export default function NowPlayingScreen() {
                       : '—'}
                   </Text>
                 </View>
-              </ScrollView>
+              </View>
             )}
 
-            {/* Progress + transport stay available beneath the lyrics, per the
+            {/* Progress + controls stay available beneath the lyrics, per the
                 reference: lyrics never trap the player. */}
             <SeekBar onSeek={seekTo} />
-            <PlayerControls
-              isPlaying={isPlaying}
-              busy={busy}
-              shuffle={shuffle}
-              repeat={repeat}
-              previous={previous}
-              next={next}
-              toggleShuffle={toggleShuffle}
-              cycleRepeat={cycleRepeat}
-              togglePlayPause={togglePlayPause}
-            />
-            {utilityRow(false)}
+            {/* The full transport stays live under the lyrics, per the
+                reference — reading lyrics never strands playback. */}
+            <View style={styles.controlsContainer}>
+              <TouchableOpacity
+                onPress={toggleShuffle}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle off'}
+                accessibilityState={{ selected: shuffle }}
+              >
+                <Shuffle
+                  color={shuffle ? COLORS.accent.primary : COLORS.text.secondary}
+                  size={SIZES.icon.md + 2}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={previous} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Previous track">
+                <SkipBack color={COLORS.text.primary} size={SIZES.icon.xl} />
+              </TouchableOpacity>
+              <Animated.View style={[play.animatedStyle, styles.playButtonWrap]}>
+                <View style={styles.playRing}>
+                  <TouchableOpacity
+                    style={styles.playButton}
+                    onPress={togglePlayPause}
+                    onPressIn={play.onPressIn}
+                    onPressOut={play.onPressOut}
+                    activeOpacity={1}
+                    accessibilityRole="button"
+                    accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {busy ? (
+                      <ActivityIndicator color={COLORS.text.dark} />
+                    ) : isPlaying ? (
+                      <Pause color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                    ) : (
+                      <Play color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+              <TouchableOpacity onPress={next} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Next track">
+                <SkipForward color={COLORS.text.primary} size={SIZES.icon.xl} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={cycleRepeat}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Repeat mode: ${repeat === 'off' ? 'off' : repeat === 'all' ? 'repeat all' : 'repeat one'}`}
+                accessibilityState={{ selected: repeat !== 'off' }}
+              >
+                {repeat === 'one' ? (
+                  <Repeat1 color={COLORS.accent.primary} size={SIZES.icon.md + 2} />
+                ) : (
+                  <Repeat
+                    color={repeat === 'all' ? COLORS.accent.primary : COLORS.text.secondary}
+                    size={SIZES.icon.md + 2}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Same timer / queue pair as the artwork view. */}
+            <View style={styles.bottomActions}>
+              <TouchableOpacity
+                style={styles.bottomIcon}
+                onPress={() => setActionsTrack(currentTrack)}
+                accessibilityRole="button"
+                accessibilityLabel="Sleep timer"
+              >
+                <Timer color={COLORS.text.secondary} size={SIZES.icon.md} />
+              </TouchableOpacity>
+              <View style={styles.bottomSpacer} />
+              <TouchableOpacity
+                style={styles.bottomIcon}
+                onPress={() => setShowQueue(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Show queue"
+              >
+                <ListMusic color={COLORS.text.secondary} size={SIZES.icon.md} />
+              </TouchableOpacity>
+            </View>
           </>
         )}
-      </View>
+      </ScrollView>
 
       {/* Queue sheet */}
       <QueueSheet
@@ -647,10 +690,9 @@ export default function NowPlayingScreen() {
         onShuffle={toggleShuffle}
       />
 
-      {/* Action sheet — the player's timer shortcut opens it on the picker. */}
+      {/* Action sheet (reference composition) */}
       <TrackActionsSheet
         track={actionsTrack}
-        initial={actionFace}
         onClose={() => setActionsTrack(null)}
         onGoToArtist={(t) => goToString(t.artist.name)}
         onViewAlbum={(t) => goToString(`${t.album} ${t.artist.name}`)}
@@ -665,25 +707,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     paddingHorizontal: SIZES.lg,
     justifyContent: 'space-between',
   },
-
-  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: SIZES.touchTarget,
+    marginBottom: SIZES.md,
   },
   headerIcon: {
-    width: SIZES.touchTarget,
-    height: SIZES.touchTarget,
-    alignItems: 'center',
+    padding: SIZES.xs,
+    minHeight: SIZES.touchTarget,
     justifyContent: 'center',
   },
+  /** "Playing from …" — one line, centred between the two header actions. */
   headerContext: {
     flex: 1,
     textAlign: 'center',
@@ -692,134 +735,104 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     paddingHorizontal: SIZES.sm,
   },
-
-  // Artwork
-  artworkSection: {
+  artworkGlowWrap: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: SIZES.md,
   },
   artworkGlow: {
     position: 'absolute',
-    width: width - SIZES.lg * 2 + 60,
-    height: width - SIZES.lg * 2 + 60,
-    borderRadius: (width - SIZES.lg * 2 + 60) / 2,
     backgroundColor: COLORS.accent.glow,
   },
   artworkContainer: {
-    width: width - SIZES.lg * 2,
-    height: width - SIZES.lg * 2,
     borderRadius: 22,
     overflow: 'hidden',
     alignSelf: 'center',
-  },
-
-  // Track info
-  bottomSection: {
-    justifyContent: 'flex-end',
   },
   infoContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SIZES.md,
+    marginTop: SIZES.xl,
+    marginBottom: SIZES.lg,
   },
   textInfo: {
     flex: 1,
     paddingRight: SIZES.md,
   },
   trackTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: TYPE.title2.fontSize + 2,
-    lineHeight: TYPE.title2.lineHeight + 2,
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.title2.fontSize,
+    lineHeight: TYPE.title2.lineHeight,
     color: COLORS.text.primary,
+    marginBottom: 4,
   },
   trackArtist: {
     fontFamily: FONTS.regular,
     fontSize: TYPE.body.fontSize,
     color: COLORS.text.secondary,
-    marginTop: 3,
   },
-
-  // Transport
-  controls: {
+  controlsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SIZES.lg,
+    marginBottom: SIZES.xl,
+    paddingHorizontal: SIZES.sm,
   },
+  playButtonWrap: {},
   /** Thin accent halo around the play button, per the reference. */
   playRing: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.35)',
+    borderColor: COLORS.accent.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: COLORS.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 10,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
   },
-
-  // Bottom shortcuts
-  utilityRow: {
+  bottomActions: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: SIZES.sm,
   },
-  utilityButton: {
+  bottomIcon: {
     width: SIZES.touchTarget,
     height: SIZES.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  utilitySpacer: {
+  bottomSpacer: {
     height: SIZES.touchTarget,
   },
   lyricsPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SIZES.sm + 2,
-    paddingHorizontal: SIZES.xl,
-    height: 46,
+    paddingHorizontal: SIZES.lg,
+    height: 44,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.40)',
+    borderColor: 'rgba(61, 214, 195, 0.35)',
     backgroundColor: COLORS.accent.soft,
   },
   lyricsPillText: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.body.fontSize,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.accent.primary,
-  },
-
-  // Lyrics view
-  lyricsTrackRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SIZES.md,
-    marginTop: SIZES.sm,
-    marginBottom: SIZES.md,
-  },
-  lyricsTrackText: {
-    flex: 1,
-  },
-  lyricsTrackTitle: {
-    fontFamily: FONTS.semibold,
-    fontSize: TYPE.headline.fontSize,
-    color: COLORS.text.primary,
-  },
-  lyricsTrackArtist: {
-    fontFamily: FONTS.regular,
-    fontSize: TYPE.subheadline.fontSize,
-    color: COLORS.text.secondary,
-    marginTop: 2,
   },
   tabRow: {
     flexDirection: 'row',
@@ -828,16 +841,16 @@ const styles = StyleSheet.create({
   },
   tabChip: {
     flex: 1,
-    height: 46,
+    height: 44,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
     borderColor: COLORS.hairline,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabChipActive: {
-    borderColor: 'rgba(61, 214, 195, 0.45)',
+    borderColor: COLORS.accent.primary,
     backgroundColor: COLORS.accent.soft,
   },
   tabText: {
@@ -848,59 +861,15 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: COLORS.accent.primary,
   },
-  lyricsScroll: {
+  lyricsWrap: {
     flex: 1,
+    minHeight: 0,
   },
-  lyricsContent: {
-    paddingBottom: SIZES.lg,
-  },
-  lyricLine: {
-    fontFamily: FONTS.regular,
-    fontSize: TYPE.title3.fontSize,
-    lineHeight: 46,
-    color: 'rgba(244, 244, 242, 0.82)',
-  },
-  lyricLineActive: {
-    fontFamily: FONTS.semibold,
-    color: COLORS.text.primary,
-  },
-  lyricLineDim: {
-    color: 'rgba(244, 244, 242, 0.34)',
-  },
-  lyricsSource: {
-    fontFamily: FONTS.regular,
-    fontSize: TYPE.micro.fontSize,
-    color: COLORS.text.muted,
-    marginTop: SIZES.md,
-  },
-  lyricsCenter: {
+  aboutWrap: {
     flex: 1,
+    minHeight: 0,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: SIZES.xl,
-  },
-  lyricsEmptyTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.callout.fontSize,
-    color: COLORS.text.primary,
-    marginTop: SIZES.md,
-  },
-  lyricsEmptyHint: {
-    fontFamily: FONTS.regular,
-    fontSize: TYPE.footnote.fontSize,
-    color: COLORS.text.muted,
-    textAlign: 'center',
-    marginTop: SIZES.xs,
-    lineHeight: 18,
-  },
-
-  // About tab
-  aboutScroll: {
-    flex: 1,
-  },
-  aboutContent: {
-    alignItems: 'center',
-    paddingBottom: SIZES.lg,
+    paddingTop: SIZES.sm,
   },
   aboutArtwork: {
     marginBottom: SIZES.lg,
@@ -945,8 +914,123 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginLeft: SIZES.md,
   },
-
-  // Error
+  lyricsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.md,
+    marginBottom: SIZES.md,
+  },
+  lyricsHeaderText: {
+    flex: 1,
+  },
+  lyricsTitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.headline.fontSize,
+    color: COLORS.text.primary,
+  },
+  lyricsArtist: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+  romanBadge: {
+    paddingHorizontal: SIZES.sm + 2,
+    paddingVertical: 4,
+    borderRadius: SIZES.radius.pill,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(61, 214, 195, 0.35)',
+  },
+  romanBadgeText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.micro.fontSize,
+    color: COLORS.accent.primary,
+    letterSpacing: 0.5,
+  },
+  lyricsScroll: {
+    flex: 1,
+  },
+  lyricsContent: {
+    paddingBottom: SIZES.xl,
+    paddingTop: SIZES.xs,
+  },
+  lyricLineRow: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: SIZES.radius.sm,
+  },
+  lyricLine: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.title3.fontSize,
+    lineHeight: 38,
+    color: COLORS.text.primary,
+    letterSpacing: 0.2,
+  },
+  lyricLineActive: {
+    color: COLORS.accent.primary,
+    fontFamily: FONTS.bold,
+  },
+  lyricLineDim: {
+    color: 'rgba(244, 244, 242, 0.32)',
+  },
+  lyricsFooter: {
+    marginTop: SIZES.lg,
+    paddingTop: SIZES.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.hairline,
+  },
+  lyricsSource: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.micro.fontSize,
+    color: COLORS.text.muted,
+  },
+  lyricsLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SIZES.sm,
+    paddingVertical: SIZES.xxl,
+  },
+  lyricsLoadingText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.secondary,
+  },
+  lyricsEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SIZES.xl,
+  },
+  lyricsEmptyTitle: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.primary,
+    marginTop: SIZES.md,
+  },
+  lyricsEmptyHint: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.muted,
+    textAlign: 'center',
+    marginTop: SIZES.xs,
+    lineHeight: 18,
+  },
+  retryLyricsButton: {
+    marginTop: SIZES.md,
+    paddingHorizontal: SIZES.lg,
+    paddingVertical: SIZES.xs + 2,
+    borderRadius: SIZES.radius.pill,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+  },
+  retryLyricsText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.accent.primary,
+  },
   errorBanner: {
     backgroundColor: COLORS.status.errorGlow,
     borderRadius: SIZES.radius.sm,

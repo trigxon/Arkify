@@ -36,11 +36,11 @@ export const Pill: React.FC<PillProps> = ({ label, isActive, onPress, style }) =
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     borderRadius: SIZES.radius.pill,
     marginRight: SIZES.sm,
-    minHeight: SIZES.touchTarget - 6,
+    minHeight: 38,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -48,18 +48,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent.primary,
   },
   inactiveContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.hairline,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   label: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.subheadline.fontSize,
+    fontSize: 14,
+    letterSpacing: 0.2,
   },
   activeLabel: {
-    color: '#04211D',
+    color: COLORS.text.dark,
+    fontWeight: '600',
   },
   inactiveLabel: {
-    color: COLORS.text.primary,
+    color: COLORS.text.secondary,
   },
 });

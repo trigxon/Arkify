@@ -1,0 +1,6 @@
+{
+  "name": "Audia",
+  "description": "A modern music streaming and playback application built with Expo and React Native Web.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -2,6 +2,7 @@ import { fetchJson } from '../../core/http';
 import { appError, appErrorWithMessage, AppError, toAppError } from '../../core/errors';
 import { ResolvedStream, Track } from '../../core/types';
 import { NativeStreamSource } from './NativeStreamSource';
+import { BackendStreamSource } from './BackendStreamSource';
 
 /**
  * Stream resolution is deliberately separate from discovery.
@@ -276,6 +277,7 @@ export const endpointSource = new EndpointStreamSource();
 export const streamResolver = new StreamResolverChain()
   .use(new DirectStreamSource())
   // Android resolves on-device first; every other platform falls straight
-  // through to the configured endpoints, exactly as before.
+  // through to the backend stream proxy or configured endpoints.
   .use(new NativeStreamSource())
+  .use(new BackendStreamSource())
   .use(endpointSource);

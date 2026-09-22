@@ -7,6 +7,7 @@ import {
 } from 'expo-audio';
 import { appError, toAppError } from '../core/errors';
 import { ResolvedStream, Track } from '../core/types';
+import { WebYouTubePlayer } from './WebYouTubePlayer';
 
 export type PlaybackStatus = {
   isPlaying: boolean;
@@ -37,7 +38,7 @@ type EngineEvents = {
 };
 
 /**
- * Wraps expo-audio behind a small imperative interface.
+ * Wraps expo-audio (native) and WebYouTubePlayer (web) behind a small imperative interface.
  *
  * The engine is intentionally ignorant of queues, providers and the UI: it
  * plays one resolved stream at a time and reports what happened. Everything
@@ -45,6 +46,8 @@ type EngineEvents = {
  */
 export class PlaybackEngine {
   private player: AudioPlayer | null = null;
+  private webPlayer: WebYouTubePlayer | null = null;
+  private isWebActive = false;
   private subscription: { remove: () => void } | null = null;
   private listeners: Partial<EngineEvents> = {};
 
@@ -65,6 +68,30 @@ export class PlaybackEngine {
   private lockScreenTrack: Track | null = null;
   /** Whether metadata has been re-asserted since playback actually began. */
   private lockScreenSynced = false;
+
+  constructor() {
+    if (Platform.OS === 'web') {
+      this.webPlayer = new WebYouTubePlayer({
+        onStatus: (s) => {
+          if (this.isWebActive) {
+            this.status = s;
+            this.listeners.onStatus?.(s);
+          }
+        },
+        onComplete: () => {
+          if (this.isWebActive) {
+            this.listeners.onComplete?.();
+          }
+        },
+        onError: (err) => {
+          if (this.isWebActive) {
+            this.clearLoadTimer();
+            this.listeners.onError?.(err);
+          }
+        },
+      });
+    }
+  }
 
   on<K extends keyof EngineEvents>(event: K, handler: EngineEvents[K]): void {
     this.listeners[event] = handler;
@@ -106,7 +133,9 @@ export class PlaybackEngine {
     player.volume = this.desiredVolume;
 
     this.subscription = player.addListener('playbackStatusUpdate', (s) => {
-      this.handleStatus(s);
+      if (!this.isWebActive) {
+        this.handleStatus(s);
+      }
     });
 
     this.player = player;
@@ -168,11 +197,28 @@ export class PlaybackEngine {
     const token = ++this.loadToken;
 
     try {
-      const player = this.ensurePlayer();
-      await this.configure();
-
       this.currentTrackId = track.id;
       this.completionFired = false;
+
+      // On Web with YouTube tracks, use the WebYouTubePlayer
+      if (Platform.OS === 'web' && this.webPlayer && (track.provider === 'youtube' || track.sourceId)) {
+        this.isWebActive = true;
+        try {
+          this.player?.pause();
+        } catch {}
+
+        this.webPlayer.setVolume(this.desiredVolume);
+        await this.webPlayer.load(track, { autoPlay, startPosition });
+        return;
+      }
+
+      this.isWebActive = false;
+      try {
+        this.webPlayer?.stop();
+      } catch {}
+
+      const player = this.ensurePlayer();
+      await this.configure();
 
       this.status = { ...IDLE_STATUS, isBuffering: true, volume: this.desiredVolume };
       this.listeners.onStatus?.(this.status);
@@ -209,7 +255,11 @@ export class PlaybackEngine {
 
   play(): void {
     try {
-      this.player?.play();
+      if (this.isWebActive && this.webPlayer) {
+        this.webPlayer.play();
+      } else {
+        this.player?.play();
+      }
     } catch (e) {
       this.listeners.onError?.(toAppError(e, 'playback_failed'));
     }
@@ -217,28 +267,32 @@ export class PlaybackEngine {
 
   pause(): void {
     try {
-      this.player?.pause();
+      if (this.isWebActive && this.webPlayer) {
+        this.webPlayer.pause();
+      } else {
+        this.player?.pause();
+      }
     } catch {
       /* pausing a released player is harmless */
     }
   }
 
   async seekTo(seconds: number): Promise<void> {
-    if (!this.player) return;
-
-    // A non-finite target would poison the media element's currentTime and
-    // put the player into a permanent error state.
     if (!Number.isFinite(seconds)) return;
+
+    if (this.isWebActive && this.webPlayer) {
+      this.webPlayer.seekTo(seconds);
+      return;
+    }
+
+    if (!this.player) return;
 
     const duration = this.status.duration;
     const target = Math.max(0, duration > 0 ? Math.min(seconds, duration) : seconds);
 
     try {
-      // Seeking backwards after a finish should allow completion to fire again.
       this.completionFired = false;
       await this.player.seekTo(target);
-
-      // Reflect the new position immediately so the UI does not lag a tick.
       this.status = { ...this.status, position: target };
       this.listeners.onStatus?.(this.status);
     } catch (e) {
@@ -248,6 +302,7 @@ export class PlaybackEngine {
 
   setVolume(volume: number): void {
     this.desiredVolume = Math.max(0, Math.min(1, volume));
+    if (this.webPlayer) this.webPlayer.setVolume(this.desiredVolume);
     if (this.player) this.player.volume = this.desiredVolume;
 
     this.status = { ...this.status, volume: this.desiredVolume };
@@ -265,6 +320,10 @@ export class PlaybackEngine {
     this.currentTrackId = null;
     this.completionFired = false;
 
+    if (this.webPlayer) {
+      this.webPlayer.stop();
+    }
+
     try {
       this.player?.pause();
       this.player?.replace(null);
@@ -280,26 +339,6 @@ export class PlaybackEngine {
 
   /**
    * Native lock-screen / notification controls.
-   *
-   * expo-audio owns the single MediaSession; Audia must not create a second
-   * one. Play/pause, the scrub bar and seek +/-10s act directly on this same
-   * player, so the engine stays the one source of truth.
-   *
-   * Attaching and updating are deliberately different calls:
-   *
-   *   setActiveForLockScreen  rebuilds the MediaSession from scratch
-   *                           (AudioControlsService.setPlayerOptions releases
-   *                           the session and builds a new one)
-   *   updateLockScreenMetadata swaps the metadata on the live session
-   *
-   * So attach runs once. Calling it per track looked like it fixed stale
-   * titles, but it rebuilt the session at the instant each track started --
-   * when position and duration are still 0 -- leaving the notification stuck
-   * at 00:00 with a dead progress bar.
-   *
-   * Next/previous are absent because expo-audio’s AudioMediaSessionCallback
-   * removes COMMAND_SEEK_TO_NEXT / COMMAND_SEEK_TO_PREVIOUS from the session
-   * and exposes no JS event for them.
    */
   private setLockScreenMetadata(track: Track): void {
     if (Platform.OS === 'web') return;
@@ -311,7 +350,6 @@ export class PlaybackEngine {
 
     try {
       if (this.lockScreenActive) {
-        // Live session: swap metadata in place, keeping position/duration.
         this.player?.updateLockScreenMetadata(metadata);
         return;
       }
@@ -322,7 +360,7 @@ export class PlaybackEngine {
       });
       this.lockScreenActive = true;
     } catch {
-      // Lock screen controls are optional; never block playback on them.
+      // Lock screen controls are optional
     }
   }
 
@@ -335,16 +373,6 @@ export class PlaybackEngine {
     };
   }
 
-  /**
-   * Re-assert metadata once the source is actually playing.
-   *
-   * updateLockScreenMetadata only applies while the playback service is
-   * BOUND; during BINDING it logs a warning and discards the metadata. That
-   * window is what previously left the notification showing an older track.
-   * Re-sending once playback has genuinely started closes it, and is driven
-   * by a real event rather than a guessed delay. It is a metadata swap, not
-   * a session rebuild, so the progress bar keeps running.
-   */
   private syncLockScreenOnce(): void {
     if (Platform.OS === 'web') return;
     if (this.lockScreenSynced || !this.lockScreenActive) return;
@@ -359,7 +387,7 @@ export class PlaybackEngine {
       /* best effort */
     }
   }
-  /** Tear down the notification/session when playback is genuinely over. */
+
   private clearLockScreen(): void {
     if (Platform.OS === 'web' || !this.lockScreenActive) return;
 
@@ -381,14 +409,14 @@ export class PlaybackEngine {
     this.clearLoadTimer();
     this.clearLockScreen();
 
-    // The audio session is about to be deactivated, so the next player must
-    // reconfigure it. Without this the engine silently never plays again: a
-    // new player is created and reports "started", but the session it needs is
-    // still inactive, so playback sits at 0. Fast Refresh unmounts and
-    // remounts the provider in development, which hits this on every edit.
     this.configured = false;
     this.subscription?.remove();
     this.subscription = null;
+
+    if (this.webPlayer) {
+      this.webPlayer.release();
+      this.webPlayer = null;
+    }
 
     try {
       this.player?.remove();
@@ -406,3 +434,4 @@ export class PlaybackEngine {
 }
 
 export const playbackEngine = new PlaybackEngine();
+
