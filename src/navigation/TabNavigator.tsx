@@ -85,9 +85,10 @@ export const TabNavigator = () => {
 };
 
 /**
- * Active indicator: a 3px accent bar above the icon, fading in/out with the
- * focus change (the reference's subtle active treatment). Inactive tabs stay
- * quiet — muted color, lower stroke weight — so the selected one reads first.
+ * Active treatment, per the reference: the selected tab reads through the
+ * accent colour on both icon and label, and a heavier stroke weight. Inactive
+ * tabs stay quiet — muted colour, lighter stroke — so the selection reads
+ * without an extra indicator chrome.
  */
 const TabIcon: React.FC<{ focused: boolean; label: string; children: React.ReactNode }> = ({
   focused,
@@ -100,7 +101,6 @@ const TabIcon: React.FC<{ focused: boolean; label: string; children: React.React
     accessibilityLabel={label}
     accessibilityState={{ selected: focused }}
   >
-    <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
     <View style={styles.tabIconGlyph}>{children}</View>
   </View>
 );
@@ -128,17 +128,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 48,
-  },
-  tabIndicator: {
-    position: 'absolute',
-    top: -6,
-    width: 20,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'transparent',
-  },
-  tabIndicatorActive: {
-    backgroundColor: COLORS.accent.primary,
   },
   tabIconGlyph: {
     height: 24,

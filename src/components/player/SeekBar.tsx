@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { COLORS, SIZES, FONTS } from '../../constants/theme';
 import { useProgress } from '../../hooks/usePlayer';
 
@@ -11,6 +11,14 @@ const formatTime = (seconds: number): string => {
   const s = total % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
+
+/**
+ * How long the bar takes to reach a newly reported position. The engine ticks
+ * about four times a second, so a slightly longer tween makes the fill and the
+ * thumb glide continuously instead of stepping in 250ms jumps — without ever
+ * lagging more than a hair behind the audio.
+ */
+const TICK_MS = 300;
 
 type SeekBarProps = {
   /** Commits a final position, in seconds. */
@@ -24,10 +32,11 @@ type SeekBarProps = {
  *   display     - what is drawn
  *   isSeeking   - whether the finger owns `display`
  *
- * While the finger is down, `display` follows the gesture alone and engine
- * updates are ignored, so a position tick can never yank the thumb out from
- * under the user. Exactly one native seek is issued, on release: seeking on
- * every move event made the bar fight the gesture and stutter.
+ * Between ticks the drawn position is an animated value tweening towards the
+ * reported one; while the finger is down, engine updates are ignored entirely
+ * so a position tick can never yank the thumb out from under the user. Exactly
+ * one native seek is issued, on release: seeking on every move made the bar
+ * fight the gesture.
  *
  * This component is also the only thing in the player subscribed to position,
  * so the rest of Now Playing no longer re-renders on every tick.
@@ -39,14 +48,37 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
   const [isSeeking, setIsSeeking] = useState(false);
   const [displayPosition, setDisplayPosition] = useState(0);
 
+  /** Animated fraction of the track (0..1) — drives both fill and thumb. */
+  const fraction = useRef(new Animated.Value(0)).current;
+
   // Refs mirror state for use inside PanResponder, which is created once and
   // would otherwise close over stale values.
   const barWidthRef = useRef(0);
   const durationRef = useRef(0);
   const displayRef = useRef(0);
+  const seekingRef = useRef(false);
 
   barWidthRef.current = barWidth;
   durationRef.current = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  seekingRef.current = isSeeking;
+
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  const safePosition = Number.isFinite(position) && position > 0 ? position : 0;
+  const ratio = safeDuration > 0 ? Math.min(1, Math.max(0, safePosition / safeDuration)) : 0;
+
+  /**
+   * Glide towards whatever the engine last reported. Skipped while the user
+   * owns the bar, so their finger is never overruled.
+   */
+  useEffect(() => {
+    if (seekingRef.current) return;
+    Animated.timing(fraction, {
+      toValue: ratio,
+      duration: TICK_MS,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+  }, [ratio, fraction]);
 
   /** Map an x offset within the bar to a safe position in seconds. */
   const positionForX = useCallback((x: number): number => {
@@ -56,13 +88,26 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
     if (!width || !total) return 0;
     if (!Number.isFinite(x)) return 0;
 
-    const ratio = Math.min(1, Math.max(0, x / width));
-    const seconds = ratio * total;
+    const r = Math.min(1, Math.max(0, x / width));
+    const seconds = r * total;
 
     // Guard against NaN/Infinity reaching the engine.
     if (!Number.isFinite(seconds)) return 0;
     return Math.min(total, Math.max(0, seconds));
   }, []);
+
+  /** Move the drawn bar without animating, so it tracks the finger exactly. */
+  const setDragged = useCallback(
+    (seconds: number) => {
+      displayRef.current = seconds;
+      setDisplayPosition(seconds);
+      const total = durationRef.current;
+      const r = total > 0 ? Math.min(1, Math.max(0, seconds / total)) : 0;
+      fraction.stopAnimation();
+      fraction.setValue(r);
+    },
+    [fraction]
+  );
 
   const panResponder = useMemo(
     () =>
@@ -75,24 +120,17 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
         onPanResponderGrant: (e) => {
           // A track with no known duration cannot be scrubbed.
           if (!durationRef.current) return;
-
-          const next = positionForX(e.nativeEvent.locationX);
-          displayRef.current = next;
-          setDisplayPosition(next);
+          setDragged(positionForX(e.nativeEvent.locationX));
           setIsSeeking(true);
         },
 
         onPanResponderMove: (e) => {
           if (!durationRef.current) return;
-
           // locationX is measured against this view, so it already accounts for
           // how far the finger has travelled. positionForX clamps it, which is
           // what keeps dragging past either end (and fast flicks that overshoot)
           // pinned to 0 / duration rather than producing an out-of-range seek.
-          const next = positionForX(e.nativeEvent.locationX);
-
-          displayRef.current = next;
-          setDisplayPosition(next);
+          setDragged(positionForX(e.nativeEvent.locationX));
         },
 
         onPanResponderRelease: () => {
@@ -110,16 +148,20 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
           setIsSeeking(false);
         },
       }),
-    [onSeek, positionForX]
+    [onSeek, positionForX, setDragged]
   );
 
-  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
-  const safePosition = Number.isFinite(position) && position > 0 ? position : 0;
-
   const shown = isSeeking ? displayPosition : safePosition;
-  const ratio = safeDuration > 0 ? Math.min(1, Math.max(0, shown / safeDuration)) : 0;
-  const percent: `${number}%` = `${ratio * 100}%`;
-  const remaining = Math.max(0, safeDuration - shown);
+
+  // Pixel geometry, recomputed only when the bar is measured: both the fill and
+  // the thumb ride the same animated fraction, so they can never disagree.
+  const trackSpan = useMemo(
+    () => ({
+      width: fraction.interpolate({ inputRange: [0, 1], outputRange: [0, barWidth] }),
+      left: fraction.interpolate({ inputRange: [0, 1], outputRange: [0, barWidth] }),
+    }),
+    [fraction, barWidth]
+  );
 
   return (
     <View style={styles.container}>
@@ -129,15 +171,16 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
         onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
         {...panResponder.panHandlers}
       >
-        <View style={[styles.barFill, { width: percent }]} />
-        <View
-          style={[styles.dot, { left: percent }, isSeeking && styles.dotActive]}
+        <Animated.View style={[styles.barFill, { width: trackSpan.width }]} />
+        <Animated.View
+          style={[styles.dot, { left: trackSpan.left }, isSeeking && styles.dotActive]}
         />
       </View>
 
       <View style={styles.timeRow}>
         <Text style={styles.timeText}>{formatTime(shown)}</Text>
-        <Text style={styles.timeText}>-{formatTime(remaining)}</Text>
+        {/* Total duration, per the reference — not a countdown. */}
+        <Text style={styles.timeText}>{formatTime(safeDuration)}</Text>
       </View>
     </View>
   );
@@ -151,7 +194,7 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: COLORS.player.progressTrack,
     borderRadius: 2,
-    marginBottom: SIZES.sm,
+    marginBottom: SIZES.sm + 2,
     justifyContent: 'center',
   },
   barFill: {
@@ -161,25 +204,27 @@ const styles = StyleSheet.create({
   },
   dot: {
     position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: COLORS.accent.primary,
-    marginLeft: -6,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    marginLeft: -7,
   },
   /** Slight grow while dragging, so the thumb reads as grabbed. */
   dotActive: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginLeft: -8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginLeft: -10,
   },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   timeText: {
-    fontFamily: FONTS.regular,
+    fontFamily: FONTS.medium,
     fontSize: 12,
     color: COLORS.text.secondary,
   },

@@ -176,7 +176,7 @@ export default function HomeScreen() {
               {profile.name?.trim() ? (
                 <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
               ) : (
-                <User color={COLORS.text.secondary} size={SIZES.icon.lg - 2} />
+                <User color={COLORS.accent.primary} size={SIZES.icon.lg - 2} />
               )}
             </TouchableOpacity>
           }
@@ -274,7 +274,7 @@ export default function HomeScreen() {
                 <Text style={styles.featuredSub}>Discover · Listen · Feel</Text>
               </View>
               <View style={styles.featuredPlayBtn}>
-                <Play color={COLORS.accent.primary} size={SIZES.icon.md} fill={COLORS.accent.primary} />
+                <Play color="#04211D" size={SIZES.icon.md} fill="#04211D" />
               </View>
             </View>
           </TouchableOpacity>
@@ -337,7 +337,6 @@ export default function HomeScreen() {
               <Text style={styles.emptyTitle}>No recent audio yet</Text>
               <Text style={styles.emptyHint}>Play something and it will appear here.</Text>
             </View>
-            <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
           </View>
         )}
       </ScrollView>
@@ -413,19 +412,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     zIndex: 20,
   },
+  /** Thin accent ring on a near-transparent fill, per the reference. */
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.accent.soft,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(61, 214, 195, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.30)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(61, 214, 195, 0.55)',
   },
   avatarInitial: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.headline.fontSize,
+    fontSize: TYPE.title3.fontSize,
     color: COLORS.accent.primary,
   },
   searchBar: {
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   },
 
   featuredCard: {
-    height: 190,
+    height: 164,
     borderRadius: SIZES.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.hairline,
@@ -521,68 +521,56 @@ const styles = StyleSheet.create({
     marginTop: SIZES.sm,
   },
   featuredPlayBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: COLORS.accent.primary,
-    backgroundColor: '#071518',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    ...SHADOWS.ambient,
   },
 
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: SIZES.xl,
-    gap: 8,
   },
   actionTile: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: COLORS.surfaceElevated,
+    paddingVertical: 16,
+    borderRadius: SIZES.radius.md,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.12)',
+    borderColor: COLORS.hairline,
+    marginHorizontal: 4,
   },
   actionTileIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(24, 229, 213, 0.08)',
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SIZES.xs + 2,
+    marginBottom: SIZES.sm + 2,
   },
   actionTileLabel: {
     fontFamily: FONTS.medium,
-    fontSize: 12,
-    letterSpacing: 0.2,
+    fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.primary,
   },
 
   emptyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: 18,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.12)',
+    borderColor: COLORS.hairline,
     padding: SIZES.md,
   },
   emptyIconWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(24, 229, 213, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.25)',
+    backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },

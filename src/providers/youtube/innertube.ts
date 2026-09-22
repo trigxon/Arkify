@@ -103,7 +103,13 @@ async function refreshClientConfig(): Promise<void> {
 }
 
 /** Full request pieces for one InnerTube endpoint, using the current config. */
-function innertubeRequest(endpoint: string, body: Record<string, unknown>) {
+type RequestParts = {
+  url: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+};
+
+function innertubeRequest(endpoint: string, body: Record<string, unknown>): RequestParts {
   const cfg = clientConfig;
   const client: Record<string, unknown> = { ...CLIENT_BASE, clientVersion: cfg.clientVersion };
   if (cfg.visitorData) client.visitorData = cfg.visitorData;
@@ -136,7 +142,7 @@ function innertubeRequest(endpoint: string, body: Record<string, unknown>) {
 }
 
 /** Fallback 2: the plain WEB host tolerates blocks on the music host differently. */
-function fallbackRequest(endpoint: string, body: Record<string, unknown>) {
+function fallbackRequest(endpoint: string, body: Record<string, unknown>): RequestParts {
   const primary = innertubeRequest(endpoint, body);
   return {
     ...primary,

@@ -10,7 +10,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, X, Trash2, Download, Share2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2, Play } from 'lucide-react-native';
+import { Plus, X, Trash2, Download, Share2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
@@ -268,56 +269,51 @@ export default function LibraryScreen() {
                     style={[styles.row, styles.likedCard]}
                     activeOpacity={0.7}
                     onPress={() => openPlaylist(playlist)}
+                    onLongPress={() => onPlayPlaylist(playlist)}
                     accessibilityRole="button"
                     accessibilityLabel={`Open playlist ${playlist.name}, ${playlist.tracks.length} tracks`}
                   >
-                    <View style={styles.likedArtworkBadge}>
-                      <Heart color={COLORS.accent.primary} size={22} fill={COLORS.accent.primary} />
-                    </View>
+                    <LinearGradient
+                      colors={['#4FE3D0', '#2FB5A5']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.rowArtwork}
+                    >
+                      <Heart color="#FFFFFF" size={SIZES.icon.sm + 4} fill="#FFFFFF" />
+                    </LinearGradient>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowTitle} numberOfLines={1}>{playlist.name}</Text>
                       <Text style={styles.rowSubtitle} numberOfLines={1}>
-                        {playlist.tracks.length}{' '}
+                        Playlist • {playlist.tracks.length}{' '}
                         {playlist.tracks.length === 1 ? 'song' : 'songs'}
                       </Text>
                     </View>
-                    <TouchableOpacity
-                      style={styles.likedPlayCircle}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        onPlayPlaylist(playlist);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Play Liked Songs"
-                    >
-                      <Play color={COLORS.accent.primary} size={15} fill={COLORS.accent.primary} />
-                    </TouchableOpacity>
+                    <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
                   </TouchableOpacity>
                 ) : (
-                  <View key={playlist.id} style={styles.row}>
-                    <TouchableOpacity
-                      style={styles.rowMain}
-                      activeOpacity={0.7}
-                      onPress={() => openPlaylist(playlist)}
-                      onLongPress={() => onPlayPlaylist(playlist)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open playlist ${playlist.name}, ${playlist.tracks.length} tracks`}
-                    >
-                      {playlist.coverImageUrl && playlist.coverImageUrl !== 'liked_songs_gradient' ? (
-                        <Artwork uri={playlist.coverImageUrl} size={56} radius={12} />
-                      ) : (
-                        <View style={[styles.rowArtwork, styles.rowArtworkTinted]}>
-                          <ListMusic color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
-                        </View>
-                      )}
-                      <View style={styles.rowInfo}>
-                        <Text style={styles.rowTitle} numberOfLines={1}>{playlist.name}</Text>
-                        <Text style={styles.rowSubtitle} numberOfLines={1}>
-                          Playlist • {playlist.creator} • {playlist.tracks.length}
-                        </Text>
+                  <TouchableOpacity
+                    key={playlist.id}
+                    style={styles.row}
+                    activeOpacity={0.7}
+                    onPress={() => openPlaylist(playlist)}
+                    onLongPress={() => onPlayPlaylist(playlist)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open playlist ${playlist.name}, ${playlist.tracks.length} tracks`}
+                  >
+                    {playlist.coverImageUrl && playlist.coverImageUrl !== 'liked_songs_gradient' ? (
+                      <Artwork uri={playlist.coverImageUrl} size={56} radius={12} />
+                    ) : (
+                      <View style={[styles.rowArtwork, styles.rowArtworkTinted]}>
+                        <ListMusic color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
                       </View>
-                      <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
-                    </TouchableOpacity>
+                    )}
+                    <View style={styles.rowInfo}>
+                      <Text style={styles.rowTitle} numberOfLines={1}>{playlist.name}</Text>
+                      <Text style={styles.rowSubtitle} numberOfLines={1}>
+                        Playlist • {playlist.creator} • {playlist.tracks.length}
+                      </Text>
+                    </View>
+                    <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
                     <TouchableOpacity
                       style={styles.rowAction}
                       onPress={() => deletePlaylist(playlist.id)}
@@ -326,7 +322,7 @@ export default function LibraryScreen() {
                     >
                       <Trash2 color={COLORS.text.muted} size={SIZES.icon.sm} />
                     </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 )
               )
             ) : (
@@ -340,9 +336,9 @@ export default function LibraryScreen() {
                     <Music2 color={COLORS.accent.primary} size={26} strokeWidth={2} />
                   </View>
                 </View>
-                <Text style={styles.createTitle}>Your library is empty</Text>
+                <Text style={styles.createTitle}>Create your first playlist</Text>
                 <Text style={styles.createHint}>
-                  Create playlists and save songs to build your personal collection.
+                  Organize your favourite tracks and keep them close.
                 </Text>
                 <TouchableOpacity
                   style={styles.createButton}
@@ -514,9 +510,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addButtonCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.accent.primary,
@@ -597,11 +593,6 @@ const styles = StyleSheet.create({
     paddingVertical: SIZES.sm + 2,
     minHeight: SIZES.touchTarget + 24,
   },
-  rowMain: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   rowArtwork: {
     width: 56,
     height: 56,
@@ -615,38 +606,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(61, 214, 195, 0.22)',
   },
-  likedArtworkBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(24, 229, 213, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  likedPlayCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 2,
-    borderColor: COLORS.accent.primary,
-    backgroundColor: '#071518',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 3,
-  },
   likedCard: {
-    backgroundColor: COLORS.surfaceElevated,
-    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.16)',
-    paddingHorizontal: SIZES.md,
-    paddingVertical: SIZES.sm + 2,
+    borderColor: COLORS.hairline,
+    paddingHorizontal: SIZES.sm,
     marginBottom: SIZES.md,
   },
   createEmptyWrap: {

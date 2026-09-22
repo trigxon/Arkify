@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   Text,
   View,
@@ -18,11 +19,12 @@ import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { CategoryTile } from '../components/common/Cards';
 import { SectionHeader, EmptyState, ErrorState, SkeletonList } from '../components/common/UI';
-import { BROWSE_CATEGORIES } from '../data/catalog';
+import { BROWSE_CATEGORIES, BROWSE_VISIBLE_COUNT } from '../data/catalog';
 import { SearchFilter, Track } from '../core/types';
 import { useSearch } from '../hooks/useSearch';
 import { usePlayer } from '../hooks/usePlayer';
 import { MusicService } from '../services/MusicService';
+import { listenForQuery } from '../services/VoiceSearchService';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 
 const FILTERS: SearchFilter[] = ['All', 'Songs', 'Artists', 'Albums', 'Playlists'];
@@ -49,8 +51,33 @@ export default function SearchScreen() {
   const { playTrack, currentTrack, isPlaying, togglePlayPause } = usePlayer();
   const [expandingId, setExpandingId] = useState<string | null>(null);
   const [fieldFocused, setFieldFocused] = useState(false);
+  const [listening, setListening] = useState(false);
+  /** "See all" reveals the rest of the browse grid. */
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const isBrowsing = query.trim().length === 0;
+  const visibleCategories = showAllCategories
+    ? BROWSE_CATEGORIES
+    : BROWSE_CATEGORIES.slice(0, BROWSE_VISIBLE_COUNT);
+
+  /**
+   * Voice search through the phone's own recogniser. Anything it hears runs as
+   * a normal search; if the user backs out, the field just takes focus.
+   */
+  const onVoiceSearch = useCallback(async () => {
+    if (listening) return;
+    setListening(true);
+    const spoken = await listenForQuery();
+    setListening(false);
+
+    if (spoken) {
+      setQuery(spoken);
+      searchNow(spoken);
+    } else {
+      inputRef.current?.focus();
+    }
+  }, [listening, searchNow, setQuery]);
 
   /** Playing a search result queues the whole result list behind it. */
   const onPlayTrack = useCallback(
@@ -221,6 +248,7 @@ export default function SearchScreen() {
             size={SIZES.icon.md - 2}
           />
           <TextInput
+            ref={inputRef}
             style={styles.searchInput}
             placeholder="Songs, artists, albums..."
             placeholderTextColor={COLORS.text.muted}
@@ -243,13 +271,20 @@ export default function SearchScreen() {
               <X color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
             </TouchableOpacity>
           ) : (
+            /* Voice search — the phone's own recogniser, per the reference. */
             <TouchableOpacity
-              onPress={() => searchNow('trending')}
+              onPress={onVoiceSearch}
+              disabled={listening}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Voice search"
+              accessibilityLabel="Search by voice"
+              accessibilityState={{ busy: listening }}
             >
-              <Mic color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
+              {listening ? (
+                <ActivityIndicator size="small" color={COLORS.accent.primary} />
+              ) : (
+                <Mic color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
+              )}
             </TouchableOpacity>
           )}
         </View>
@@ -271,11 +306,11 @@ export default function SearchScreen() {
           <>
             <SectionHeader
               title="Browse Audia"
-              actionLabel="See all >"
-              onAction={() => searchNow('all genres')}
+              actionLabel={showAllCategories ? 'Show less' : 'See all'}
+              onAction={() => setShowAllCategories((v) => !v)}
             />
             <View style={styles.categoriesGrid}>
-              {BROWSE_CATEGORIES.map((category) => (
+              {visibleCategories.map((category) => (
                 <CategoryTile
                   key={category.id}
                   label={category.name}
@@ -427,13 +462,13 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.15)',
-    borderRadius: 999,
-    paddingHorizontal: SIZES.md + 2,
+    borderColor: COLORS.hairline,
+    borderRadius: SIZES.radius.pill,
+    paddingHorizontal: SIZES.md,
     height: 50,
-    marginBottom: SIZES.md,
+    marginBottom: SIZES.lg,
   },
   searchContainerFocused: {
     borderColor: COLORS.accent.primary,
@@ -456,7 +491,7 @@ const styles = StyleSheet.create({
   },
   categoryCardWrapper: {
     width: '48.5%',
-    marginBottom: SIZES.sm,
+    marginBottom: SIZES.sm + 4,
     marginRight: 0,
   },
   resultsList: {

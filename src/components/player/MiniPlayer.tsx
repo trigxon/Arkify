@@ -58,10 +58,10 @@ const MiniPlayerLike: React.FC<{ track: Track }> = ({ track }) => {
       accessibilityState={{ selected: liked }}
     >
       <Heart
-        color={liked ? COLORS.accent.primary : COLORS.text.secondary}
+        color={liked ? COLORS.accent.primary : COLORS.text.primary}
         fill={liked ? COLORS.accent.primary : 'transparent'}
-        size={SIZES.icon.md - 2}
-        strokeWidth={2}
+        size={SIZES.icon.md}
+        strokeWidth={1.9}
       />
     </TouchableOpacity>
   );
@@ -83,34 +83,33 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   if (!track) return null;
 
   return (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
       style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
     >
       <View style={[styles.container, SHADOWS.glass]}>
         <View style={styles.content}>
-          <TouchableOpacity
-            style={styles.mainPressArea}
-            activeOpacity={0.9}
-            onPress={onPress}
-            accessibilityRole="button"
-            accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
-          >
-            {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
-            <View style={styles.artworkWrap}>
-              <Artwork uri={track.albumImageUrl} size={42} radius={10} />
-            </View>
+          {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
+          <View style={styles.artworkWrap}>
+            <Artwork uri={track.albumImageUrl} size={44} radius={10} />
+          </View>
 
-            <View style={styles.infoContainer}>
-              <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
-              <Text style={styles.artist} numberOfLines={1}>{track.artist.name}</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.infoContainer}>
+            <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
+            <Text style={styles.artist} numberOfLines={1}>{track.artist.name}</Text>
+          </View>
 
           <View style={styles.controls}>
             <MiniPlayerLike track={track} />
             <TouchableOpacity
               style={styles.playButton}
-              onPress={onPlayPause}
+              onPress={(e) => {
+                (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
+                onPlayPause();
+              }}
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             >
@@ -119,9 +118,9 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
               ) : (
                 <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
                   {isPlaying ? (
-                    <Pause color={COLORS.accent.primary} size={15} fill={COLORS.accent.primary} />
+                    <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
                   ) : (
-                    <Play color={COLORS.accent.primary} size={15} fill={COLORS.accent.primary} />
+                    <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
                   )}
                 </View>
               )}
@@ -132,7 +131,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         {/* Progress: a hairline along the bottom edge of the bar. */}
         <MiniPlayerProgress />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -144,51 +143,39 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   container: {
-    borderRadius: 18,
+    borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
-    backgroundColor: COLORS.surfaceElevated,
-    borderColor: 'rgba(24, 229, 213, 0.35)',
+    backgroundColor: COLORS.surfaceRaised,
+    borderColor: 'rgba(61, 214, 195, 0.16)',
     borderWidth: 1,
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
   },
-  mainPressArea: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   artworkWrap: {
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: COLORS.surfaceCard,
+    borderRadius: 12,
+    padding: 2,
+    backgroundColor: COLORS.accent.soft,
     borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.25)',
+    borderColor: 'rgba(61, 214, 195, 0.18)',
   },
   infoContainer: {
     flex: 1,
     marginLeft: SIZES.sm + 2,
-    marginRight: SIZES.xs,
     justifyContent: 'center',
   },
   title: {
     fontFamily: FONTS.semibold,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.primary,
   },
   artist: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
-    marginTop: 2,
+    marginTop: 1,
   },
   controls: {
     flexDirection: 'row',
@@ -202,26 +189,21 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.xs,
   },
   playRing: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: COLORS.accent.primary,
-    backgroundColor: '#071518',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(61, 214, 195, 0.60)',
+    backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 4,
   },
   playRingPlaying: {
     borderColor: COLORS.accent.primary,
-    backgroundColor: '#0A1C20',
+    backgroundColor: COLORS.accent.soft,
   },
   progressTrack: {
-    height: 2,
+    height: 3,
     backgroundColor: COLORS.player.progressTrack,
     width: '100%',
     position: 'absolute',

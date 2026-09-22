@@ -7,8 +7,11 @@ import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 type BottomSheetProps = {
   visible: boolean;
   onClose: () => void;
-  title: string;
+  /** Omitted for sheets that go straight to content (e.g. the action sheet). */
+  title?: string;
   subtitle?: string;
+  /** 'center' parks the title in the middle of the bar with close at the left. */
+  titleAlign?: 'left' | 'center';
   children: React.ReactNode;
   /** Extra bottom padding when the keyboard is open (sheets with inputs). */
   keyboardHeight?: number;
@@ -26,6 +29,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   onClose,
   title,
   subtitle,
+  titleAlign = 'left',
   children,
   keyboardHeight = 0,
 }) => {
@@ -47,24 +51,45 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         >
           <View style={styles.grabber} />
 
-          <View style={styles.header}>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>{title}</Text>
-              {subtitle ? (
-                <Text style={styles.subtitle} numberOfLines={1}>
-                  {subtitle}
+          {title ? (
+            titleAlign === 'center' ? (
+              /* Close at the left, title optically centred in the bar. */
+              <View style={styles.centeredHeader}>
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={styles.centeredClose}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                >
+                  <X color={COLORS.text.primary} size={SIZES.icon.lg} />
+                </TouchableOpacity>
+                <Text style={styles.centeredTitle} numberOfLines={1}>
+                  {title}
                 </Text>
-              ) : null}
-            </View>
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <X color={COLORS.text.secondary} size={SIZES.icon.md} />
-            </TouchableOpacity>
-          </View>
+                <View style={styles.centeredClose} />
+              </View>
+            ) : (
+              <View style={styles.header}>
+                <View style={styles.headerText}>
+                  <Text style={styles.title}>{title}</Text>
+                  {subtitle ? (
+                    <Text style={styles.subtitle} numberOfLines={1}>
+                      {subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  onPress={onClose}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                >
+                  <X color={COLORS.text.secondary} size={SIZES.icon.md} />
+                </TouchableOpacity>
+              </View>
+            )
+          ) : null}
 
           {children}
         </View>
@@ -103,6 +128,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: SIZES.md,
+  },
+  centeredHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SIZES.md,
+  },
+  centeredClose: {
+    width: SIZES.touchTarget,
+    height: SIZES.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centeredTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.title3.fontSize,
+    color: COLORS.text.primary,
   },
   headerText: {
     flex: 1,
