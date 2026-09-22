@@ -8,7 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Dimensions,
+  useWindowDimensions,
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,8 +42,6 @@ import { usePlayer, useProgress } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
 import { useNavigation } from '@react-navigation/native';
 
-const { width } = Dimensions.get('window');
-
 /** Tactile press: quick scale-down, spring back. Short and interruptible. */
 function usePressScale() {
   const value = useRef(new Animated.Value(1)).current;
@@ -60,45 +58,56 @@ const LyricsView: React.FC<{
   track: Track;
   lyrics: Lyrics | null;
   loading: boolean;
-}> = ({ track, lyrics, loading }) => {
-  const { position, duration } = useProgress();
+  onSeek?: (seconds: number) => void;
+  onRetry?: () => void;
+}> = ({ track, lyrics, loading, onSeek, onRetry }) => {
+  const { position } = useProgress();
   const scrollRef = useRef<ScrollView>(null);
   const activeIndexRef = useRef(-1);
 
   const activeIndex = useMemo(
     () => (lyrics?.synced ? LyricsService.activeLineIndex(lyrics, position) : -1),
-    [lyrics, Math.floor(position * 2)] // twice a second is plenty for line highlight
+    [lyrics, Math.floor(position * 2)]
   );
 
   // Keep the active line centred. Runs only when the line actually changes.
   useEffect(() => {
     if (activeIndex < 0 || activeIndex === activeIndexRef.current) return;
     activeIndexRef.current = activeIndex;
-    scrollRef.current?.scrollTo({ y: Math.max(0, activeIndex * 44 - 140), animated: true });
+    scrollRef.current?.scrollTo({ y: Math.max(0, activeIndex * 48 - 130), animated: true });
   }, [activeIndex]);
 
   return (
     <View style={styles.lyricsWrap}>
-      {/* Track header: small artwork + title/artist, per the reference. */}
+      {/* Track header: small artwork + title/artist + Roman English pill */}
       <View style={styles.lyricsHeader}>
         <Artwork uri={track.albumImageUrl} size={44} radius={10} />
         <View style={styles.lyricsHeaderText}>
           <Text style={styles.lyricsTitle} numberOfLines={1}>{track.title}</Text>
           <Text style={styles.lyricsArtist} numberOfLines={1}>{track.artist.name}</Text>
         </View>
+        <View style={styles.romanBadge}>
+          <Text style={styles.romanBadgeText}>Roman English</Text>
+        </View>
       </View>
 
       {loading ? (
         <View style={styles.lyricsLoading}>
-          <ActivityIndicator color={COLORS.text.muted} />
+          <ActivityIndicator color={COLORS.accent.primary} size="large" />
+          <Text style={styles.lyricsLoadingText}>Loading Roman English lyrics...</Text>
         </View>
       ) : !lyrics || lyrics.lines.length === 0 ? (
         <View style={styles.lyricsEmpty}>
           <AudioLines color={COLORS.text.muted} size={SIZES.icon.lg} />
-          <Text style={styles.lyricsEmptyTitle}>No lyrics available</Text>
+          <Text style={styles.lyricsEmptyTitle}>Lyrics unavailable</Text>
           <Text style={styles.lyricsEmptyHint}>
-            Lyrics aren't set up for this track. Playback is unaffected.
+            Could not fetch Roman English lyrics for this track right now.
           </Text>
+          {onRetry && (
+            <TouchableOpacity style={styles.retryLyricsButton} onPress={onRetry}>
+              <Text style={styles.retryLyricsText}>Retry</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <ScrollView
@@ -107,22 +116,38 @@ const LyricsView: React.FC<{
           contentContainerStyle={styles.lyricsContent}
           showsVerticalScrollIndicator={false}
         >
-          {lyrics.lines.map((line, i) => (
-            <Text
-              key={i}
-              style={[
-                styles.lyricLine,
-                lyrics.synced && i === activeIndex && styles.lyricLineActive,
-                lyrics.synced && i !== activeIndex && styles.lyricLineDim,
-              ]}
-            >
-              {line.text || ' '}
+          {lyrics.lines.map((line, i) => {
+            const isActive = lyrics.synced && i === activeIndex;
+            return (
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.75}
+                disabled={!lyrics.synced || line.time === undefined || !onSeek}
+                onPress={() => {
+                  if (line.time !== undefined && onSeek) {
+                    onSeek(line.time);
+                  }
+                }}
+                style={styles.lyricLineRow}
+              >
+                <Text
+                  style={[
+                    styles.lyricLine,
+                    isActive && styles.lyricLineActive,
+                    lyrics.synced && !isActive && styles.lyricLineDim,
+                  ]}
+                >
+                  {line.text || ' '}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          <View style={styles.lyricsFooter}>
+            <Text style={styles.lyricsSource}>
+              {lyrics.source}
+              {lyrics.synced ? ' · Live Synced' : ''}
             </Text>
-          ))}
-          <Text style={styles.lyricsSource}>
-            {lyrics.source}
-            {lyrics.synced ? ' · synced' : ''}
-          </Text>
+          </View>
         </ScrollView>
       )}
     </View>
@@ -134,6 +159,7 @@ const LyricsView: React.FC<{
 // ---------------------------------------------------------------------------
 
 export default function NowPlayingScreen() {
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const {
@@ -167,27 +193,37 @@ export default function NowPlayingScreen() {
   const [showQueue, setShowQueue] = useState(false);
   const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
 
-  // Lyrics: fetched for the current track from whatever provider the app
-  // ships with (none by default — the UI shows the graceful empty state).
+  // Responsive artwork sizing so all controls stay comfortably on-screen
+  const isCompact = height < 740;
+  const isUltraCompact = height < 640;
+
+  const artworkSize = useMemo(() => {
+    const reservedVertical = isUltraCompact ? 280 : isCompact ? 330 : 380;
+    const verticalMax = Math.max(140, height - (insets.top + insets.bottom + reservedVertical));
+    const horizontalMax = Math.max(140, width - SIZES.lg * 2);
+    return Math.min(horizontalMax, verticalMax, isUltraCompact ? 220 : isCompact ? 270 : 330);
+  }, [width, height, insets.top, insets.bottom, isCompact, isUltraCompact]);
+
+  // Lyrics: fetched for the current track in Roman English
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
 
-  useEffect(() => {
+  const loadLyrics = useCallback(() => {
     if (!currentTrack) return;
-    let cancelled = false;
     setLyrics(null);
     setLyricsLoading(true);
     LyricsService.get(currentTrack)
       .then((result) => {
-        if (!cancelled) setLyrics(result);
+        setLyrics(result);
       })
       .finally(() => {
-        if (!cancelled) setLyricsLoading(false);
+        setLyricsLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentTrack?.id]);
+  }, [currentTrack]);
+
+  useEffect(() => {
+    loadLyrics();
+  }, [loadLyrics]);
 
   // Sleep timer: wired here so the action sheet's picker controls real
   // playback pause through the app's own play/pause path.
@@ -243,8 +279,18 @@ export default function NowPlayingScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + SIZES.md }]}>
-
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + (isCompact ? 4 : SIZES.xs),
+            paddingBottom: insets.bottom + (isCompact ? SIZES.xs : SIZES.md),
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         {/* Header: collapse · Playing from · actions */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -276,15 +322,39 @@ export default function NowPlayingScreen() {
         {view === 'player' ? (
           <>
             {/* Artwork hero */}
-            <View style={styles.artworkGlowWrap}>
-              <View style={styles.artworkGlow} />
-              <View style={[styles.artworkContainer, SHADOWS.artwork]}>
-                <Artwork uri={currentTrack.albumImageUrl} size={width - SIZES.lg * 2} radius={SIZES.radius.xl} />
+            <View style={[styles.artworkGlowWrap, isCompact && { marginTop: 4 }]}>
+              <View
+                style={[
+                  styles.artworkGlow,
+                  {
+                    width: artworkSize + 36,
+                    height: artworkSize + 36,
+                    borderRadius: (artworkSize + 36) / 2,
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.artworkContainer,
+                  { width: artworkSize, height: artworkSize },
+                  SHADOWS.artwork,
+                ]}
+              >
+                <Artwork
+                  uri={currentTrack.albumImageUrl}
+                  size={artworkSize}
+                  radius={SIZES.radius.xl}
+                />
               </View>
             </View>
 
             {/* Track Info */}
-            <View style={styles.infoContainer}>
+            <View
+              style={[
+                styles.infoContainer,
+                isCompact && { marginTop: SIZES.md, marginBottom: SIZES.sm },
+              ]}
+            >
               <View style={styles.textInfo}>
                 <Text style={styles.trackTitle} numberOfLines={1}>{currentTrack.title}</Text>
                 <Text style={styles.trackArtist} numberOfLines={1}>{currentTrack.artist.name}</Text>
@@ -324,7 +394,7 @@ export default function NowPlayingScreen() {
             )}
 
             {/* Relative seek, mirroring the lock-screen +/-10s buttons. */}
-            <View style={styles.seekRow}>
+            <View style={[styles.seekRow, isCompact && { marginBottom: SIZES.xs }]}>
               <TouchableOpacity
                 style={styles.seekButton}
                 onPress={() => seekBy(-10)}
@@ -344,7 +414,12 @@ export default function NowPlayingScreen() {
             </View>
 
             {/* Main Controls */}
-            <View style={styles.controlsContainer}>
+            <View
+              style={[
+                styles.controlsContainer,
+                isCompact && { marginBottom: SIZES.md },
+              ]}
+            >
               <TouchableOpacity
                 onPress={toggleShuffle}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -441,9 +516,20 @@ export default function NowPlayingScreen() {
           </>
         ) : (
           <>
-            {/* Lyrics/About tabs, per the reference. About carries the real
-                album metadata — never invented content. */}
+            {/* Cover / Lyrics / About tabs */}
             <View style={styles.tabRow}>
+              <TouchableOpacity
+                style={[styles.tabChip, view === 'player' && styles.tabChipActive]}
+                activeOpacity={0.8}
+                onPress={() => setView('player')}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: view === 'player' }}
+                accessibilityLabel="Cover tab"
+              >
+                <Text style={[styles.tabText, view === 'player' && styles.tabTextActive]}>
+                  Cover
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.tabChip, view === 'lyrics' && styles.tabChipActive]}
                 activeOpacity={0.8}
@@ -471,7 +557,13 @@ export default function NowPlayingScreen() {
             </View>
 
             {view === 'lyrics' ? (
-              <LyricsView track={currentTrack} lyrics={lyrics} loading={lyricsLoading} />
+              <LyricsView
+                track={currentTrack}
+                lyrics={lyrics}
+                loading={lyricsLoading}
+                onSeek={seekTo}
+                onRetry={loadLyrics}
+              />
             ) : (
               <View style={styles.aboutWrap}>
                 <View style={styles.aboutArtwork}>
@@ -532,7 +624,7 @@ export default function NowPlayingScreen() {
             </View>
           </>
         )}
-      </View>
+      </ScrollView>
 
       {/* Queue sheet */}
       <QueueSheet
@@ -565,8 +657,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
+    flexGrow: 1,
     paddingHorizontal: SIZES.lg,
     justifyContent: 'space-between',
   },
@@ -603,14 +698,9 @@ const styles = StyleSheet.create({
   },
   artworkGlow: {
     position: 'absolute',
-    width: width - SIZES.lg * 2 + 56,
-    height: width - SIZES.lg * 2 + 56,
-    borderRadius: (width - SIZES.lg * 2 + 56) / 2,
     backgroundColor: COLORS.accent.glow,
   },
   artworkContainer: {
-    width: width - SIZES.lg * 2,
-    height: width - SIZES.lg * 2,
     borderRadius: SIZES.radius.xl,
     overflow: 'hidden',
     alignSelf: 'center',
@@ -807,34 +897,68 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: 2,
   },
+  romanBadge: {
+    paddingHorizontal: SIZES.sm + 2,
+    paddingVertical: 4,
+    borderRadius: SIZES.radius.pill,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(61, 214, 195, 0.35)',
+  },
+  romanBadgeText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.micro.fontSize,
+    color: COLORS.accent.primary,
+    letterSpacing: 0.5,
+  },
   lyricsScroll: {
     flex: 1,
   },
   lyricsContent: {
     paddingBottom: SIZES.xl,
+    paddingTop: SIZES.xs,
+  },
+  lyricLineRow: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: SIZES.radius.sm,
   },
   lyricLine: {
     fontFamily: FONTS.semibold,
     fontSize: TYPE.title3.fontSize,
-    lineHeight: 44,
+    lineHeight: 38,
     color: COLORS.text.primary,
+    letterSpacing: 0.2,
   },
   lyricLineActive: {
-    color: COLORS.text.primary,
+    color: COLORS.accent.primary,
+    fontFamily: FONTS.bold,
   },
   lyricLineDim: {
-    color: 'rgba(244, 244, 242, 0.38)',
+    color: 'rgba(244, 244, 242, 0.32)',
+  },
+  lyricsFooter: {
+    marginTop: SIZES.lg,
+    paddingTop: SIZES.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.hairline,
   },
   lyricsSource: {
     fontFamily: FONTS.regular,
     fontSize: TYPE.micro.fontSize,
     color: COLORS.text.muted,
-    marginTop: SIZES.md,
   },
   lyricsLoading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: SIZES.sm,
+    paddingVertical: SIZES.xxl,
+  },
+  lyricsLoadingText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.secondary,
   },
   lyricsEmpty: {
     flex: 1,
@@ -855,6 +979,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SIZES.xs,
     lineHeight: 18,
+  },
+  retryLyricsButton: {
+    marginTop: SIZES.md,
+    paddingHorizontal: SIZES.lg,
+    paddingVertical: SIZES.xs + 2,
+    borderRadius: SIZES.radius.pill,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+  },
+  retryLyricsText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.accent.primary,
   },
   errorBanner: {
     backgroundColor: COLORS.status.errorGlow,

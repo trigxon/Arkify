@@ -274,7 +274,7 @@ export default function HomeScreen() {
                 <Text style={styles.featuredSub}>Discover · Listen · Feel</Text>
               </View>
               <View style={styles.featuredPlayBtn}>
-                <Play color="#04211D" size={SIZES.icon.md} fill="#04211D" />
+                <Play color={COLORS.accent.primary} size={SIZES.icon.md} fill={COLORS.accent.primary} />
               </View>
             </View>
           </TouchableOpacity>
@@ -524,53 +524,65 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: COLORS.accent.primary,
+    borderWidth: 2,
+    borderColor: COLORS.accent.primary,
+    backgroundColor: '#071518',
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.ambient,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: SIZES.xl,
+    gap: 8,
   },
   actionTile: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: SIZES.radius.md,
-    backgroundColor: COLORS.surface,
+    paddingVertical: 14,
+    borderRadius: 18,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.hairline,
-    marginHorizontal: 4,
+    borderColor: 'rgba(24, 229, 213, 0.12)',
   },
   actionTileIcon: {
-    height: 26,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(24, 229, 213, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SIZES.sm + 2,
+    marginBottom: SIZES.xs + 2,
   },
   actionTileLabel: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.footnote.fontSize,
+    fontSize: 12,
+    letterSpacing: 0.2,
     color: COLORS.text.primary,
   },
 
   emptyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: SIZES.radius.lg,
+    backgroundColor: COLORS.surfaceElevated,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: COLORS.hairline,
+    borderColor: 'rgba(24, 229, 213, 0.12)',
     padding: SIZES.md,
   },
   emptyIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.surfaceElevated,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(24, 229, 213, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(24, 229, 213, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -46,6 +46,7 @@ export const Artwork = memo(function Artwork({
         <Image
           source={{ uri }}
           style={[StyleSheet.absoluteFill, { borderRadius: resolvedRadius }]}
+          resizeMode="cover"
           onError={() => setFailed(true)}
         />
       ) : (

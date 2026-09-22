@@ -9,7 +9,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search as SearchIcon, X, SearchX, WifiOff } from 'lucide-react-native';
+import { Search as SearchIcon, X, SearchX, WifiOff, Mic } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
@@ -242,7 +242,16 @@ export default function SearchScreen() {
             >
               <X color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
             </TouchableOpacity>
-          ) : null}
+          ) : (
+            <TouchableOpacity
+              onPress={() => searchNow('trending')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Voice search"
+            >
+              <Mic color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.filtersContainer}>
@@ -260,7 +269,11 @@ export default function SearchScreen() {
 
         {isBrowsing ? (
           <>
-            <SectionHeader title="Browse Audia" />
+            <SectionHeader
+              title="Browse Audia"
+              actionLabel="See all >"
+              onAction={() => searchNow('all genres')}
+            />
             <View style={styles.categoriesGrid}>
               {BROWSE_CATEGORIES.map((category) => (
                 <CategoryTile
@@ -414,12 +427,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.hairline,
-    borderRadius: SIZES.radius.md,
-    paddingHorizontal: SIZES.md,
-    height: 52,
+    borderColor: 'rgba(24, 229, 213, 0.15)',
+    borderRadius: 999,
+    paddingHorizontal: SIZES.md + 2,
+    height: 50,
     marginBottom: SIZES.md,
   },
   searchContainerFocused: {

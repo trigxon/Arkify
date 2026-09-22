@@ -1,21 +1,67 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, StyleProp, ViewStyle } from 'react-native';
-import { LucideIcon, Music } from 'lucide-react-native';
+import {
+  LucideIcon,
+  Music,
+  TrendingUp,
+  Star,
+  Sun,
+  Landmark,
+  Headphones,
+  Mic,
+  Activity,
+  Flame,
+} from 'lucide-react-native';
 import { ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../../constants/theme';
 import { Artwork } from './Artwork';
 
-/** Per-category hue pair for the browse tiles' ambient depth. */
-const CATEGORY_GLOWS: Record<string, [string, string]> = {
-  Charts: ['rgba(46, 204, 113, 0.16)', 'rgba(46, 204, 113, 0)'],
-  'New Releases': ['rgba(155, 89, 182, 0.16)', 'rgba(155, 89, 182, 0)'],
-  Moods: ['rgba(255, 159, 67, 0.15)', 'rgba(255, 159, 67, 0)'],
-  Indian: ['rgba(241, 196, 15, 0.14)', 'rgba(241, 196, 15, 0)'],
-  'Hip-Hop': ['rgba(93, 173, 226, 0.16)', 'rgba(93, 173, 226, 0)'],
-  Pop: ['rgba(244, 143, 177, 0.15)', 'rgba(244, 143, 177, 0)'],
-  EDM: ['rgba(61, 214, 195, 0.17)', 'rgba(61, 214, 195, 0)'],
-  Rock: ['rgba(236, 112, 99, 0.15)', 'rgba(236, 112, 99, 0)'],
+/** Per-category hue pair and icon for the browse tiles matching Reference Image 7. */
+const CATEGORY_META: Record<
+  string,
+  { colors: [string, string, string]; icon: LucideIcon; iconColor: string }
+> = {
+  Charts: {
+    colors: ['rgba(16, 185, 129, 0.40)', 'rgba(6, 78, 59, 0.25)', '#0B1518'],
+    icon: TrendingUp,
+    iconColor: '#10B981',
+  },
+  'New Releases': {
+    colors: ['rgba(139, 92, 246, 0.40)', 'rgba(76, 29, 149, 0.25)', '#0B1518'],
+    icon: Star,
+    iconColor: '#A78BFA',
+  },
+  Moods: {
+    colors: ['rgba(245, 158, 11, 0.40)', 'rgba(180, 83, 9, 0.25)', '#0B1518'],
+    icon: Sun,
+    iconColor: '#FBBF24',
+  },
+  Indian: {
+    colors: ['rgba(217, 70, 239, 0.40)', 'rgba(134, 25, 143, 0.25)', '#0B1518'],
+    icon: Landmark,
+    iconColor: '#F472B6',
+  },
+  'Hip-Hop': {
+    colors: ['rgba(249, 115, 22, 0.40)', 'rgba(154, 52, 18, 0.25)', '#0B1518'],
+    icon: Headphones,
+    iconColor: '#FB923C',
+  },
+  Pop: {
+    colors: ['rgba(236, 72, 153, 0.40)', 'rgba(157, 23, 77, 0.25)', '#0B1518'],
+    icon: Mic,
+    iconColor: '#F472B6',
+  },
+  EDM: {
+    colors: ['rgba(24, 229, 213, 0.40)', 'rgba(14, 116, 144, 0.25)', '#0B1518'],
+    icon: Activity,
+    iconColor: '#18E5D5',
+  },
+  Rock: {
+    colors: ['rgba(239, 68, 68, 0.40)', 'rgba(153, 27, 27, 0.25)', '#0B1518'],
+    icon: Flame,
+    iconColor: '#F87171',
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -124,7 +170,12 @@ type CategoryTileProps = {
  * depth comes from the wash, not from invented imagery.
  */
 export const CategoryTile: React.FC<CategoryTileProps> = ({ label, onPress, style }) => {
-  const glow = CATEGORY_GLOWS[label] ?? ['rgba(61, 214, 195, 0.14)', 'rgba(61, 214, 195, 0)'];
+  const meta = CATEGORY_META[label] ?? {
+    colors: ['rgba(24, 229, 213, 0.35)', 'rgba(14, 116, 144, 0.20)', '#0B1518'],
+    icon: Music,
+    iconColor: COLORS.accent.primary,
+  };
+  const Icon = meta.icon;
 
   return (
     <TouchableOpacity
@@ -135,13 +186,13 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({ label, onPress, styl
       accessibilityLabel={`Browse ${label}`}
     >
       <LinearGradient
-        colors={glow}
+        colors={meta.colors}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 1 }}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
       />
-      <View style={styles.categoryTileGlyph}>
-        <Music color={COLORS.accent.primary} size={14} strokeWidth={2.2} />
+      <View style={[styles.categoryTileGlyph, { borderColor: meta.iconColor + '40' }]}>
+        <Icon color={meta.iconColor} size={15} strokeWidth={2.4} />
       </View>
       <Text style={[styles.categoryTileLabel, { position: 'relative' }]} numberOfLines={2}>
         {label}
@@ -192,31 +243,33 @@ const styles = StyleSheet.create({
   },
 
   categoryTile: {
-    height: 96,
-    borderRadius: SIZES.radius.md,
-    backgroundColor: COLORS.surface,
+    height: 104,
+    borderRadius: 18,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.hairline,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: SIZES.md,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     ...SHADOWS.ambient,
   },
   categoryTileLabel: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.callout.fontSize,
-    color: COLORS.text.primary,
+    fontFamily: FONTS.semibold,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    color: '#FFFFFF',
   },
   categoryTileGlyph: {
     position: 'absolute',
     top: SIZES.sm + 2,
     right: SIZES.sm + 2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(61, 214, 195, 0.10)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.22)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },

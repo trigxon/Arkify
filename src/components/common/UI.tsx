@@ -200,7 +200,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <Text
           style={[
             styles.stateActionLabel,
-            accentAction && { color: COLORS.accent.primary },
+            accentAction ? { color: COLORS.text.dark, fontWeight: '600' } : null,
           ]}
         >
           {actionLabel}
@@ -379,43 +379,49 @@ const styles = StyleSheet.create({
   },
   /** Large accent ring for the premium empty states (History, first playlist). */
   stateIconWrapLg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1.5,
-    borderColor: 'rgba(61, 214, 195, 0.35)',
-    backgroundColor: COLORS.accent.soft,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 2,
+    borderColor: 'rgba(24, 229, 213, 0.40)',
+    backgroundColor: 'rgba(24, 229, 213, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SIZES.md,
+    marginBottom: SIZES.md + 2,
   },
   stateTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.callout.fontSize,
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.title3.fontSize,
+    fontWeight: '700',
     color: COLORS.text.primary,
     textAlign: 'center',
   },
   stateHint: {
     fontFamily: FONTS.regular,
-    fontSize: TYPE.footnote.fontSize,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
     textAlign: 'center',
     marginTop: SIZES.xs,
+    paddingHorizontal: SIZES.md,
   },
   stateAction: {
-    marginTop: SIZES.md,
-    height: SIZES.touchTarget,
-    paddingHorizontal: SIZES.lg,
+    marginTop: SIZES.lg,
+    height: 44,
+    paddingHorizontal: 28,
     borderRadius: SIZES.radius.pill,
     backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** Outlined accent pill, per the reference empty states. */
+  /** Solid accent pill, per the reference empty states. */
   stateActionAccent: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.45)',
+    backgroundColor: COLORS.accent.primary,
+    borderWidth: 0,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   stateActionLabel: {
     fontFamily: FONTS.medium,

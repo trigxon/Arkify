@@ -12,73 +12,73 @@
 // ---------------------------------------------------------------------------
 
 export const COLORS = {
-  /** App background: deepest layer. */
-  background: '#060808',
-  /** Flat cards and list backdrops. */
-  surface: '#0B0E0E',
-  /** One step up: inputs, thumbnails, icon chips. */
-  surfaceElevated: '#121717',
-  /**
-   * Opaque lift for floating bars over scrolling content (tab bar, mini
-   * player). Deliberately not translucent: blur is unreliable on Android, so
-   * content would otherwise read straight through.
-   */
-  surfaceRaised: '#141919',
-  /** Pressed state for any surface. */
-  surfacePressed: '#1C2222',
-  /** Legacy alias for surfaceElevated — migrated screens no longer use it. */
-  surfaceLight: '#121717',
+  /** App background: deepest cinematic obsidian teal. */
+  background: '#05080A',
+  /** Flat cards, list backdrops, and containers. */
+  surface: '#0B1316',
+  /** Elevated cards, inputs, thumbnails, action rows. */
+  surfaceElevated: '#0F1A1D',
+  /** Floating bars over scrolling content (tab bar, mini player, sheets). */
+  surfaceRaised: '#0C1619',
+  /** Pressed state for surfaces. */
+  surfacePressed: '#142226',
+  /** Subtle surface card background for high contrast. */
+  surfaceCard: '#0D171A',
+  /** Legacy alias. */
+  surfaceLight: '#0F1A1D',
 
   text: {
-    primary: '#F4F4F2',
-    secondary: '#A2A8A6',
-    muted: '#6B7170',
+    primary: '#FFFFFF',
+    secondary: '#94A3B8',
+    muted: '#5A6C74',
+    dark: '#041014',
   },
 
   /**
-   * Audia accent — cool aurora teal. Interaction, playback state, selection.
-   * Used sparingly: if everything is accent, nothing is.
+   * Audia signature electric cyan / turquoise accent.
+   * High vibrance, glowing halo, dark text on filled surfaces.
    */
   accent: {
-    primary: '#3DD6C3',
-    pressed: '#2FB5A5',
-    glow: 'rgba(61, 214, 195, 0.14)',
-    soft: 'rgba(61, 214, 195, 0.10)',
-    // Legacy aliases kept so earlier screens keep compiling while the
-    // migration to the semantic names lands.
-    green: '#3DD6C3',
-    greenGlow: 'rgba(61, 214, 195, 0.14)',
-    red: '#FF5A5A',
-    redGlow: 'rgba(255, 90, 90, 0.15)',
+    primary: '#18E5D5',
+    bright: '#00E5FF',
+    pressed: '#14C5B7',
+    glow: 'rgba(24, 229, 213, 0.28)',
+    soft: 'rgba(24, 229, 213, 0.10)',
+    ring: '#18E5D5',
+    border: 'rgba(24, 229, 213, 0.35)',
+    // Legacy aliases
+    green: '#18E5D5',
+    greenGlow: 'rgba(24, 229, 213, 0.28)',
+    red: '#FF5252',
+    redGlow: 'rgba(255, 82, 82, 0.20)',
   },
 
-  /** Semantic status colors, used only for status — never decoration. */
+  /** Semantic status colors. */
   status: {
-    success: '#4ADE80',
-    warning: '#FBBF24',
-    error: '#FF5A5A',
-    errorGlow: 'rgba(255, 90, 90, 0.15)',
+    success: '#10B981',
+    warning: '#F59E0B',
+    error: '#FF5252',
+    errorGlow: 'rgba(255, 82, 82, 0.20)',
   },
 
-  /** Hairlines and dividers. */
-  hairline: 'rgba(255, 255, 255, 0.08)',
-  divider: 'rgba(255, 255, 255, 0.07)',
-  glassBorder: 'rgba(255, 255, 255, 0.10)',
-  /** Extremely subtle glass fill (blur-backed cards). */
-  glass: 'rgba(255, 255, 255, 0.05)',
-  /** Scrim behind modals/sheets. */
-  scrim: 'rgba(0, 0, 0, 0.65)',
+  /** Borders, hairlines and atmospheric scrims. */
+  hairline: 'rgba(24, 229, 213, 0.12)',
+  hairlineMuted: 'rgba(255, 255, 255, 0.08)',
+  divider: 'rgba(255, 255, 255, 0.06)',
+  glassBorder: 'rgba(24, 229, 213, 0.22)',
+  glass: 'rgba(15, 26, 29, 0.75)',
+  scrim: 'rgba(0, 0, 0, 0.72)',
 
   player: {
-    progressTrack: 'rgba(255, 255, 255, 0.14)',
-    progressFill: '#3DD6C3',
+    progressTrack: 'rgba(255, 255, 255, 0.12)',
+    progressFill: '#18E5D5',
     progressFillLegacy: '#FFFFFF',
   },
 
-  /** Ambient card washes — very low-alpha teal atmosphere for hero areas. */
   atmosphere: {
-    soft: 'rgba(61, 214, 195, 0.06)',
-    medium: 'rgba(61, 214, 195, 0.10)',
+    soft: 'rgba(24, 229, 213, 0.06)',
+    medium: 'rgba(24, 229, 213, 0.12)',
+    glow: 'rgba(24, 229, 213, 0.20)',
   },
 } as const;
 

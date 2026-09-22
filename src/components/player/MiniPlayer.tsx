@@ -83,33 +83,34 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   if (!track) return null;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onPress}
+    <View
       style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}
-      accessibilityRole="button"
-      accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
     >
       <View style={[styles.container, SHADOWS.glass]}>
         <View style={styles.content}>
-          {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
-          <View style={styles.artworkWrap}>
-            <Artwork uri={track.albumImageUrl} size={42} radius={10} />
-          </View>
+          <TouchableOpacity
+            style={styles.mainPressArea}
+            activeOpacity={0.9}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
+          >
+            {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
+            <View style={styles.artworkWrap}>
+              <Artwork uri={track.albumImageUrl} size={42} radius={10} />
+            </View>
 
-          <View style={styles.infoContainer}>
-            <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
-            <Text style={styles.artist} numberOfLines={1}>{track.artist.name}</Text>
-          </View>
+            <View style={styles.infoContainer}>
+              <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
+              <Text style={styles.artist} numberOfLines={1}>{track.artist.name}</Text>
+            </View>
+          </TouchableOpacity>
 
           <View style={styles.controls}>
             <MiniPlayerLike track={track} />
             <TouchableOpacity
               style={styles.playButton}
-              onPress={(e) => {
-                (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
-                onPlayPause();
-              }}
+              onPress={onPlayPause}
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             >
@@ -118,9 +119,9 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
               ) : (
                 <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
                   {isPlaying ? (
-                    <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+                    <Pause color={COLORS.accent.primary} size={15} fill={COLORS.accent.primary} />
                   ) : (
-                    <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+                    <Play color={COLORS.accent.primary} size={15} fill={COLORS.accent.primary} />
                   )}
                 </View>
               )}
@@ -131,7 +132,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         {/* Progress: a hairline along the bottom edge of the bar. */}
         <MiniPlayerProgress />
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -143,39 +144,51 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   container: {
-    borderRadius: SIZES.radius.lg,
+    borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: COLORS.surfaceRaised,
-    borderColor: 'rgba(61, 214, 195, 0.16)',
+    backgroundColor: COLORS.surfaceElevated,
+    borderColor: 'rgba(24, 229, 213, 0.35)',
     borderWidth: 1,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
   },
+  mainPressArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   artworkWrap: {
-    borderRadius: 12,
-    padding: 2,
-    backgroundColor: COLORS.accent.soft,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.18)',
+    borderColor: 'rgba(24, 229, 213, 0.25)',
   },
   infoContainer: {
     flex: 1,
     marginLeft: SIZES.sm + 2,
+    marginRight: SIZES.xs,
     justifyContent: 'center',
   },
   title: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.subheadline.fontSize,
+    fontFamily: FONTS.semibold,
+    fontSize: 14,
+    fontWeight: '600',
     color: COLORS.text.primary,
   },
   artist: {
     fontFamily: FONTS.regular,
-    fontSize: TYPE.footnote.fontSize,
+    fontSize: 12,
     color: COLORS.text.secondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   controls: {
     flexDirection: 'row',
@@ -189,18 +202,23 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.xs,
   },
   playRing: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(61, 214, 195, 0.55)',
-    backgroundColor: COLORS.surfaceElevated,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: COLORS.accent.primary,
+    backgroundColor: '#071518',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
   },
   playRingPlaying: {
     borderColor: COLORS.accent.primary,
-    backgroundColor: COLORS.accent.soft,
+    backgroundColor: '#0A1C20',
   },
   progressTrack: {
     height: 2,

@@ -10,20 +10,18 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
+import { Layers, Zap, Sparkles, Infinity as InfinityIcon } from 'lucide-react-native';
 import { COLORS, FONTS, SIZES, TYPE } from '../constants/theme';
 
 /**
- * Audia launch experience.
- *
- * Mirrors the native splash (same background, centered logo) so the handoff
- * from the system splash is seamless, then reveals the brand composition:
- * logo, wordmark, "More Than Music", the cyan rule, and the four value pills.
- *
- * Animation is deliberately shallow — fades and one gentle scale, all
- * interruptible, total in-run time ~2.5s so it never delays the app.
+ * Audia launch experience matching reference image 10.
  */
-
-const VALUES = ['Minimal', 'Fast', 'Beautiful', 'Yours'] as const;
+const VALUE_ITEMS = [
+  { label: 'Minimal', Icon: Layers },
+  { label: 'Fast', Icon: Zap },
+  { label: 'Beautiful', Icon: Sparkles },
+  { label: 'Yours', Icon: InfinityIcon },
+] as const;
 
 const PHASES = [0, 250, 450, 650, 950, 1150] as const;
 
@@ -39,7 +37,7 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const ruleOpacity = useRef(new Animated.Value(0)).current;
   const pillFades = useRef(
-    VALUES.map((_, i) => new Animated.Value(0))
+    VALUE_ITEMS.map(() => new Animated.Value(0))
   ).current;
   const finishRef = useRef(false);
 
@@ -147,13 +145,17 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
 
         {/* Value pills */}
         <View style={styles.pillRow}>
-          {VALUES.map((v, i) => (
-            <Animated.View key={v} style={{ opacity: pillFades[i] }}>
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>{v}</Text>
-              </View>
-            </Animated.View>
-          ))}
+          {VALUE_ITEMS.map((item, i) => {
+            const Icon = item.Icon;
+            return (
+              <Animated.View key={item.label} style={[styles.pillItemWrap, { opacity: pillFades[i] }]}>
+                <View style={styles.pillCircle}>
+                  <Icon color={COLORS.accent.primary} size={22} strokeWidth={2} />
+                </View>
+                <Text style={styles.pillLabel}>{item.label}</Text>
+              </Animated.View>
+            );
+          })}
         </View>
       </View>
     </View>
@@ -180,48 +182,60 @@ const styles = StyleSheet.create({
   logoGlow: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(61, 214, 195, 0.07)',
+    backgroundColor: 'rgba(24, 229, 213, 0.08)',
   },
   wordmark: {
     fontFamily: FONTS.semibold,
-    fontSize: 40,
-    lineHeight: 48,
+    fontSize: 42,
+    fontWeight: '700',
+    lineHeight: 50,
     letterSpacing: 1,
     color: COLORS.text.primary,
     marginTop: SIZES.md,
   },
   tagline: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.callout.fontSize,
-    letterSpacing: 4,
+    fontStyle: 'italic',
+    fontSize: TYPE.callout.fontSize + 1,
+    letterSpacing: 3,
     color: COLORS.accent.primary,
     marginTop: SIZES.sm,
   },
   rule: {
-    width: 48,
-    height: 2,
-    borderRadius: 1,
+    width: 52,
+    height: 2.5,
+    borderRadius: 2,
     backgroundColor: COLORS.accent.primary,
-    marginTop: SIZES.md,
+    marginTop: SIZES.md + 2,
   },
   pillRow: {
     flexDirection: 'row',
-    gap: SIZES.sm,
-    marginTop: SIZES.xl,
+    gap: 16,
+    marginTop: SIZES.xxl,
   },
-  pill: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.28)',
-    backgroundColor: 'rgba(61, 214, 195, 0.05)',
+  pillItemWrap: {
+    alignItems: 'center',
+    width: 66,
+  },
+  pillCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1.5,
+    borderColor: 'rgba(24, 229, 213, 0.45)',
+    backgroundColor: 'rgba(15, 26, 29, 0.85)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  pillText: {
+  pillLabel: {
     fontFamily: FONTS.medium,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 0.2,
     color: COLORS.text.secondary,
   },

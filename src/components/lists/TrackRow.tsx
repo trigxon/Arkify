@@ -36,37 +36,39 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
   );
 
   return (
-    <TouchableOpacity
-      style={[styles.container, isPlaying && styles.containerPlaying]}
-      activeOpacity={0.6}
-      onPress={handlePress}
-      delayPressIn={30}
-      accessibilityRole="button"
-      accessibilityLabel={
-        isPlaying
-          ? `Now playing: ${track.title} by ${track.artist.name}`
-          : `Play ${track.title} by ${track.artist.name}`
-      }
-    >
-      <Artwork uri={track.albumImageUrl} size={48} radius={10} />
+    <View style={[styles.container, isPlaying && styles.containerPlaying]}>
+      <TouchableOpacity
+        style={styles.mainPressArea}
+        activeOpacity={0.6}
+        onPress={handlePress}
+        delayPressIn={30}
+        accessibilityRole="button"
+        accessibilityLabel={
+          isPlaying
+            ? `Now playing: ${track.title} by ${track.artist.name}`
+            : `Play ${track.title} by ${track.artist.name}`
+        }
+      >
+        <Artwork uri={track.albumImageUrl} size={48} radius={10} />
 
-      <View style={styles.infoContainer}>
-        <Text style={[styles.title, isPlaying && styles.playingTitle]} numberOfLines={1}>
-          {track.title}
-        </Text>
-        <Text style={styles.artist} numberOfLines={1}>
-          {track.artist.name}
-        </Text>
-      </View>
-
-      {isPlaying && !isLoading ? (
-        // Tiny equalizer-style cue: three bars, no animation loop (cheap).
-        <View style={styles.eqWrap} accessible={false} importantForAccessibility="no-hide-descendants">
-          <View style={[styles.eqBar, { height: 8 }]} />
-          <View style={[styles.eqBar, { height: 14 }]} />
-          <View style={[styles.eqBar, { height: 10 }]} />
+        <View style={styles.infoContainer}>
+          <Text style={[styles.title, isPlaying && styles.playingTitle]} numberOfLines={1}>
+            {track.title}
+          </Text>
+          <Text style={styles.artist} numberOfLines={1}>
+            {track.artist.name}
+          </Text>
         </View>
-      ) : null}
+
+        {isPlaying && !isLoading ? (
+          // Tiny equalizer-style cue: three bars, no animation loop (cheap).
+          <View style={styles.eqWrap} accessible={false} importantForAccessibility="no-hide-descendants">
+            <View style={[styles.eqBar, { height: 8 }]} />
+            <View style={[styles.eqBar, { height: 14 }]} />
+            <View style={[styles.eqBar, { height: 10 }]} />
+          </View>
+        ) : null}
+      </TouchableOpacity>
 
       {isLoading ? (
         <View style={styles.moreButton}>
@@ -83,7 +85,7 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
           <MoreVertical color={COLORS.text.muted} size={SIZES.icon.sm} />
         </TouchableOpacity>
       )}
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -99,16 +101,22 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: SIZES.sm,
     borderRadius: SIZES.radius.md,
   },
   containerPlaying: {
     backgroundColor: COLORS.accent.soft,
   },
+  mainPressArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingLeft: SIZES.sm,
+  },
   infoContainer: {
     flex: 1,
     marginLeft: SIZES.md,
+    marginRight: SIZES.xs,
     justifyContent: 'center',
   },
   title: {
@@ -129,7 +137,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 2,
-    marginRight: SIZES.sm,
+    marginRight: SIZES.xs,
   },
   eqBar: {
     width: 3,
@@ -138,5 +146,6 @@ const styles = StyleSheet.create({
   },
   moreButton: {
     padding: SIZES.sm + 2,
+    paddingRight: SIZES.sm,
   },
 });

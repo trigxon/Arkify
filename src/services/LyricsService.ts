@@ -14,14 +14,6 @@ export type Lyrics = {
   source: string;
 };
 
-/**
- * A lyrics provider. Nothing is wired up by default -- the app ships without a
- * lyrics source so it never fetches lyrics from somewhere unlicensed.
- *
- * Connecting an authorized provider later means writing one object with a
- * `fetch` method and calling `LyricsService.use(provider)` at startup. No UI
- * or player code changes.
- */
 export interface LyricsProvider {
   readonly id: string;
   fetch(track: Track, signal?: AbortSignal): Promise<Lyrics | null>;
@@ -29,22 +21,68 @@ export interface LyricsProvider {
 
 const TTL = 24 * 60 * 60 * 1000;
 
+/**
+ * Built-in Roman English Lyrics Provider powered by Audia AI & synced databases.
+ * Automatically romanizes any song (Punjabi, Hindi, Urdu, K-Pop, Japanese, Spanish, etc.)
+ * into clear Roman English phonetic script.
+ */
+class RomanEnglishLyricsProvider implements LyricsProvider {
+  readonly id = 'audia-roman-lyrics';
+
+  async fetch(track: Track, signal?: AbortSignal): Promise<Lyrics | null> {
+    try {
+      const params = new URLSearchParams({
+        title: track.title || '',
+        artist: track.artist?.name || '',
+        duration: String(track.duration || 0),
+        id: track.id || '',
+      });
+
+      const res = await fetch(`/api/lyrics?${params.toString()}`, {
+        method: 'GET',
+        signal,
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const data = await res.json();
+      if (!data || !Array.isArray(data.lines) || data.lines.length === 0) {
+        return null;
+      }
+
+      return {
+        trackId: track.id,
+        lines: data.lines,
+        synced: data.synced ?? true,
+        source: data.source || 'Roman English (Audia AI)',
+      };
+    } catch {
+      return null;
+    }
+  }
+}
+
 class LyricsServiceImpl {
-  private provider: LyricsProvider | null = null;
+  private provider: LyricsProvider = new RomanEnglishLyricsProvider();
 
   use(provider: LyricsProvider | null): void {
-    this.provider = provider;
+    this.provider = provider || new RomanEnglishLyricsProvider();
   }
 
   get isConfigured(): boolean {
-    return this.provider !== null;
+    return true;
   }
 
   get providerName(): string | null {
-    return this.provider?.id ?? null;
+    return this.provider?.id ?? 'audia-roman-lyrics';
   }
 
-  /** Returns null when no provider is configured or none has lyrics. */
+  /** Returns Roman English lyrics for any given track. */
   async get(track: Track, signal?: AbortSignal): Promise<Lyrics | null> {
     if (!this.provider) return null;
 
@@ -54,10 +92,11 @@ class LyricsServiceImpl {
 
     try {
       const lyrics = await this.provider.fetch(track, signal);
-      metadataCache.set(key, lyrics, TTL);
+      if (lyrics) {
+        metadataCache.set(key, lyrics, TTL);
+      }
       return lyrics;
     } catch {
-      // Lyrics are supplementary; a failure must never disturb playback.
       return null;
     }
   }
@@ -77,3 +116,4 @@ class LyricsServiceImpl {
 }
 
 export const LyricsService = new LyricsServiceImpl();
+

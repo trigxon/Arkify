@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { fetchJson } from '../../core/http';
 import { AppError, toAppError } from '../../core/errors';
 
@@ -62,8 +63,9 @@ async function refreshClientConfig(): Promise<void> {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8_000);
-      const res = await fetch('https://music.youtube.com/', {
-        headers: {
+      const configUrl = Platform.OS === 'web' ? '/api/innertube/config' : 'https://music.youtube.com/';
+      const res = await fetch(configUrl, {
+        headers: Platform.OS === 'web' ? {} : {
           'User-Agent': BASE_HEADERS['User-Agent'],
           'Accept-Language': BASE_HEADERS['Accept-Language'],
         },
@@ -72,12 +74,21 @@ async function refreshClientConfig(): Promise<void> {
       clearTimeout(timer);
 
       if (res.ok) {
-        const html = await res.text();
-        clientConfig = {
-          clientVersion: scrape(html, 'INNERTUBE_CLIENT_VERSION') || clientConfig.clientVersion,
-          apiKey: scrape(html, 'INNERTUBE_API_KEY') || clientConfig.apiKey,
-          visitorData: scrape(html, 'VISITOR_DATA') || clientConfig.visitorData,
-        };
+        if (Platform.OS === 'web') {
+          const data = await res.json();
+          clientConfig = {
+            clientVersion: data.clientVersion || clientConfig.clientVersion,
+            apiKey: data.apiKey || clientConfig.apiKey,
+            visitorData: data.visitorData || clientConfig.visitorData,
+          };
+        } else {
+          const html = await res.text();
+          clientConfig = {
+            clientVersion: scrape(html, 'INNERTUBE_CLIENT_VERSION') || clientConfig.clientVersion,
+            apiKey: scrape(html, 'INNERTUBE_API_KEY') || clientConfig.apiKey,
+            visitorData: scrape(html, 'VISITOR_DATA') || clientConfig.visitorData,
+          };
+        }
         clientConfigAt = Date.now();
         if (__DEV__) console.log('[innertube] client config refreshed', clientConfig.clientVersion);
       }
@@ -96,6 +107,19 @@ function innertubeRequest(endpoint: string, body: Record<string, unknown>) {
   const cfg = clientConfig;
   const client: Record<string, unknown> = { ...CLIENT_BASE, clientVersion: cfg.clientVersion };
   if (cfg.visitorData) client.visitorData = cfg.visitorData;
+
+  if (Platform.OS === 'web') {
+    return {
+      url: `/api/innertube/${endpoint}?key=${encodeURIComponent(cfg.apiKey)}&prettyPrint=false`,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-YouTube-Client-Name': '67',
+        'X-YouTube-Client-Version': cfg.clientVersion,
+      },
+      body: { context: { client }, ...body },
+    };
+  }
 
   return {
     url: `${BASE}/${endpoint}?key=${encodeURIComponent(cfg.apiKey)}&prettyPrint=false`,
@@ -137,7 +161,9 @@ async function call<T>(
 ): Promise<T> {
   await refreshClientConfig();
 
-  const hosts = [innertubeRequest(endpoint, body), fallbackRequest(endpoint, body)];
+  const hosts = Platform.OS === 'web'
+    ? [innertubeRequest(endpoint, body)]
+    : [innertubeRequest(endpoint, body), fallbackRequest(endpoint, body)];
   let lastError: unknown;
 
   for (let h = 0; h < hosts.length; h++) {
