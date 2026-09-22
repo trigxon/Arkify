@@ -176,7 +176,7 @@ export default function HomeScreen() {
               {profile.name?.trim() ? (
                 <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
               ) : (
-                <User color={COLORS.text.secondary} size={SIZES.icon.lg - 2} />
+                <User color={COLORS.accent.primary} size={SIZES.icon.lg - 2} />
               )}
             </TouchableOpacity>
           }
@@ -337,7 +337,6 @@ export default function HomeScreen() {
               <Text style={styles.emptyTitle}>No recent audio yet</Text>
               <Text style={styles.emptyHint}>Play something and it will appear here.</Text>
             </View>
-            <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
           </View>
         )}
       </ScrollView>
@@ -413,19 +412,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     zIndex: 20,
   },
+  /** Thin accent ring on a near-transparent fill, per the reference. */
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.accent.soft,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(61, 214, 195, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.30)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(61, 214, 195, 0.55)',
   },
   avatarInitial: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.headline.fontSize,
+    fontSize: TYPE.title3.fontSize,
     color: COLORS.accent.primary,
   },
   searchBar: {
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   },
 
   featuredCard: {
-    height: 190,
+    height: 164,
     borderRadius: SIZES.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.hairline,
@@ -521,9 +521,9 @@ const styles = StyleSheet.create({
     marginTop: SIZES.sm,
   },
   featuredPlayBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: COLORS.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -561,15 +561,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderRadius: SIZES.radius.lg,
+    borderRadius: SIZES.radius.md,
     borderWidth: 1,
     borderColor: COLORS.hairline,
     padding: SIZES.md,
   },
   emptyIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',

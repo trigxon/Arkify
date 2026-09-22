@@ -58,10 +58,10 @@ const MiniPlayerLike: React.FC<{ track: Track }> = ({ track }) => {
       accessibilityState={{ selected: liked }}
     >
       <Heart
-        color={liked ? COLORS.accent.primary : COLORS.text.secondary}
+        color={liked ? COLORS.accent.primary : COLORS.text.primary}
         fill={liked ? COLORS.accent.primary : 'transparent'}
-        size={SIZES.icon.md - 2}
-        strokeWidth={2}
+        size={SIZES.icon.md}
+        strokeWidth={1.9}
       />
     </TouchableOpacity>
   );
@@ -94,7 +94,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         <View style={styles.content}>
           {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
           <View style={styles.artworkWrap}>
-            <Artwork uri={track.albumImageUrl} size={42} radius={10} />
+            <Artwork uri={track.albumImageUrl} size={44} radius={10} />
           </View>
 
           <View style={styles.infoContainer}>
@@ -167,13 +167,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.subheadline.fontSize,
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.body.fontSize,
     color: COLORS.text.primary,
   },
   artist: {
     fontFamily: FONTS.regular,
-    fontSize: TYPE.footnote.fontSize,
+    fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
     marginTop: 1,
   },
@@ -189,11 +189,11 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.xs,
   },
   playRing: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: 'rgba(61, 214, 195, 0.55)',
+    borderColor: 'rgba(61, 214, 195, 0.60)',
     backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent.soft,
   },
   progressTrack: {
-    height: 2,
+    height: 3,
     backgroundColor: COLORS.player.progressTrack,
     width: '100%',
     position: 'absolute',

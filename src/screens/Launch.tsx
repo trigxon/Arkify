@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
+import { Infinity as InfinityIcon, Moon, SquarePen, Zap } from 'lucide-react-native';
 import { COLORS, FONTS, SIZES, TYPE } from '../constants/theme';
 
 /**
@@ -17,30 +18,35 @@ import { COLORS, FONTS, SIZES, TYPE } from '../constants/theme';
  *
  * Mirrors the native splash (same background, centered logo) so the handoff
  * from the system splash is seamless, then reveals the brand composition:
- * logo, wordmark, "More Than Music", the cyan rule, and the four value pills.
+ * logo, wordmark, "More Than Music", the cyan rule, and the four values as
+ * icon circles with their labels beneath.
  *
  * Animation is deliberately shallow — fades and one gentle scale, all
  * interruptible, total in-run time ~2.5s so it never delays the app.
  */
 
-const VALUES = ['Minimal', 'Fast', 'Beautiful', 'Yours'] as const;
+/** The four brand values: icon-first, label beneath, per the reference. */
+const VALUES = [
+  { label: 'Minimal', Icon: SquarePen },
+  { label: 'Fast', Icon: Zap },
+  { label: 'Beautiful', Icon: Moon },
+  { label: 'Yours', Icon: InfinityIcon },
+] as const;
 
 const PHASES = [0, 250, 450, 650, 950, 1150] as const;
 
 export default function LaunchScreen({ onDone }: { onDone: () => void }) {
-  const { width, height } = Dimensions.get('window');
-  const logoSize = Math.min(150, width * 0.36);
+  const { width } = Dimensions.get('window');
+  const logoSize = Math.min(160, width * 0.38);
 
   // One value per animated element: logo scale, logo/wordmark/tagline/rules
-  // share fades, the four pills each get their own.
+  // share fades, the four value pills each get their own.
   const logoScale = useRef(new Animated.Value(0.92)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const wordmarkOpacity = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const ruleOpacity = useRef(new Animated.Value(0)).current;
-  const pillFades = useRef(
-    VALUES.map((_, i) => new Animated.Value(0))
-  ).current;
+  const pillFades = useRef(VALUES.map(() => new Animated.Value(0))).current;
   const finishRef = useRef(false);
 
   const finish = useCallback(() => {
@@ -120,15 +126,30 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
       />
 
       {/* Tap anywhere to skip — the brand moment must never trap the user. */}
-      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={finish} accessibilityLabel="Skip" />
+      <TouchableOpacity
+        style={StyleSheet.absoluteFill}
+        activeOpacity={1}
+        onPress={finish}
+        accessibilityRole="button"
+        accessibilityLabel="Skip intro"
+      />
 
       <View style={styles.center}>
         {/* Logo — the real asset, gently scaled into place. */}
         <Animated.View style={{ opacity: logoOpacity, transform: [{ scale: logoScale }] }}>
-          <View style={[styles.logoGlow, { width: logoSize + 60, height: logoSize + 60, borderRadius: (logoSize + 60) / 2 }]}>
+          <View
+            style={[
+              styles.logoGlow,
+              {
+                width: logoSize + 70,
+                height: logoSize + 70,
+                borderRadius: (logoSize + 70) / 2,
+              },
+            ]}
+          >
             <Animated.Image
               source={require('../../assets/icon.png')}
-              style={{ width: logoSize, height: logoSize, opacity: logoOpacity }}
+              style={{ width: logoSize, height: logoSize }}
               resizeMode="contain"
             />
           </View>
@@ -145,13 +166,14 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
         {/* Cyan rule */}
         <Animated.View style={[styles.rule, { opacity: ruleOpacity }]} />
 
-        {/* Value pills */}
+        {/* Values: accent-ringed icon circles with their labels beneath. */}
         <View style={styles.pillRow}>
           {VALUES.map((v, i) => (
-            <Animated.View key={v} style={{ opacity: pillFades[i] }}>
+            <Animated.View key={v.label} style={[styles.pillItem, { opacity: pillFades[i] }]}>
               <View style={styles.pill}>
-                <Text style={styles.pillText}>{v}</Text>
+                <v.Icon color={COLORS.accent.primary} size={SIZES.icon.md} strokeWidth={1.8} />
               </View>
+              <Text style={styles.pillLabel}>{v.label}</Text>
             </Animated.View>
           ))}
         </View>
@@ -173,56 +195,61 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: '12%',
+    paddingBottom: '10%',
     // Keep the brand composition clear of the skip layer's edges.
     zIndex: 1,
   },
   logoGlow: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(61, 214, 195, 0.07)',
+    backgroundColor: 'rgba(61, 214, 195, 0.06)',
   },
   wordmark: {
-    fontFamily: FONTS.semibold,
-    fontSize: 40,
-    lineHeight: 48,
-    letterSpacing: 1,
+    fontFamily: FONTS.bold,
+    fontSize: 52,
+    lineHeight: 60,
+    letterSpacing: 0.5,
     color: COLORS.text.primary,
-    marginTop: SIZES.md,
+    marginTop: SIZES.lg,
   },
   tagline: {
     fontFamily: FONTS.medium,
-    fontSize: TYPE.callout.fontSize,
-    letterSpacing: 4,
+    fontStyle: 'italic',
+    fontSize: TYPE.headline.fontSize,
+    letterSpacing: 3.5,
     color: COLORS.accent.primary,
-    marginTop: SIZES.sm,
+    marginTop: SIZES.md,
   },
   rule: {
-    width: 48,
-    height: 2,
-    borderRadius: 1,
+    width: 56,
+    height: 3,
+    borderRadius: 2,
     backgroundColor: COLORS.accent.primary,
     marginTop: SIZES.md,
   },
   pillRow: {
     flexDirection: 'row',
-    gap: SIZES.sm,
-    marginTop: SIZES.xl,
+    gap: SIZES.md,
+    marginTop: SIZES.xxl,
+  },
+  pillItem: {
+    alignItems: 'center',
+    width: 66,
   },
   pill: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.28)',
+    borderColor: 'rgba(61, 214, 195, 0.35)',
     backgroundColor: 'rgba(61, 214, 195, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pillText: {
-    fontFamily: FONTS.medium,
-    fontSize: 10,
-    letterSpacing: 0.2,
+  pillLabel: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.secondary,
+    marginTop: SIZES.sm,
   },
 });

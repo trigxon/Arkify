@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, X, Trash2, Download, Share2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
@@ -272,9 +273,14 @@ export default function LibraryScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Open playlist ${playlist.name}, ${playlist.tracks.length} tracks`}
                   >
-                    <View style={[styles.rowArtwork, styles.likedSongsGradient]}>
-                      <Heart color="#04211D" size={SIZES.icon.sm + 4} fill="#04211D" />
-                    </View>
+                    <LinearGradient
+                      colors={['#4FE3D0', '#2FB5A5']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.rowArtwork}
+                    >
+                      <Heart color="#FFFFFF" size={SIZES.icon.sm + 4} fill="#FFFFFF" />
+                    </LinearGradient>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowTitle} numberOfLines={1}>{playlist.name}</Text>
                       <Text style={styles.rowSubtitle} numberOfLines={1}>
@@ -504,9 +510,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addButtonCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.accent.primary,
@@ -599,9 +605,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent.soft,
     borderWidth: 1,
     borderColor: 'rgba(61, 214, 195, 0.22)',
-  },
-  likedSongsGradient: {
-    backgroundColor: COLORS.accent.primary,
   },
   likedCard: {
     backgroundColor: COLORS.surface,

@@ -37,6 +37,8 @@ type Props = {
    * pause callback (its own togglePlayPause) — the sheet only decides when.
    */
   onSleepTimer?: (minutes: number | null) => void;
+  /** Opens straight into the sleep-timer picker (player's timer shortcut). */
+  initial?: 'actions' | 'sleep';
 };
 
 const SLEEP_OPTIONS = [15, 30, 45, 60] as const;
@@ -53,6 +55,7 @@ export const TrackActionsSheet: React.FC<Props> = ({
   onGoToArtist,
   onViewAlbum,
   onSleepTimer,
+  initial = 'actions',
 }) => {
   const { playlists, addToPlaylist, removeFromPlaylist, createPlaylist, isLiked, toggleLike } =
     useLibrary();
@@ -64,6 +67,12 @@ export const TrackActionsSheet: React.FC<Props> = ({
   const [remainingMs, setRemainingMs] = useState<number | null>(SleepTimer.remainingMs);
 
   useEffect(() => SleepTimer.subscribe(() => setRemainingMs(SleepTimer.remainingMs)), []);
+
+  // Each open honours where it was opened from (player timer vs ••• menu).
+  useEffect(() => {
+    setSleepPickerOpen(initial === 'sleep');
+    setCreating(false);
+  }, [track?.id, initial]);
 
   const liked = track ? isLiked(track.id) : false;
 
@@ -88,7 +97,8 @@ export const TrackActionsSheet: React.FC<Props> = ({
   const sleepActive = remainingMs !== null;
 
   return (
-    <BottomSheet visible={track !== null} onClose={close} title="Actions" subtitle={track.title}>
+    /* No title bar: the reference's action sheet opens straight into its rows. */
+    <BottomSheet visible={track !== null} onClose={close}>
       {sleepPickerOpen ? (
         <>
           <Text style={styles.pickerHint}>Pause playback after</Text>
@@ -219,7 +229,6 @@ export const TrackActionsSheet: React.FC<Props> = ({
                   }}
                 />
               )}
-              <DownloadRow track={track} onDone={close} />
               <SheetRow
                 Icon={Share2}
                 label="Share"
@@ -238,6 +247,9 @@ export const TrackActionsSheet: React.FC<Props> = ({
                   }}
                 />
               )}
+              {/* Kept from the previous release: offline downloads are a real
+                  feature and this sheet is their only entry point. */}
+              <DownloadRow track={track} onDone={close} />
               {onSleepTimer && (
                 <SheetRow
                   Icon={Timer}
@@ -254,26 +266,24 @@ export const TrackActionsSheet: React.FC<Props> = ({
         </>
       )}
 
-      {/* Destructive zone — kept last and separated, per the reference. */}
+      {/* Destructive action stays last, per the reference. */}
       {!creating && !sleepPickerOpen && (
-        <View style={styles.destructiveZone}>
-          <SheetRow
-            Icon={Trash2}
-            label={liked ? 'Remove from Liked Songs' : 'Remove from library'}
-            destructive
-            onPress={() => {
-              // Real removal: unlike, and drop the track from every local
-              // playlist it appears in.
-              if (liked) toggleLike(track);
-              for (const p of playlists) {
-                if (p.tracks.some((t) => t.id === track.id)) {
-                  removeFromPlaylist(p.id, track.id);
-                }
+        <SheetRow
+          Icon={Trash2}
+          label={liked ? 'Remove from Liked Songs' : 'Remove from library'}
+          destructive
+          onPress={() => {
+            // Real removal: unlike, and drop the track from every local
+            // playlist it appears in.
+            if (liked) toggleLike(track);
+            for (const p of playlists) {
+              if (p.tracks.some((t) => t.id === track.id)) {
+                removeFromPlaylist(p.id, track.id);
               }
-              close();
-            }}
-          />
-        </View>
+            }
+            close();
+          }}
+        />
       )}
     </BottomSheet>
   );
@@ -326,8 +336,8 @@ const DownloadRow: React.FC<{ track: Track; onDone: () => void }> = ({ track, on
         <View style={styles.rowIcon}>
           <Download
             color={downloaded ? COLORS.accent.primary : COLORS.text.primary}
-            size={SIZES.icon.sm + 2}
-            strokeWidth={2}
+            size={SIZES.icon.md - 2}
+            strokeWidth={1.9}
           />
         </View>
         <View style={styles.downloadTextWrap}>
@@ -378,8 +388,8 @@ const SheetRow: React.FC<{
               ? COLORS.accent.primary
               : COLORS.text.primary
         }
-        size={SIZES.icon.sm + 2}
-        strokeWidth={2}
+        size={SIZES.icon.md - 2}
+        strokeWidth={1.9}
       />
     </View>
     <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
@@ -388,30 +398,26 @@ const SheetRow: React.FC<{
 );
 
 const styles = StyleSheet.create({
+  /* Rows are bare, per the reference: aligned outline icons on the sheet's own
+     surface — no icon chips, no extra chrome. */
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SIZES.md,
+    gap: SIZES.lg,
     paddingVertical: SIZES.sm + 4,
-    minHeight: SIZES.touchTarget + 2,
+    minHeight: SIZES.touchTarget + 8,
   },
   subRow: {
-    paddingLeft: SIZES.lg,
+    paddingLeft: SIZES.xxl,
   },
   rowIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surfaceElevated,
   },
-  rowIconDestructive: {
-    backgroundColor: COLORS.status.errorGlow,
-  },
-  rowIconBare: {
-    backgroundColor: COLORS.surfaceElevated,
-  },
+  rowIconDestructive: {},
+  rowIconBare: {},
   playlistCount: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.footnote.fontSize,
@@ -426,11 +432,7 @@ const styles = StyleSheet.create({
   rowLabelDestructive: {
     color: COLORS.status.error,
   },
-  destructiveZone: {
-    marginTop: SIZES.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-    paddingTop: SIZES.sm,
+  destructiveBottom: {
     marginBottom: SIZES.sm,
   },
   pickerHint: {
@@ -530,6 +532,6 @@ const styles = StyleSheet.create({
     fontSize: TYPE.footnote.fontSize,
     color: COLORS.status.error,
     marginTop: 2,
-    marginLeft: SIZES.xl + SIZES.sm,
+    marginLeft: SIZES.xxl,
   },
 });

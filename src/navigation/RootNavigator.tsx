@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
@@ -40,14 +40,13 @@ const AudiaTheme = {
  * with the user's next destination. Defined at module level so RootNavigator
  * re-renders (library updates, etc.) never remount it mid-animation.
  */
-const LaunchGate = ({ onDone }: { onDone: (profileComplete: boolean) => void }) => {
+const LaunchGate = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { profile } = useLibrary();
 
   const handleDone = useCallback(() => {
-    onDone(profile.completed);
     navigation.replace(profile.completed ? 'Main' : 'ProfileSetup');
-  }, [onDone, profile.completed, navigation]);
+  }, [profile.completed, navigation]);
 
   return <LaunchScreen onDone={handleDone} />;
 };
@@ -56,28 +55,25 @@ const LaunchGate = ({ onDone }: { onDone: (profileComplete: boolean) => void }) 
  * Launch flow, per the brand reference:
  *
  *   profile incomplete: Launch (brand reveal) -> ProfileSetup -> Main
- *   returning user:     Main directly — no gate between them and their music
+ *   returning user:     Launch (brand reveal, tap to skip) -> Main
  *
- * The native splash already showed the logo on a matching background, so
- * returning users still get the brand moment at every cold start without a
- * second full animation blocking their way.
+ * The native splash already draws the logo on a matching background, so the
+ * brand reveal continues seamlessly from it and hands off to Main with a
+ * cross-fade. The reveal is short and skippable, so it never stands between
+ * the user and their music.
  */
 export const RootNavigator = () => {
-  const { profile, isLoaded } = useLibrary();
-  /** True while the brand reveal is still the entry route (every cold start). */
-  const [showLaunch, setShowLaunch] = useState(true);
+  const { isLoaded } = useLibrary();
 
   // Wait for persistence before choosing a route, otherwise a returning
   // user is flashed the onboarding screen for a frame.
   if (!isLoaded) return null;
 
-  const initialRoute = 'Launch';
-
   return (
     <NavigationContainer theme={AudiaTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
-        <Stack.Screen name="Launch">
-          {() => <LaunchGate onDone={() => setShowLaunch(false)} />}
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Launch">
+        <Stack.Screen name="Launch" options={{ animation: 'fade' }}>
+          {() => <LaunchGate />}
         </Stack.Screen>
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
         <Stack.Screen name="Main" component={TabNavigator} />

@@ -1,102 +1,17 @@
 import React from 'react';
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   StyleProp,
   ViewStyle,
-  TextStyle,
 } from 'react-native';
-import { LucideIcon } from 'lucide-react-native';
+import { ChevronRight, LucideIcon } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 
 // ---------------------------------------------------------------------------
-// Buttons — one tactile language
-// ---------------------------------------------------------------------------
-
-type ButtonVariant = 'primary' | 'secondary' | 'ghost';
-
-type ButtonProps = {
-  label: string;
-  onPress: () => void;
-  variant?: ButtonVariant;
-  Icon?: LucideIcon;
-  disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
-  /** accessibilityLabel overrides the visible label for screen readers. */
-  accessibilityLabel?: string;
-};
-
-export const Button: React.FC<ButtonProps> = ({
-  label,
-  onPress,
-  variant = 'primary',
-  Icon,
-  disabled = false,
-  style,
-  accessibilityLabel,
-}) => {
-  return (
-    <TouchableOpacity
-      style={[
-        styles.button,
-        styles[variant],
-        disabled && styles.disabled,
-        style,
-      ]}
-      activeOpacity={0.75}
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled }}
-    >
-      {Icon ? <Icon color={variant === 'primary' ? '#04211D' : COLORS.text.primary} size={SIZES.icon.sm} /> : null}
-      <Text style={[styles.label, styles[`${variant}Label`]]}>{label}</Text>
-    </TouchableOpacity>
-  );
-};
-
-type IconButtonProps = {
-  Icon: LucideIcon;
-  onPress: () => void;
-  /** 22 (default) matches the app's standard icon size. */
-  size?: number;
-  color?: string;
-  /** Hit area is always ≥44pt regardless of the icon's visual size. */
-  hit?: number;
-  accessibilityLabel: string;
-  disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
-};
-
-export const IconButton: React.FC<IconButtonProps> = ({
-  Icon,
-  onPress,
-  size = SIZES.icon.md,
-  color = COLORS.text.primary,
-  hit = SIZES.touchTarget,
-  accessibilityLabel,
-  disabled = false,
-  style,
-}) => (
-  <TouchableOpacity
-    onPress={onPress}
-    disabled={disabled}
-    style={[styles.iconButton, { width: hit, height: hit, alignItems: 'center', justifyContent: 'center' }, style]}
-    activeOpacity={0.7}
-    accessibilityRole="button"
-    accessibilityLabel={accessibilityLabel}
-    accessibilityState={{ disabled }}
-  >
-    <Icon color={color} size={size} />
-  </TouchableOpacity>
-);
-
-// ---------------------------------------------------------------------------
-// Section header — eyebrow-style, quiet
+// Section header — one treatment for every section title in the app
 // ---------------------------------------------------------------------------
 
 type SectionHeaderProps = {
@@ -117,12 +32,14 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     <Text style={styles.sectionTitle}>{title}</Text>
     {actionLabel && onAction ? (
       <TouchableOpacity
+        style={styles.sectionActionRow}
         onPress={onAction}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
       >
         <Text style={styles.sectionAction}>{actionLabel}</Text>
+        <ChevronRight color={COLORS.text.muted} size={SIZES.icon.xs + 2} />
       </TouchableOpacity>
     ) : null}
   </View>
@@ -237,91 +154,7 @@ export const ErrorState: React.FC<{
   </View>
 );
 
-export const InlineSpinner: React.FC<{ color?: string }> = ({ color = COLORS.text.secondary }) => (
-  <ActivityIndicator color={color} size="small" />
-);
-
-// ---------------------------------------------------------------------------
-// Settings row — structured, consistent
-// ---------------------------------------------------------------------------
-
-export const SettingsRow: React.FC<{
-  label: string;
-  value?: string;
-  Icon?: LucideIcon;
-  onPress?: () => void;
-  /** Trailing chevron when onPress is provided. */
-  chevron?: boolean;
-}> = ({ label, value, Icon, onPress, chevron = false }) => {
-  const content = (
-    <>
-      {Icon ? (
-        <View style={styles.settingsRowIcon}>
-          <Icon color={COLORS.text.secondary} size={SIZES.icon.sm} />
-        </View>
-      ) : null}
-      <Text style={styles.settingsRowLabel}>{label}</Text>
-      {value ? <Text style={styles.settingsRowValue}>{value}</Text> : null}
-      {chevron ? <Text style={styles.settingsRowChevron}>›</Text> : null}
-    </>
-  );
-
-  if (!onPress) return <View style={styles.settingsRow}>{content}</View>;
-  return (
-    <TouchableOpacity
-      style={styles.settingsRow}
-      onPress={onPress}
-      activeOpacity={0.7}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      {content}
-    </TouchableOpacity>
-  );
-};
-
 const styles = StyleSheet.create({
-  // Buttons
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SIZES.sm,
-    height: 52,
-    borderRadius: SIZES.radius.pill,
-    paddingHorizontal: SIZES.lg,
-  },
-  primary: {
-    backgroundColor: COLORS.accent.primary,
-  },
-  secondary: {
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  label: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.callout.fontSize,
-  },
-  primaryLabel: {
-    color: '#04211D',
-  },
-  secondaryLabel: {
-    color: COLORS.text.primary,
-  },
-  ghostLabel: {
-    color: COLORS.text.secondary,
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  iconButton: {
-    borderRadius: SIZES.radius.pill,
-  },
-
   // Section header
   sectionHeader: {
     flexDirection: 'row',
@@ -335,9 +168,14 @@ const styles = StyleSheet.create({
     fontSize: TYPE.title3.fontSize,
     color: COLORS.text.primary,
   },
+  sectionActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
   sectionAction: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.footnote.fontSize,
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.callout.fontSize,
     color: COLORS.text.secondary,
   },
 
@@ -421,39 +259,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.primary,
-  },
-
-  // Settings rows
-  settingsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    minHeight: SIZES.touchTarget,
-  },
-  settingsRowIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: COLORS.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SIZES.md,
-  },
-  settingsRowLabel: {
-    flex: 1,
-    fontFamily: FONTS.regular,
-    fontSize: TYPE.body.fontSize,
-    color: COLORS.text.primary,
-  },
-  settingsRowValue: {
-    fontFamily: FONTS.regular,
-    fontSize: TYPE.subheadline.fontSize,
-    color: COLORS.text.secondary,
-    marginRight: SIZES.xs,
-  },
-  settingsRowChevron: {
-    fontFamily: FONTS.regular,
-    fontSize: TYPE.title3.fontSize,
-    color: COLORS.text.muted,
   },
 });

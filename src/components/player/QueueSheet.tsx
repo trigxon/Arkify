@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { GripVertical, Play, X } from 'lucide-react-native';
+import { EllipsisVertical, Menu, Shuffle, X } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { Artwork } from '../common/Artwork';
@@ -29,15 +29,18 @@ type Props = {
   /** Upcoming-relative reorder: 0 = the next track to play. */
   onReorder: (from: number, to: number) => void;
   onClear: () => void;
+  /** Shuffle state for the footer button. */
+  shuffle: boolean;
+  onShuffle: () => void;
 };
 
 /** Height of one reorderable row — must match the rendered row height. */
 const ROW_HEIGHT = 60;
 
 /**
- * The queue sheet, per the Queue reference: "Now Playing" pinned at top, an
- * "Up Next" list with drag handles, tactile drag-to-reorder, per-row remove
- * and a Clear action.
+ * The queue sheet, per the Queue reference: "Now Playing" pinned at the top,
+ * an "Up Next" list with drag handles, tactile drag-to-reorder, and the
+ * Shuffle / Clear pair pinned at the bottom.
  */
 export const QueueSheet: React.FC<Props> = ({
   visible,
@@ -50,6 +53,8 @@ export const QueueSheet: React.FC<Props> = ({
   onRemove,
   onReorder,
   onClear,
+  shuffle,
+  onShuffle,
 }) => {
   // ---- drag-to-reorder (upcoming section) --------------------------------
 
@@ -58,7 +63,6 @@ export const QueueSheet: React.FC<Props> = ({
   /** Index the row is currently hovering over. */
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const dragY = useRef(new Animated.Value(0)).current;
-  const rowYs = useRef<number[]>([]);
   const startIndex = useRef(0);
   const active = useRef(false);
 
@@ -68,12 +72,12 @@ export const QueueSheet: React.FC<Props> = ({
   dragIndexRef.current = dragIndex;
   hoverIndexRef.current = hoverIndex;
 
-  const endDrag = () => {
+  const endDrag = useCallback(() => {
     active.current = false;
     setDragIndex(null);
     setHoverIndex(null);
     dragY.setValue(0);
-  };
+  }, [dragY]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -109,41 +113,33 @@ export const QueueSheet: React.FC<Props> = ({
   }, [onClear]);
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Queue" subtitle={context || undefined}>
+    <BottomSheet visible={visible} onClose={onClose} title="Queue" titleAlign="center">
       {/* Now Playing — pinned, clearly separated from Up Next. */}
       {currentTrack && (
         <View style={styles.nowPlayingBlock}>
-          <Text style={styles.sectionLabel}>NOW PLAYING</Text>
-          <View style={styles.nowRow}>
-            <Artwork uri={currentTrack.albumImageUrl} size={44} radius={8} />
+          <Text style={styles.sectionLabel}>Now Playing</Text>
+          <TouchableOpacity
+            style={styles.nowRow}
+            activeOpacity={0.75}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel={`Close queue, now playing ${currentTrack.title}`}
+          >
+            <Artwork uri={currentTrack.albumImageUrl} size={48} radius={8} />
             <View style={styles.nowInfo}>
-              <Text style={[styles.rowTitle, { color: COLORS.accent.primary }]} numberOfLines={1}>
+              <Text style={styles.rowTitle} numberOfLines={1}>
                 {currentTrack.title}
               </Text>
               <Text style={styles.rowArtist} numberOfLines={1}>
                 {currentTrack.artist.name}
               </Text>
             </View>
-            <View style={styles.nowBadge}>
-              <Play color={COLORS.accent.primary} size={10} fill={COLORS.accent.primary} />
-            </View>
-          </View>
+            <ArtworkEllipsis />
+          </TouchableOpacity>
         </View>
       )}
 
-      <View style={styles.upNextHeader}>
-        <Text style={styles.sectionLabel}>UP NEXT · {upcoming.length}</Text>
-        {upcoming.length > 0 && (
-          <TouchableOpacity
-            onPress={clear}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Clear queue"
-          >
-            <Text style={styles.clearText}>Clear</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <Text style={[styles.sectionLabel, styles.upNextLabel]}>Up Next</Text>
 
       {upcoming.length === 0 ? (
         <Text style={styles.emptyText}>Nothing queued. Tracks you play next appear here.</Text>
@@ -156,9 +152,6 @@ export const QueueSheet: React.FC<Props> = ({
             return (
               <View
                 key={track.id}
-                onLayout={(e) => {
-                  rowYs.current[i] = e.nativeEvent.layout.y;
-                }}
                 style={[
                   styles.queueRow,
                   isHovered && styles.queueRowHover,
@@ -166,19 +159,13 @@ export const QueueSheet: React.FC<Props> = ({
                 ]}
               >
                 <Animated.View
-                  style={{ transform: [{ translateY: isDragging ? dragY : 0 }], flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                  style={[
+                    styles.queueRowInner,
+                    { transform: [{ translateY: isDragging ? dragY : 0 }] },
+                  ]}
                   {...(isDragging ? panResponder.panHandlers : {})}
                 >
-                  <TouchableOpacity
-                    style={styles.grip}
-                    onPressIn={() => beginDrag(i)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Reorder ${track.title}`}
-                  >
-                    <GripVertical color={COLORS.text.muted} size={SIZES.icon.sm} />
-                  </TouchableOpacity>
-
-                  <Artwork uri={track.albumImageUrl} size={40} radius={8} />
+                  <Artwork uri={track.albumImageUrl} size={44} radius={8} />
 
                   <TouchableOpacity
                     style={styles.rowMain}
@@ -189,18 +176,33 @@ export const QueueSheet: React.FC<Props> = ({
                     accessibilityRole="button"
                     accessibilityLabel={`Play ${track.title} by ${track.artist.name}`}
                   >
-                    <Text style={styles.rowTitle} numberOfLines={1}>{track.title}</Text>
-                    <Text style={styles.rowArtist} numberOfLines={1}>{track.artist.name}</Text>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {track.title}
+                    </Text>
+                    <Text style={styles.rowArtist} numberOfLines={1}>
+                      {track.artist.name}
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.removeBtn}
                     onPress={() => onRemove(track.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                     accessibilityRole="button"
                     accessibilityLabel={`Remove ${track.title} from queue`}
                   >
-                    <X color={COLORS.text.muted} size={SIZES.icon.sm} />
+                    <X color={COLORS.text.muted} size={SIZES.icon.sm - 2} />
+                  </TouchableOpacity>
+
+                  {/* Drag handle, per the reference: the grab affordance sits at
+                      the row's trailing edge. */}
+                  <TouchableOpacity
+                    style={styles.grip}
+                    onPressIn={() => beginDrag(i)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Reorder ${track.title}`}
+                  >
+                    <Menu color={COLORS.text.secondary} size={SIZES.icon.sm} />
                   </TouchableOpacity>
                 </Animated.View>
               </View>
@@ -208,55 +210,75 @@ export const QueueSheet: React.FC<Props> = ({
           })}
         </ScrollView>
       )}
+
+      {/* Footer pair, per the reference: Shuffle + Clear. */}
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.footerButton, shuffle && styles.footerButtonActive]}
+          activeOpacity={0.8}
+          onPress={onShuffle}
+          accessibilityRole="button"
+          accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle queue'}
+          accessibilityState={{ selected: shuffle }}
+        >
+          <Shuffle
+            color={shuffle ? COLORS.accent.primary : COLORS.text.primary}
+            size={SIZES.icon.sm}
+          />
+          <Text style={[styles.footerText, shuffle && styles.footerTextActive]}>Shuffle</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.footerButton}
+          activeOpacity={0.8}
+          onPress={clear}
+          disabled={upcoming.length === 0}
+          accessibilityRole="button"
+          accessibilityLabel="Clear queue"
+          accessibilityState={{ disabled: upcoming.length === 0 }}
+        >
+          <Text style={[styles.footerText, upcoming.length === 0 && styles.footerTextDisabled]}>
+            Clear
+          </Text>
+        </TouchableOpacity>
+      </View>
     </BottomSheet>
   );
 };
+
+/** The trailing affordance on the Now Playing card, per the reference. */
+const ArtworkEllipsis: React.FC = () => (
+  <EllipsisVertical color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
+);
 
 const styles = StyleSheet.create({
   nowPlayingBlock: {
     marginBottom: SIZES.md,
   },
   sectionLabel: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.overline.fontSize,
-    letterSpacing: 2,
-    color: COLORS.text.muted,
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.secondary,
     marginBottom: SIZES.sm,
+  },
+  upNextLabel: {
+    marginTop: SIZES.sm,
   },
   nowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SIZES.md,
-    backgroundColor: COLORS.accent.soft,
+    backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.20)',
+    borderColor: COLORS.hairline,
     borderRadius: SIZES.radius.md,
-    padding: SIZES.sm + 2,
+    padding: SIZES.sm,
   },
   nowInfo: {
     flex: 1,
   },
-  nowBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surfaceElevated,
-  },
-  upNextHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.xs,
-  },
-  clearText: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.footnote.fontSize,
-    color: COLORS.text.secondary,
-  },
   list: {
-    maxHeight: 320,
+    maxHeight: 316,
   },
   queueRow: {
     height: ROW_HEIGHT,
@@ -265,6 +287,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: 'transparent',
+  },
+  queueRowInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   queueRowHover: {
     backgroundColor: COLORS.surfaceElevated,
@@ -277,14 +304,14 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   grip: {
-    width: 32,
+    width: 34,
     height: ROW_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowMain: {
     flex: 1,
-    marginHorizontal: SIZES.sm,
+    marginHorizontal: SIZES.sm + 2,
     justifyContent: 'center',
   },
   rowTitle: {
@@ -299,7 +326,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   removeBtn: {
-    width: 36,
+    width: 30,
     height: ROW_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
@@ -310,5 +337,37 @@ const styles = StyleSheet.create({
     color: COLORS.text.muted,
     paddingVertical: SIZES.lg,
     textAlign: 'center',
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: SIZES.md,
+    marginTop: SIZES.lg,
+  },
+  footerButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SIZES.sm,
+    height: 52,
+    borderRadius: SIZES.radius.pill,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.surfaceElevated,
+  },
+  footerButtonActive: {
+    borderColor: 'rgba(61, 214, 195, 0.45)',
+    backgroundColor: COLORS.accent.soft,
+  },
+  footerText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.body.fontSize,
+    color: COLORS.text.primary,
+  },
+  footerTextActive: {
+    color: COLORS.accent.primary,
+  },
+  footerTextDisabled: {
+    color: COLORS.text.muted,
   },
 });

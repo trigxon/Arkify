@@ -15,7 +15,16 @@ export const BROWSE_CATEGORIES: Category[] = [
   { id: 'c6', name: 'Pop', color: '#FF69B4', query: 'pop hits' },
   { id: 'c7', name: 'EDM', color: '#00CED1', query: 'edm dance mix' },
   { id: 'c8', name: 'Rock', color: '#B22222', query: 'rock classics' },
+  { id: 'c9', name: 'Jazz', color: '#7FB2FF', query: 'jazz classics' },
+  { id: 'c10', name: 'Classical', color: '#E4D7A8', query: 'classical instrumental' },
+  { id: 'c11', name: 'Lo-Fi', color: '#9B8CF0', query: 'lofi beats to relax' },
+  { id: 'c12', name: 'Workout', color: '#5AD1A8', query: 'workout motivation songs' },
+  { id: 'c13', name: 'Party', color: '#FFC24D', query: 'party anthems' },
+  { id: 'c14', name: 'Relax', color: '#7FE3D4', query: 'relaxing ambient music' },
 ];
+
+/** How many tiles the Search grid shows before "See all" is tapped. */
+export const BROWSE_VISIBLE_COUNT = 8;
 
 /**
  * Query pools for the Home quick actions.
