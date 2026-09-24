@@ -57,20 +57,20 @@ except the requests needed to search for and stream the audio you asked for.
 
 Grab the signed APK from the **[latest release](https://github.com/trigxon/Arkify/releases/latest)**:
 
-**[⬇ Download Arkify-v1.2.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v1.2.0.apk)**
+**[⬇ Download Arkify-v1.3.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v1.3.0.apk)**
 
 Verify it before installing:
 
 ```
-SHA-256  1e60f9be884ac7a50364b8352494c03f5724e10d78eebe037e7a1699d247f9bf
+SHA-256  ab1f9e32667607a9df9b1adc409052132c01dce8a0c2e8105825e4928f0e3370
 ```
 
 ```bash
 # Linux / macOS
-sha256sum Arkify-v1.2.0.apk
+sha256sum Arkify-v1.3.0.apk
 
 # Windows (PowerShell)
-Get-FileHash Arkify-v1.2.0.apk -Algorithm SHA256
+Get-FileHash Arkify-v1.3.0.apk -Algorithm SHA256
 ```
 
 Arkify is **not distributed through Google Play**, so you install it by sideloading. Android
