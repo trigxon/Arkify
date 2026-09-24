@@ -48,10 +48,7 @@ const MiniPlayerLike: React.FC<{ track: Track }> = ({ track }) => {
   return (
     <TouchableOpacity
       style={styles.iconButton}
-      onPress={(e) => {
-        (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
-        toggleLike(track);
-      }}
+      onPress={() => toggleLike(track)}
       hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       accessibilityRole="button"
       accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
@@ -83,31 +80,33 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   if (!track) return null;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onPress}
-      style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}
-      accessibilityRole="button"
-      accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
-    >
+    <View style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}>
       <View style={[styles.container, SHADOWS.glass]}>
         <View style={styles.content}>
-          {/* Artwork: plain rounded cover, per the reference. */}
-          <Artwork uri={track.albumImageUrl} size={44} radius={12} />
+          {/* Main tap area: opens the full player. Sibling to controls to prevent nested button hydration errors in React Native Web. */}
+          <TouchableOpacity
+            style={styles.mainPressArea}
+            activeOpacity={0.85}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
+          >
+            {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
+            <View style={styles.artworkWrap}>
+              <Artwork uri={track.albumImageUrl} size={44} radius={10} />
+            </View>
 
-          <View style={styles.infoContainer}>
-            <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
-            <Text style={styles.artist} numberOfLines={1}>{track.artist.name}</Text>
-          </View>
+            <View style={styles.infoContainer}>
+              <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
+              <Text style={styles.artist} numberOfLines={1}>{track.artist.name}</Text>
+            </View>
+          </TouchableOpacity>
 
           <View style={styles.controls}>
             <MiniPlayerLike track={track} />
             <TouchableOpacity
               style={styles.playButton}
-              onPress={(e) => {
-                (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
-                onPlayPause();
-              }}
+              onPress={onPlayPause}
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
             >
@@ -116,17 +115,9 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
               ) : (
                 <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
                   {isPlaying ? (
-                    <Pause
-                      color={COLORS.accent.primary}
-                      size={18}
-                      fill={COLORS.accent.primary}
-                    />
+                    <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
                   ) : (
-                    <Play
-                      color={COLORS.accent.primary}
-                      size={18}
-                      fill={COLORS.accent.primary}
-                    />
+                    <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
                   )}
                 </View>
               )}
@@ -137,7 +128,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         {/* Progress: a hairline along the bottom edge of the bar. */}
         <MiniPlayerProgress />
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -152,7 +143,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
     backgroundColor: COLORS.surfaceRaised,
-    borderColor: COLORS.accent.border,
+    borderColor: 'rgba(61, 214, 195, 0.16)',
     borderWidth: 1,
   },
   content: {
@@ -160,9 +151,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
   },
+  mainPressArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: SIZES.xs,
+  },
+  artworkWrap: {
+    borderRadius: 12,
+    padding: 2,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(61, 214, 195, 0.18)',
+  },
   infoContainer: {
     flex: 1,
-    marginLeft: SIZES.md - 2,
+    marginLeft: SIZES.sm + 2,
     justifyContent: 'center',
   },
   title: {
@@ -187,27 +191,22 @@ const styles = StyleSheet.create({
     padding: SIZES.xs,
     marginLeft: SIZES.xs,
   },
-  /** Outlined accent ring with an accent glyph, per the reference. */
   playRing: {
     width: 44,
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: COLORS.accent.ring,
-    backgroundColor: COLORS.accent.soft,
+    borderColor: 'rgba(61, 214, 195, 0.60)',
+    backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 5,
   },
   playRingPlaying: {
     borderColor: COLORS.accent.primary,
+    backgroundColor: COLORS.accent.soft,
   },
   progressTrack: {
-    height: 4,
+    height: 3,
     backgroundColor: COLORS.player.progressTrack,
     width: '100%',
     position: 'absolute',

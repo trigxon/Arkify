@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Arkify" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0C0F0F</item>
+        <item name="android:navigationBarColor">#0C0F0F</item>
+        <item name="android:windowBackground">#0C0F0F</item>
+    </style>
+</resources>
