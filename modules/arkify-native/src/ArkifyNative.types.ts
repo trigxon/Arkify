@@ -1,4 +1,4 @@
-/** Result of `AudiaNative.getPlatformInfo()`. */
+/** Result of `ArkifyNative.getPlatformInfo()`. */
 export type PlatformInfo = {
   /** Always 'android' when served by the Kotlin module; 'web' from the web shim. */
   platform: string;
@@ -10,7 +10,7 @@ export type PlatformInfo = {
 
 /**
  * Why a native resolve failed. A closed set -- the TypeScript layer maps each
- * of these onto one of Audia's existing AppError kinds.
+ * of these onto one of Arkify's existing AppError kinds.
  */
 export type NativeStreamFailureReason =
   | 'invalid_id'

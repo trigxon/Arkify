@@ -17,6 +17,7 @@ import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { AmbientGlow } from '../components/common/AmbientGlow';
 import { CategoryTile } from '../components/common/Cards';
 import { SectionHeader, EmptyState, ErrorState, SkeletonList } from '../components/common/UI';
 import { BROWSE_CATEGORIES, BROWSE_VISIBLE_COUNT } from '../data/catalog';
@@ -211,6 +212,8 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.container}>
+      <AmbientGlow />
+
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
@@ -220,25 +223,6 @@ export default function SearchScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.headerTitle}>Search</Text>
-
-        {/* Results summary action, per the reference's See-all treatment.
-            Shown only when a live result set exists. */}
-        {hasResults ? (
-          <View style={styles.seeAllRow}>
-            <Text style={styles.seeAllText}>
-              {results.tracks.length + results.artists.length + results.albums.length + results.playlists.length}{' '}
-              results
-            </Text>
-            <TouchableOpacity
-              onPress={Keyboard.dismiss}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="Dismiss keyboard"
-            >
-              <Text style={styles.seeAllAction}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
 
         <View
           style={[styles.searchContainer, fieldFocused && styles.searchContainerFocused]}
@@ -305,7 +289,7 @@ export default function SearchScreen() {
         {isBrowsing ? (
           <>
             <SectionHeader
-              title="Browse Audia"
+              title="Browse Arkify"
               actionLabel={showAllCategories ? 'Show less' : 'See all'}
               onAction={() => setShowAllCategories((v) => !v)}
             />
@@ -322,6 +306,28 @@ export default function SearchScreen() {
           </>
         ) : (
           <>
+            {/* Result count + keyboard dismissal, mirroring the reference's
+                See-all row. Sits below the field so the header never moves. */}
+            {hasResults ? (
+              <View style={styles.seeAllRow}>
+                <Text style={styles.seeAllText}>
+                  {results.tracks.length +
+                    results.artists.length +
+                    results.albums.length +
+                    results.playlists.length}{' '}
+                  results
+                </Text>
+                <TouchableOpacity
+                  onPress={Keyboard.dismiss}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss keyboard"
+                >
+                  <Text style={styles.seeAllAction}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             {error && (
               <ErrorState
                 message={error}

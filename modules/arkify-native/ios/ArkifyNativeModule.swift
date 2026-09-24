@@ -1,7 +1,7 @@
 import ExpoModulesCore
 
-public class AudiaNativeModule: Module {
+public class ArkifyNativeModule: Module {
   public func definition() -> ModuleDefinition {
-    Name("AudiaNative")
+    Name("ArkifyNative")
   }
 }

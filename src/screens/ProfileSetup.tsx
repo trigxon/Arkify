@@ -110,7 +110,7 @@ export default function ProfileSetupScreen() {
               {name.trim() ? `Continue as ${name.trim()}` : 'Continue'}
             </Text>
             <View style={styles.iconCircle}>
-              <ArrowRight color="#04211D" size={SIZES.icon.sm + 2} />
+              <ArrowRight color={COLORS.text.dark} size={SIZES.icon.sm + 2} />
             </View>
           </TouchableOpacity>
         </View>
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceElevated,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.18)',
+    borderColor: 'rgba(53, 214, 198, 0.18)',
     paddingHorizontal: SIZES.md,
     paddingVertical: SIZES.md,
   },

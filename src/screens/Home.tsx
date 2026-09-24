@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Image,
   StyleSheet,
@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, SlidersHorizontal, Play, Heart, Compass, Moon, Target, User, ChevronRight } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Artwork } from '../components/common/Artwork';
-import { SectionHeader, SkeletonList, ErrorState, EmptyState } from '../components/common/UI';
+import { SectionHeader, SkeletonList, ErrorState } from '../components/common/UI';
 import { ScreenHeader } from '../components/common/ScreenHeader';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
@@ -25,6 +25,7 @@ import { useLibrary } from '../hooks/useLibrary';
 import { MusicService } from '../services/MusicService';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { AmbientGlow } from '../components/common/AmbientGlow';
 import { useNavigation } from '@react-navigation/native';
 
 /**
@@ -58,15 +59,13 @@ export default function HomeScreen() {
   const [featured, setFeatured] = useState<Track[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
 
-  /** Shown before anything has been played: a live pick, not mock data. */
-  const [starter, setStarter] = useState<Track[]>([]);
-  const [starterError, setStarterError] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const hasRecents = recentlyPlayed.length > 0;
 
   /**
-   * Load (or reload) the home feeds: featured card + starter rows.
+   * Load (or reload) the home feed: the featured card's live pick.
    *
    * Used by the mount effect and by pull-to-refresh, so a failed first load
    * has a real recovery path instead of a "pull to retry" hint nothing wired
@@ -76,17 +75,16 @@ export default function HomeScreen() {
     try {
       const results = await MusicService.search(FEATURED_QUERY, { limit: 10 });
       setFeatured(results.tracks);
-      setStarter(results.tracks.slice(0, 3));
-      setStarterError(false);
+      setLoadError(false);
     } catch {
-      setStarterError(true);
+      setLoadError(true);
     } finally {
       setFeaturedLoading(false);
     }
   }, []);
 
-  // Prefetch a small starter set in the background so a fresh install is not
-  // an empty screen. Cached, so this costs nothing on later launches.
+  // Prefetch the featured pick in the background. Cached, so this costs
+  // nothing on later launches.
   useEffect(() => {
     void loadHome();
   }, [loadHome]);
@@ -135,30 +133,31 @@ export default function HomeScreen() {
     playTrack(featured[0], { tracks: featured, label: 'Made for you' });
   }, [featured, playTrack]);
 
-  const listTracks = useMemo(
-    () => (hasRecents ? recentlyPlayed.slice(0, 3) : starter),
-    [hasRecents, recentlyPlayed, starter]
-  );
+  /**
+   * "Continue listening" only ever shows what the user actually played, per
+   * the reference — its empty card is the honest state for a fresh install.
+   */
+  const recentTracks = recentlyPlayed.slice(0, 3);
 
   // One stable callback for the whole list instead of a closure per row.
   const handleTrackPress = useCallback(
     (track: Track) => {
-      playTrack(track, {
-        tracks: listTracks,
-        label: hasRecents ? 'Recently Played' : 'Start Listening',
-      });
+      playTrack(track, { tracks: recentTracks, label: 'Recently Played' });
     },
-    [playTrack, listTracks, hasRecents]
+    [playTrack, recentTracks]
   );
 
   /** Track whose "add to playlist" sheet is open. */
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
 
   const featuredTrack = featured[0];
-  const firstName = profile.name?.trim() || 'Audia';
+  const firstName = profile.name?.trim() || 'Arkify';
 
   return (
     <View style={styles.container}>
+      {/* Ambient light behind the whole page, per the reference. */}
+      <AmbientGlow />
+
       {/* Pinned: greeting + search stay put while the rest of the page scrolls. */}
       <View style={[styles.stickyHeader, { paddingTop: insets.top + SIZES.md }]}>
         <ScreenHeader
@@ -191,8 +190,7 @@ export default function HomeScreen() {
         >
           <Search color={COLORS.text.secondary} size={SIZES.icon.md - 2} strokeWidth={2.2} />
           <Text style={styles.searchText}>Songs, artists, albums...</Text>
-          <View style={styles.searchDivider} />
-          <SlidersHorizontal color={COLORS.text.muted} size={SIZES.icon.sm} strokeWidth={2} />
+          <SlidersHorizontal color={COLORS.text.secondary} size={SIZES.icon.sm + 2} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -256,13 +254,15 @@ export default function HomeScreen() {
                 resizeMode="cover"
               />
             ) : null}
+            {/* Stronger scrim than before so busy cover art recedes behind
+                the card's own type, per the reference's cinematic treatment. */}
             <LinearGradient
-              colors={['rgba(6, 10, 10, 0.30)', 'rgba(6, 10, 10, 0.82)', 'rgba(4, 8, 8, 0.95)']}
+              colors={['rgba(12, 15, 15, 0.48)', 'rgba(12, 15, 15, 0.84)', 'rgba(10, 13, 13, 0.95)']}
               locations={[0, 0.55, 1]}
               style={StyleSheet.absoluteFill}
             />
             <LinearGradient
-              colors={['rgba(61, 214, 195, 0.14)', 'rgba(61, 214, 195, 0)']}
+              colors={['rgba(53, 214, 198, 0.14)', 'rgba(53, 214, 198, 0)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
@@ -274,11 +274,11 @@ export default function HomeScreen() {
                 <Text style={styles.featuredSub}>Discover · Listen · Feel</Text>
               </View>
               <View style={styles.featuredPlayBtn}>
-                <Play color="#04211D" size={SIZES.icon.md} fill="#04211D" />
+                <Play color={COLORS.accent.primary} size={SIZES.icon.md} fill={COLORS.accent.primary} />
               </View>
             </View>
           </TouchableOpacity>
-        ) : starterError ? (
+        ) : loadError ? (
           <ErrorState
             message="Couldn't load suggestions."
             retryLabel="Pull down to retry"
@@ -307,8 +307,8 @@ export default function HomeScreen() {
           onAction={() => navigation.navigate('LibraryTab' as never)}
         />
 
-        {listTracks.length > 0 ? (
-          listTracks.map((track) => (
+        {hasRecents ? (
+          recentTracks.map((track) => (
             <TrackRow
               key={track.id}
               track={track}
@@ -317,18 +317,8 @@ export default function HomeScreen() {
               isPlaying={currentTrack?.id === track.id && isPlaying}
             />
           ))
-        ) : starterError ? (
-          <EmptyState
-            title="Nothing here yet"
-            hint="Check your connection and pull down to retry."
-          />
         ) : (
-          <SkeletonList rows={3} />
-        )}
-
-        {/* The reference's welcoming empty state, shown while there is no
-            listening history and the starter rows have not loaded. */}
-        {!hasRecents && starter.length === 0 && !featuredLoading && !starterError && (
+          /* The reference's welcoming empty state. */
           <View style={styles.emptyRow}>
             <View style={styles.emptyIconWrap}>
               <User color={COLORS.text.secondary} size={SIZES.icon.md} />
@@ -372,13 +362,20 @@ const QuickAccessTile: React.FC<{
   onPress: () => void;
 }> = ({ Icon, label, accent = false, loading = false, onPress }) => (
   <TouchableOpacity
-    style={styles.actionTile}
+    style={[styles.actionTile, accent && styles.actionTileAccent]}
     activeOpacity={0.75}
     onPress={onPress}
     accessibilityRole="button"
     accessibilityLabel={label}
     accessibilityState={{ busy: loading }}
   >
+    {/* Top-lit surface, so the tiles read as raised rather than flat. */}
+    <LinearGradient
+      colors={['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0)']}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
     <View style={styles.actionTileIcon}>
       {loading ? (
         <ActivityIndicator size="small" color={COLORS.accent.primary} />
@@ -417,11 +414,11 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: 'rgba(61, 214, 195, 0.06)',
+    backgroundColor: 'rgba(53, 214, 198, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(61, 214, 195, 0.55)',
+    borderColor: 'rgba(53, 214, 198, 0.55)',
   },
   avatarInitial: {
     fontFamily: FONTS.medium,
@@ -447,12 +444,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.muted,
     marginLeft: SIZES.sm,
   },
-  searchDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: COLORS.hairline,
-    marginRight: SIZES.sm,
-  },
   pillsContainer: {
     marginBottom: SIZES.md,
   },
@@ -477,7 +468,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   chipTextActive: {
-    color: '#04211D',
+    color: COLORS.text.dark,
     fontFamily: FONTS.semibold,
   },
 
@@ -520,14 +511,21 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: SIZES.sm,
   },
+  /** Outlined accent play FAB, per the reference (ring + accent glyph). */
   featuredPlayBtn: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: COLORS.accent.primary,
+    borderWidth: 1.5,
+    borderColor: COLORS.accent.ring,
+    backgroundColor: COLORS.accent.soft,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.ambient,
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 6,
   },
 
   actionsRow: {
@@ -544,6 +542,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.hairline,
     marginHorizontal: 4,
+    overflow: 'hidden',
+  },
+  /** Liked leads with the accent treatment, per the reference. */
+  actionTileAccent: {
+    borderColor: COLORS.accent.border,
+    backgroundColor: COLORS.surfaceElevated,
   },
   actionTileIcon: {
     height: 26,
@@ -571,6 +575,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },

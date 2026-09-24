@@ -1,10 +1,10 @@
 Pod::Spec.new do |s|
-  s.name           = 'AudiaNative'
+  s.name           = 'ArkifyNative'
   s.version        = '1.0.0'
-  s.summary        = 'Audia native module'
-  s.description    = 'Audia\'s Android/iOS native surface for stream resolution'
+  s.summary        = 'Arkify native module'
+  s.description    = 'Arkify\'s Android/iOS native surface for stream resolution'
   s.author         = 'ARK DURRANI (PATHAN) <5073340abdulrehmankhandurrani@gmail.com>'
-  s.homepage       = 'https://github.com/trigxon/Audia'
+  s.homepage       = 'https://github.com/trigxon/Arkify'
   s.platforms      = {
     :ios => '16.4',
     :tvos => '16.4'

@@ -25,7 +25,7 @@ import {
   Repeat1,
   Shuffle,
   Share,
-  Mic,
+  Sparkles,
   AudioLines,
   Timer,
   ListMusic,
@@ -62,7 +62,9 @@ const LyricsView: React.FC<{
   loading: boolean;
   onSeek?: (seconds: number) => void;
   onRetry?: () => void;
-}> = ({ track, lyrics, loading, onSeek, onRetry }) => {
+  /** Opens the track's action sheet, per the reference's ⋮ affordance. */
+  onMore?: () => void;
+}> = ({ track, lyrics, loading, onSeek, onRetry, onMore }) => {
   const { position } = useProgress();
   const scrollRef = useRef<ScrollView>(null);
   const activeIndexRef = useRef(-1);
@@ -88,9 +90,17 @@ const LyricsView: React.FC<{
           <Text style={styles.lyricsTitle} numberOfLines={1}>{track.title}</Text>
           <Text style={styles.lyricsArtist} numberOfLines={1}>{track.artist.name}</Text>
         </View>
-        <View style={styles.romanBadge}>
-          <Text style={styles.romanBadgeText}>Roman English</Text>
-        </View>
+        {onMore ? (
+          <TouchableOpacity
+            style={styles.lyricsMore}
+            onPress={onMore}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Track actions"
+          >
+            <EllipsisVertical color={COLORS.text.primary} size={SIZES.icon.md} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {loading ? (
@@ -147,7 +157,7 @@ const LyricsView: React.FC<{
           <View style={styles.lyricsFooter}>
             <Text style={styles.lyricsSource}>
               {lyrics.source}
-              {lyrics.synced ? ' · Live Synced' : ''}
+              {lyrics.synced ? ' · Live Synced' : ''} · Roman English
             </Text>
           </View>
         </ScrollView>
@@ -276,7 +286,7 @@ export default function NowPlayingScreen() {
         blurRadius={100}
       />
       <LinearGradient
-        colors={['rgba(6, 8, 8, 0.55)', COLORS.background]}
+        colors={['rgba(12, 15, 15, 0.55)', COLORS.background]}
         locations={[0, 0.72]}
         style={StyleSheet.absoluteFill}
       />
@@ -308,7 +318,7 @@ export default function NowPlayingScreen() {
             <>
               {/* Full player: one line of context, share at the right. */}
               <Text style={styles.headerContext} numberOfLines={1}>
-                Playing from {queueContext || 'Audia'}
+                Playing from {queueContext || 'Arkify'}
               </Text>
               <TouchableOpacity
                 style={styles.headerIcon}
@@ -455,11 +465,19 @@ export default function NowPlayingScreen() {
                     accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
                   >
                     {busy ? (
-                      <ActivityIndicator color={COLORS.text.dark} />
+                      <ActivityIndicator color={COLORS.accent.primary} />
                     ) : isPlaying ? (
-                      <Pause color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                      <Pause
+                        color={COLORS.accent.primary}
+                        size={SIZES.icon.play}
+                        fill={COLORS.accent.primary}
+                      />
                     ) : (
-                      <Play color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                      <Play
+                        color={COLORS.accent.primary}
+                        size={SIZES.icon.play}
+                        fill={COLORS.accent.primary}
+                      />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -498,7 +516,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Sleep timer"
               >
-                <Timer color={COLORS.text.secondary} size={SIZES.icon.md} />
+                <Timer color={COLORS.text.primary} size={SIZES.icon.md} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -507,7 +525,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Open lyrics"
               >
-                <Mic color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
+                <Sparkles color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
                 <Text style={styles.lyricsPillText}>Lyrics</Text>
               </TouchableOpacity>
 
@@ -517,7 +535,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Show queue"
               >
-                <ListMusic color={COLORS.text.secondary} size={SIZES.icon.md} />
+                <ListMusic color={COLORS.text.primary} size={SIZES.icon.md} />
               </TouchableOpacity>
             </View>
           </>
@@ -558,6 +576,7 @@ export default function NowPlayingScreen() {
                 loading={lyricsLoading}
                 onSeek={seekTo}
                 onRetry={loadLyrics}
+                onMore={() => setActionsTrack(currentTrack)}
               />
             ) : (
               <View style={styles.aboutWrap}>
@@ -620,11 +639,19 @@ export default function NowPlayingScreen() {
                     accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
                   >
                     {busy ? (
-                      <ActivityIndicator color={COLORS.text.dark} />
+                      <ActivityIndicator color={COLORS.accent.primary} />
                     ) : isPlaying ? (
-                      <Pause color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                      <Pause
+                        color={COLORS.accent.primary}
+                        size={SIZES.icon.play}
+                        fill={COLORS.accent.primary}
+                      />
                     ) : (
-                      <Play color={COLORS.text.dark} size={SIZES.icon.play} fill={COLORS.text.dark} />
+                      <Play
+                        color={COLORS.accent.primary}
+                        size={SIZES.icon.play}
+                        fill={COLORS.accent.primary}
+                      />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -658,7 +685,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Sleep timer"
               >
-                <Timer color={COLORS.text.secondary} size={SIZES.icon.md} />
+                <Timer color={COLORS.text.primary} size={SIZES.icon.md} />
               </TouchableOpacity>
               <View style={styles.bottomSpacer} />
               <TouchableOpacity
@@ -667,7 +694,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Show queue"
               >
-                <ListMusic color={COLORS.text.secondary} size={SIZES.icon.md} />
+                <ListMusic color={COLORS.text.primary} size={SIZES.icon.md} />
               </TouchableOpacity>
             </View>
           </>
@@ -761,9 +788,9 @@ const styles = StyleSheet.create({
     paddingRight: SIZES.md,
   },
   trackTitle: {
-    fontFamily: FONTS.semibold,
-    fontSize: TYPE.title2.fontSize,
-    lineHeight: TYPE.title2.lineHeight,
+    fontFamily: FONTS.bold,
+    fontSize: 26,
+    lineHeight: 32,
     color: COLORS.text.primary,
     marginBottom: 4,
   },
@@ -780,28 +807,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.sm,
   },
   playButtonWrap: {},
-  /** Thin accent halo around the play button, per the reference. */
+  /**
+   * Outlined transport, per the reference: one accent ring around an accent
+   * glyph on a near-transparent fill, with an ambient glow.
+   */
   playRing: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 1,
-    borderColor: COLORS.accent.border,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 1.5,
+    borderColor: COLORS.accent.ring,
+    backgroundColor: COLORS.accent.soft,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 8,
   },
   playButton: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: COLORS.accent.primary,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 10,
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
   },
   bottomActions: {
     flexDirection: 'row',
@@ -826,7 +857,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.35)',
+    borderColor: 'rgba(53, 214, 198, 0.35)',
     backgroundColor: COLORS.accent.soft,
   },
   lyricsPillText: {
@@ -849,17 +880,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  /** Selected tab fills with the accent, per the reference. */
   tabChipActive: {
     borderColor: COLORS.accent.primary,
-    backgroundColor: COLORS.accent.soft,
+    backgroundColor: COLORS.accent.primary,
   },
   tabText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: COLORS.text.secondary,
+    color: COLORS.text.soft,
   },
   tabTextActive: {
-    color: COLORS.accent.primary,
+    color: COLORS.text.dark,
+    fontFamily: FONTS.semibold,
   },
   lyricsWrap: {
     flex: 1,
@@ -934,19 +967,12 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: 2,
   },
-  romanBadge: {
-    paddingHorizontal: SIZES.sm + 2,
-    paddingVertical: 4,
-    borderRadius: SIZES.radius.pill,
-    backgroundColor: COLORS.accent.soft,
-    borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.35)',
-  },
-  romanBadgeText: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.micro.fontSize,
-    color: COLORS.accent.primary,
-    letterSpacing: 0.5,
+  /** The ⋮ affordance on the lyrics header, per the reference. */
+  lyricsMore: {
+    width: SIZES.touchTarget,
+    height: SIZES.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   lyricsScroll: {
     flex: 1,
@@ -967,18 +993,16 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     letterSpacing: 0.2,
   },
+  /** The sung line reads brightest; the rest recede, per the reference. */
   lyricLineActive: {
-    color: COLORS.accent.primary,
+    color: COLORS.text.primary,
     fontFamily: FONTS.bold,
   },
   lyricLineDim: {
-    color: 'rgba(244, 244, 242, 0.32)',
+    color: 'rgba(244, 244, 242, 0.42)',
   },
   lyricsFooter: {
     marginTop: SIZES.lg,
-    paddingTop: SIZES.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.hairline,
   },
   lyricsSource: {
     fontFamily: FONTS.regular,

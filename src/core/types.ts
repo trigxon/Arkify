@@ -1,5 +1,5 @@
 /**
- * Canonical domain model for Audia.
+ * Canonical domain model for Arkify.
  *
  * Every provider normalizes into these shapes, so nothing above the
  * ProviderAdapter layer ever sees provider-specific data.

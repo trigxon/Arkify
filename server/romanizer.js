@@ -1,5 +1,5 @@
 /**
- * Audia Universal Phonetic Romanizer Engine
+ * Arkify Universal Phonetic Romanizer Engine
  * Converts non-Latin scripts (Indic: Punjabi/Gurmukhi, Hindi/Devanagari, Bengali, Tamil, Telugu;
  * East Asian: Korean Hangul, Japanese Kana, Chinese; Cyrillic, Arabic/Persian/Urdu)
  * into natural, readable Roman English lyrics.

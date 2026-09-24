@@ -10,13 +10,14 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, X, Trash2, Download, Share2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2 } from 'lucide-react-native';
+import { Plus, X, Trash2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2, Share } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { AmbientGlow } from '../components/common/AmbientGlow';
 import { Artwork } from '../components/common/Artwork';
 import { EmptyState } from '../components/common/UI';
 import { Playlist, Track } from '../core/types';
@@ -154,6 +155,8 @@ export default function LibraryScreen() {
 
   return (
     <View style={styles.container}>
+      <AmbientGlow />
+
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
@@ -178,7 +181,7 @@ export default function LibraryScreen() {
               {showImport ? (
                 <X color={COLORS.text.primary} size={SIZES.icon.md} />
               ) : (
-                <Plus color="#04211D" size={SIZES.icon.md} strokeWidth={2.4} />
+                <Plus color="COLORS.text.dark" size={SIZES.icon.md} strokeWidth={2.4} />
               )}
             </View>
           </TouchableOpacity>
@@ -234,7 +237,7 @@ export default function LibraryScreen() {
                 accessibilityLabel="Import playlist"
               >
                 {importing ? (
-                  <ActivityIndicator size="small" color="#04211D" />
+                  <ActivityIndicator size="small" color="COLORS.text.dark" />
                 ) : (
                   <Text style={styles.importButtonText}>Add</Text>
                 )}
@@ -258,9 +261,9 @@ export default function LibraryScreen() {
         </View>
 
         <View style={styles.listContainer}>
-          {activeFilter === 'Playlists' &&
-            (allPlaylists.length ? (
-              allPlaylists.map((playlist) =>
+          {activeFilter === 'Playlists' && (
+            <>
+              {allPlaylists.map((playlist) =>
                 // Liked Songs leads with the teal card treatment from the
                 // reference; user playlists keep the standard artwork row.
                 playlist.id === 'liked' ? (
@@ -274,7 +277,7 @@ export default function LibraryScreen() {
                     accessibilityLabel={`Open playlist ${playlist.name}, ${playlist.tracks.length} tracks`}
                   >
                     <LinearGradient
-                      colors={['#4FE3D0', '#2FB5A5']}
+                      colors={[COLORS.accent.primary, '#127269']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.rowArtwork}
@@ -324,8 +327,11 @@ export default function LibraryScreen() {
                     </TouchableOpacity>
                   </TouchableOpacity>
                 )
-              )
-            ) : (
+              )}
+
+              {/* The reference keeps this composition under the Liked Songs
+                  card until the user owns a playlist. */}
+              {playlists.length === 0 && (
               <View style={styles.createEmptyWrap}>
                 {/* The reference's create-first-playlist composition: stacked
                     glass cards with a floating note glyph, headline, support
@@ -338,7 +344,7 @@ export default function LibraryScreen() {
                 </View>
                 <Text style={styles.createTitle}>Create your first playlist</Text>
                 <Text style={styles.createHint}>
-                  Organize your favourite tracks and keep them close.
+                  Organise your favourite tracks and keep them close.
                 </Text>
                 <TouchableOpacity
                   style={styles.createButton}
@@ -354,7 +360,9 @@ export default function LibraryScreen() {
                   <Text style={styles.createButtonText}>Create Playlist</Text>
                 </TouchableOpacity>
               </View>
-            ))}
+              )}
+            </>
+          )}
 
           {activeFilter === 'Artists' &&
             (derived.artists.length ? (
@@ -449,7 +457,7 @@ export default function LibraryScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Share ${track.title}`}
                     >
-                      <Share2 color={COLORS.text.muted} size={SIZES.icon.sm} />
+                      <Share color={COLORS.text.muted} size={SIZES.icon.sm} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -568,7 +576,7 @@ const styles = StyleSheet.create({
   importButtonText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: '#04211D',
+    color: 'COLORS.text.dark',
   },
   importError: {
     fontFamily: FONTS.regular,
@@ -604,7 +612,7 @@ const styles = StyleSheet.create({
   rowArtworkTinted: {
     backgroundColor: COLORS.accent.soft,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.22)',
+    borderColor: 'rgba(53, 214, 198, 0.22)',
   },
   likedCard: {
     backgroundColor: COLORS.surface,
@@ -645,7 +653,7 @@ const styles = StyleSheet.create({
     top: 0,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.30)',
+    borderColor: 'rgba(53, 214, 198, 0.30)',
     transform: [{ rotate: '7deg' }],
     ...SHADOWS.ambient,
   },
@@ -672,7 +680,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.xl,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.45)',
+    borderColor: 'rgba(53, 214, 198, 0.45)',
   },
   createButtonText: {
     fontFamily: FONTS.medium,

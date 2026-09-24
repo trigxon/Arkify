@@ -1,4 +1,4 @@
-package expo.modules.audianative
+package expo.modules.arkifynative
 
 import android.os.Build
 import expo.modules.kotlin.modules.Module
@@ -25,7 +25,7 @@ import org.schabi.newpipe.extractor.stream.StreamType
 import java.io.IOException
 
 /**
- * Audia's Android-only native surface.
+ * Arkify's Android-only native surface.
  *
  * Only two things are exposed to JavaScript: a platform probe, and a single
  * stream-resolution call. The NewPipe Extractor API itself is deliberately NOT
@@ -35,7 +35,7 @@ import java.io.IOException
  * value rather than thrown, so a failed extraction can never take down the
  * React Native runtime.
  */
-class AudiaNativeModule : Module() {
+class ArkifyNativeModule : Module() {
 
   private companion object {
     /** Guards one-time NewPipe.init across concurrent resolves. */
@@ -46,7 +46,7 @@ class AudiaNativeModule : Module() {
   }
 
   override fun definition() = ModuleDefinition {
-    Name("AudiaNative")
+    Name("ArkifyNative")
 
     Function("getPlatformInfo") {
       return@Function mapOf(
@@ -68,7 +68,7 @@ class AudiaNativeModule : Module() {
     synchronized(initLock) {
       if (initialized) return
       NewPipe.init(
-        AudiaNativeDownloader(),
+        ArkifyNativeDownloader(),
         Localization("en", "US"),
         ContentCountry("US")
       )
@@ -114,7 +114,7 @@ class AudiaNativeModule : Module() {
         "extractor" to "NewPipeExtractor/v0.26.5",
         // googlevideo ties a stream URL to the client that asked for it, so the
         // player has to fetch it with the same User-Agent or it gets a 403.
-        "userAgent" to AudiaNativeDownloader.USER_AGENT
+        "userAgent" to ArkifyNativeDownloader.USER_AGENT
       )
     } catch (e: Throwable) {
       classify(e)
@@ -134,7 +134,7 @@ class AudiaNativeModule : Module() {
 
   /**
    * Map extractor and transport failures onto a small closed set of reasons the
-   * TypeScript layer converts into Audia's existing AppError kinds.
+   * TypeScript layer converts into Arkify's existing AppError kinds.
    *
    * The original message is always carried through -- nothing is swallowed.
    */

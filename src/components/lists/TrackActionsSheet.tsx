@@ -10,7 +10,7 @@ import {
   ListPlus,
   Heart,
   User,
-  Share2,
+  Share,
   Disc3,
   Timer,
   Trash2,
@@ -230,7 +230,7 @@ export const TrackActionsSheet: React.FC<Props> = ({
                 />
               )}
               <SheetRow
-                Icon={Share2}
+                Icon={Share}
                 label="Share"
                 onPress={() => {
                   void DownloadService.shareTrack(track);
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   createBtnText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: '#04211D',
+    color: 'COLORS.text.dark',
   },
   disabled: {
     opacity: 0.4,

@@ -4,17 +4,18 @@ import { Category } from '../core/types';
  * Browse categories shown on the Search screen.
  *
  * These are not mock content: each one runs a real search against the
- * provider when tapped. The colours match the existing visual design.
+ * provider when tapped. The colours are icon-ink accents from the Nocturne
+ * Cyan system — the tiles themselves are drawn in Cards.tsx's CATEGORY_ART.
  */
 export const BROWSE_CATEGORIES: Category[] = [
-  { id: 'c1', name: 'Charts', color: '#1DB954', query: 'top hits this week' },
-  { id: 'c2', name: 'New Releases', color: '#8A2BE2', query: 'new music releases' },
-  { id: 'c3', name: 'Moods', color: '#FF7F50', query: 'chill mood playlist' },
-  { id: 'c4', name: 'Indian', color: '#DAA520', query: 'bollywood hits' },
-  { id: 'c5', name: 'Hip-Hop', color: '#4682B4', query: 'hip hop essentials' },
-  { id: 'c6', name: 'Pop', color: '#FF69B4', query: 'pop hits' },
-  { id: 'c7', name: 'EDM', color: '#00CED1', query: 'edm dance mix' },
-  { id: 'c8', name: 'Rock', color: '#B22222', query: 'rock classics' },
+  { id: 'c1', name: 'Charts', color: '#35D6C6', query: 'top hits this week' },
+  { id: 'c2', name: 'New Releases', color: '#FFFFFF', query: 'new music releases' },
+  { id: 'c3', name: 'Moods', color: '#FFA63D', query: 'chill mood playlist' },
+  { id: 'c4', name: 'Indian', color: '#F5A9CE', query: 'bollywood hits' },
+  { id: 'c5', name: 'Hip-Hop', color: '#FF8A3D', query: 'hip hop essentials' },
+  { id: 'c6', name: 'Pop', color: '#FFFFFF', query: 'pop hits' },
+  { id: 'c7', name: 'EDM', color: '#57E8D6', query: 'edm dance mix' },
+  { id: 'c8', name: 'Rock', color: '#FF6B5A', query: 'rock classics' },
   { id: 'c9', name: 'Jazz', color: '#7FB2FF', query: 'jazz classics' },
   { id: 'c10', name: 'Classical', color: '#E4D7A8', query: 'classical instrumental' },
   { id: 'c11', name: 'Lo-Fi', color: '#9B8CF0', query: 'lofi beats to relax' },

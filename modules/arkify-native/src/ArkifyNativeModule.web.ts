@@ -1,8 +1,8 @@
 import { registerWebModule, NativeModule } from 'expo';
 
-import { NativeStreamResult, PlatformInfo } from './AudiaNative.types';
+import { NativeStreamResult, PlatformInfo } from './ArkifyNative.types';
 
-class AudiaNativeModule extends NativeModule<{}> {
+class ArkifyNativeModule extends NativeModule<{}> {
   getPlatformInfo(): PlatformInfo {
     return { platform: 'web', native: false };
   }
@@ -17,4 +17,4 @@ class AudiaNativeModule extends NativeModule<{}> {
   }
 }
 
-export default registerWebModule(AudiaNativeModule, 'AudiaNativeModule');
+export default registerWebModule(ArkifyNativeModule, 'ArkifyNativeModule');

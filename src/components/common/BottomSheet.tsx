@@ -1,5 +1,12 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View, ScrollView, StyleProp, ViewStyle } from 'react-native';
+import {
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Dimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
@@ -15,6 +22,10 @@ type BottomSheetProps = {
   children: React.ReactNode;
   /** Extra bottom padding when the keyboard is open (sheets with inputs). */
   keyboardHeight?: number;
+  /** The sheet's grabber. Off for sheets that read as full screens (queue). */
+  showGrabber?: boolean;
+  /** Fills the screen height instead of hugging its content. */
+  tall?: boolean;
 };
 
 /**
@@ -32,6 +43,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   titleAlign = 'left',
   children,
   keyboardHeight = 0,
+  showGrabber = true,
+  tall = false,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -43,13 +56,15 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         <View
           style={[
             styles.sheet,
+            tall && { height: Dimensions.get('window').height - insets.top - SIZES.md },
             {
-              paddingBottom: keyboardHeight > 0 ? SIZES.md : insets.bottom + SIZES.md,
+              paddingBottom:
+                keyboardHeight > 0 ? SIZES.md : Math.max(insets.bottom, SIZES.sm) + SIZES.sm,
               bottom: keyboardHeight,
             },
           ]}
         >
-          <View style={styles.grabber} />
+          {showGrabber ? <View style={styles.grabber} /> : null}
 
           {title ? (
             titleAlign === 'center' ? (
@@ -103,15 +118,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: COLORS.scrim,
+    // The panel floats clear of the screen edges, per the reference.
+    paddingHorizontal: SIZES.sm + 2,
+    paddingBottom: SIZES.sm,
   },
   sheet: {
     backgroundColor: COLORS.surfaceElevated,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(24, 229, 213, 0.20)',
+    borderRadius: SIZES.radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(53, 214, 198, 0.20)',
     paddingTop: SIZES.sm + 2,
     paddingHorizontal: SIZES.gutter,
   },
@@ -120,7 +135,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
     marginBottom: SIZES.md,
   },
   header: {

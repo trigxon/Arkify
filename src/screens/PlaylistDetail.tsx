@@ -139,7 +139,7 @@ export default function PlaylistDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Play playlist"
         >
-          <Play color="#04211D" size={SIZES.icon.sm + 2} fill="#04211D" />
+          <Play color="COLORS.text.dark" size={SIZES.icon.sm + 2} fill="COLORS.text.dark" />
           <Text style={styles.primaryActionText}>Play</Text>
         </TouchableOpacity>
 
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   primaryActionText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: '#04211D',
+    color: 'COLORS.text.dark',
   },
   secondaryAction: {
     flexDirection: 'row',

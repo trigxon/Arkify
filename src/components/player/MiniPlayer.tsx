@@ -92,10 +92,8 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
     >
       <View style={[styles.container, SHADOWS.glass]}>
         <View style={styles.content}>
-          {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
-          <View style={styles.artworkWrap}>
-            <Artwork uri={track.albumImageUrl} size={44} radius={10} />
-          </View>
+          {/* Artwork: plain rounded cover, per the reference. */}
+          <Artwork uri={track.albumImageUrl} size={44} radius={12} />
 
           <View style={styles.infoContainer}>
             <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
@@ -118,9 +116,17 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
               ) : (
                 <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
                   {isPlaying ? (
-                    <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+                    <Pause
+                      color={COLORS.accent.primary}
+                      size={18}
+                      fill={COLORS.accent.primary}
+                    />
                   ) : (
-                    <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+                    <Play
+                      color={COLORS.accent.primary}
+                      size={18}
+                      fill={COLORS.accent.primary}
+                    />
                   )}
                 </View>
               )}
@@ -146,7 +152,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
     backgroundColor: COLORS.surfaceRaised,
-    borderColor: 'rgba(61, 214, 195, 0.16)',
+    borderColor: COLORS.accent.border,
     borderWidth: 1,
   },
   content: {
@@ -154,16 +160,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
   },
-  artworkWrap: {
-    borderRadius: 12,
-    padding: 2,
-    backgroundColor: COLORS.accent.soft,
-    borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.18)',
-  },
   infoContainer: {
     flex: 1,
-    marginLeft: SIZES.sm + 2,
+    marginLeft: SIZES.md - 2,
     justifyContent: 'center',
   },
   title: {
@@ -188,22 +187,27 @@ const styles = StyleSheet.create({
     padding: SIZES.xs,
     marginLeft: SIZES.xs,
   },
+  /** Outlined accent ring with an accent glyph, per the reference. */
   playRing: {
     width: 44,
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: 'rgba(61, 214, 195, 0.60)',
-    backgroundColor: COLORS.surfaceElevated,
+    borderColor: COLORS.accent.ring,
+    backgroundColor: COLORS.accent.soft,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.accent.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
   },
   playRingPlaying: {
     borderColor: COLORS.accent.primary,
-    backgroundColor: COLORS.accent.soft,
   },
   progressTrack: {
-    height: 3,
+    height: 4,
     backgroundColor: COLORS.player.progressTrack,
     width: '100%',
     position: 'absolute',

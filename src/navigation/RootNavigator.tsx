@@ -23,7 +23,7 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator();
 
-const AudiaTheme = {
+const ArkifyTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
@@ -70,7 +70,7 @@ export const RootNavigator = () => {
   if (!isLoaded) return null;
 
   return (
-    <NavigationContainer theme={AudiaTheme}>
+    <NavigationContainer theme={ArkifyTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Launch">
         <Stack.Screen name="Launch" options={{ animation: 'fade' }}>
           {() => <LaunchGate />}

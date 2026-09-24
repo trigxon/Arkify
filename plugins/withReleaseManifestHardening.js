@@ -31,7 +31,7 @@ module.exports = function withReleaseManifestHardening(config) {
     if (attrs['android:usesCleartextTraffic'] === 'true' || attrs['android:usesCleartextTraffic'] === true) {
       throw new Error(
         'withReleaseManifestHardening: android:usesCleartextTraffic=true is set. ' +
-          'All Audia endpoints are https; cleartext must stay dev-only.'
+          'All Arkify endpoints are https; cleartext must stay dev-only.'
       );
     }
 
