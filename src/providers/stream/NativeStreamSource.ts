@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import {
   NativeStreamFailureReason,
   resolveYouTubeStream,
-} from '../../../modules/audia-native';
+} from '../../../modules/arkify-native';
 import { AppError, appError, appErrorWithMessage } from '../../core/errors';
 import { ResolvedStream, Track } from '../../core/types';
 import { StreamSource } from './StreamResolver';
@@ -18,7 +18,7 @@ import { StreamSource } from './StreamResolver';
  */
 
 /**
- * Mirrors AudiaNativeDownloader.USER_AGENT.
+ * Mirrors ArkifyNativeDownloader.USER_AGENT.
  *
  * The native module reports the User-Agent it extracted with, and that is
  * the authoritative value. This fallback covers binaries built before that
@@ -49,7 +49,7 @@ function expiryFor(url: string): number {
   return expiresAt > Date.now() ? Math.min(expiresAt, fallback) : fallback;
 }
 
-/** Map the native failure taxonomy onto Audia's existing AppError kinds. */
+/** Map the native failure taxonomy onto Arkify's existing AppError kinds. */
 function toAppErrorFor(reason: NativeStreamFailureReason, message: string): AppError {
   switch (reason) {
     case 'geo_restricted':

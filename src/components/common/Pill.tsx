@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inactiveLabel: {
-    color: COLORS.text.secondary,
+    // Reference chips read bright on the dark surface, not greyed out.
+    color: COLORS.text.soft,
   },
 });

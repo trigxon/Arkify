@@ -1,12 +1,12 @@
 const { withAndroidManifest, AndroidConfig } = require('expo/config-plugins');
 
 /**
- * Strips permissions Audia does not need from the final merged APK.
+ * Strips permissions Arkify does not need from the final merged APK.
  *
  * Two layers are handled, because permissions reach the APK two ways:
  *
  *   1. The Expo config: expo-file-system's own plugin injects legacy
- *      READ_/WRITE_EXTERNAL_STORAGE into config.android.permissions. Audia
+ *      READ_/WRITE_EXTERNAL_STORAGE into config.android.permissions. Arkify
  *      never reads shared storage -- its downloads go to the app-private
  *      documents directory, which needs no permission. Filtered at plugin
  *      registration time so they never reach the manifest template.

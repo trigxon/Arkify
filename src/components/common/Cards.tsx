@@ -23,7 +23,7 @@ import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../../constants/theme';
 /**
  * Per-category artwork treatment.
  *
- * The reference tiles are artwork-backed. Audia ships no cover art for
+ * The reference tiles are artwork-backed. Arkify ships no cover art for
  * categories, so each tile gets a layered ambient composition instead — a
  * category-hued wash, a darker vignette and a light streak — plus its own
  * icon and accent colour. These are drawn, not faked: no invented imagery, no
@@ -38,82 +38,85 @@ type CategoryArt = {
 };
 
 const CATEGORY_ART: Record<string, CategoryArt> = {
+  // Saturated, photographic-weight colour: the reference's tiles are full-bleed
+  // artwork, so the drawn substitutes have to carry real colour rather than a
+  // hint of tint over black.
   Charts: {
     Icon: TrendingUp,
-    ink: '#8C7BF5',
-    wash: ['rgba(84, 60, 190, 0.55)', 'rgba(20, 120, 150, 0.28)', 'rgba(6, 8, 8, 0.92)'],
+    ink: '#A78BFA',
+    wash: ['rgba(44, 168, 152, 0.95)', 'rgba(92, 62, 200, 0.62)', 'rgba(8, 12, 16, 0.96)'],
   },
   'New Releases': {
     Icon: Star,
     ink: '#FFFFFF',
-    wash: ['rgba(72, 42, 124, 0.50)', 'rgba(30, 22, 52, 0.45)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(104, 66, 205, 0.92)', 'rgba(46, 32, 92, 0.78)', 'rgba(9, 9, 16, 0.96)'],
   },
   Moods: {
     Icon: Sun,
     ink: '#FFA63D',
-    wash: ['rgba(190, 60, 90, 0.48)', 'rgba(120, 40, 90, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(214, 74, 124, 0.92)', 'rgba(152, 52, 64, 0.74)', 'rgba(12, 8, 12, 0.96)'],
   },
   Indian: {
     Icon: Landmark,
-    ink: '#F0A6C8',
-    wash: ['rgba(150, 50, 120, 0.50)', 'rgba(80, 30, 90, 0.40)', 'rgba(6, 8, 8, 0.92)'],
+    ink: '#F5A9CE',
+    wash: ['rgba(176, 62, 156, 0.92)', 'rgba(96, 32, 116, 0.78)', 'rgba(11, 8, 15, 0.96)'],
   },
   'Hip-Hop': {
     Icon: Headphones,
     ink: '#FF8A3D',
-    wash: ['rgba(200, 70, 50, 0.45)', 'rgba(120, 40, 40, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(196, 74, 46, 0.92)', 'rgba(114, 42, 42, 0.76)', 'rgba(13, 9, 9, 0.96)'],
   },
   Pop: {
     Icon: Mic,
     ink: '#FFFFFF',
-    wash: ['rgba(60, 60, 140, 0.48)', 'rgba(40, 30, 90, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(86, 86, 208, 0.92)', 'rgba(52, 42, 124, 0.76)', 'rgba(9, 10, 19, 0.96)'],
   },
   EDM: {
     Icon: AudioWaveform,
-    ink: '#3DD6C3',
-    wash: ['rgba(40, 120, 160, 0.48)', 'rgba(20, 60, 90, 0.38)', 'rgba(6, 8, 8, 0.92)'],
+    ink: '#57E8D6',
+    wash: ['rgba(42, 148, 196, 0.92)', 'rgba(26, 84, 124, 0.76)', 'rgba(7, 12, 17, 0.96)'],
   },
   Rock: {
     Icon: Guitar,
     ink: '#FF6B5A',
-    wash: ['rgba(200, 60, 40, 0.50)', 'rgba(140, 50, 30, 0.30)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(206, 68, 46, 0.92)', 'rgba(146, 58, 32, 0.74)', 'rgba(13, 8, 8, 0.96)'],
   },
   Jazz: {
     Icon: Piano,
     ink: '#7FB2FF',
-    wash: ['rgba(40, 70, 150, 0.50)', 'rgba(30, 40, 90, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(52, 88, 188, 0.92)', 'rgba(34, 46, 104, 0.76)', 'rgba(8, 10, 18, 0.96)'],
   },
   Classical: {
     Icon: Music2,
     ink: '#E4D7A8',
-    wash: ['rgba(120, 100, 60, 0.42)', 'rgba(70, 60, 40, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(146, 122, 70, 0.88)', 'rgba(78, 68, 44, 0.74)', 'rgba(10, 9, 8, 0.96)'],
   },
   'Lo-Fi': {
     Icon: Moon,
     ink: '#9B8CF0',
-    wash: ['rgba(70, 50, 140, 0.45)', 'rgba(40, 30, 80, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(88, 62, 176, 0.90)', 'rgba(46, 34, 92, 0.74)', 'rgba(9, 8, 14, 0.96)'],
   },
   Workout: {
     Icon: Dumbbell,
     ink: '#5AD1A8',
-    wash: ['rgba(30, 120, 90, 0.45)', 'rgba(20, 70, 60, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(36, 146, 108, 0.90)', 'rgba(22, 78, 66, 0.74)', 'rgba(7, 11, 10, 0.96)'],
   },
   Party: {
     Icon: PartyPopper,
     ink: '#FFC24D',
-    wash: ['rgba(180, 90, 40, 0.45)', 'rgba(90, 50, 80, 0.36)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(198, 100, 44, 0.90)', 'rgba(100, 54, 88, 0.76)', 'rgba(11, 9, 10, 0.96)'],
   },
   Relax: {
     Icon: Sparkles,
     ink: '#7FE3D4',
-    wash: ['rgba(30, 110, 120, 0.44)', 'rgba(20, 60, 80, 0.34)', 'rgba(6, 8, 8, 0.92)'],
+    wash: ['rgba(34, 128, 138, 0.90)', 'rgba(22, 68, 90, 0.74)', 'rgba(7, 10, 13, 0.96)'],
   },
 };
 
 const DEFAULT_ART: CategoryArt = {
   Icon: Music2,
   ink: COLORS.accent.primary,
-  wash: ['rgba(61, 214, 195, 0.40)', 'rgba(30, 90, 90, 0.30)', 'rgba(6, 8, 8, 0.92)'],
+  wash: ['rgba(40, 150, 146, 0.90)', 'rgba(24, 78, 82, 0.74)', 'rgba(7, 10, 11, 0.96)'],
 };
 
 // ---------------------------------------------------------------------------
@@ -151,16 +154,16 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({ label, onPress, styl
       />
       {/* Depth: darken the lower half so the label always holds contrast. */}
       <LinearGradient
-        colors={['rgba(6, 8, 8, 0.05)', 'rgba(6, 8, 8, 0.72)']}
-        start={{ x: 0.5, y: 0.25 }}
+        colors={['rgba(12, 15, 15, 0.02)', 'rgba(12, 15, 15, 0.62)']}
+        start={{ x: 0.5, y: 0.3 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
       {/* Light streak — the reference's soft atmospheric highlight. */}
       <LinearGradient
-        colors={['rgba(255, 255, 255, 0.10)', 'rgba(255, 255, 255, 0)']}
-        start={{ x: 0.1, y: 0.05 }}
-        end={{ x: 0.75, y: 0.55 }}
+        colors={['rgba(255, 255, 255, 0.16)', 'rgba(255, 255, 255, 0)']}
+        start={{ x: 0.1, y: 0.02 }}
+        end={{ x: 0.8, y: 0.6 }}
         style={StyleSheet.absoluteFill}
       />
 

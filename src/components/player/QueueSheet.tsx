@@ -1,14 +1,16 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   PanResponder,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { EllipsisVertical, Menu, Shuffle, X } from 'lucide-react-native';
+import { ChevronRight, Menu, Shuffle } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { Artwork } from '../common/Artwork';
@@ -112,8 +114,37 @@ export const QueueSheet: React.FC<Props> = ({
     onClear();
   }, [onClear]);
 
+  /**
+   * The reference's rows carry only a drag handle, so removal lives on
+   * long-press — the row stays clean, the action stays reachable.
+   */
+  const confirmRemove = useCallback(
+    (track: Track) => {
+      const title = `Remove “${track.title}” from the queue?`;
+
+      // react-native-web has no Alert, so the preview asks through the browser.
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.confirm(title)) onRemove(track.id);
+        return;
+      }
+
+      Alert.alert('Remove from queue?', title, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => onRemove(track.id) },
+      ]);
+    },
+    [onRemove]
+  );
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Queue" titleAlign="center">
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="Queue"
+      titleAlign="center"
+      showGrabber={false}
+      tall
+    >
       {/* Now Playing — pinned, clearly separated from Up Next. */}
       {currentTrack && (
         <View style={styles.nowPlayingBlock}>
@@ -134,7 +165,7 @@ export const QueueSheet: React.FC<Props> = ({
                 {currentTrack.artist.name}
               </Text>
             </View>
-            <ArtworkEllipsis />
+            <ChevronRight color={COLORS.text.secondary} size={SIZES.icon.sm} />
           </TouchableOpacity>
         </View>
       )}
@@ -173,8 +204,11 @@ export const QueueSheet: React.FC<Props> = ({
                       onJumpTo(track.id);
                       onClose();
                     }}
+                    onLongPress={() => confirmRemove(track)}
+                    delayLongPress={350}
                     accessibilityRole="button"
                     accessibilityLabel={`Play ${track.title} by ${track.artist.name}`}
+                    accessibilityHint="Long press to remove from the queue"
                   >
                     <Text style={styles.rowTitle} numberOfLines={1}>
                       {track.title}
@@ -182,16 +216,6 @@ export const QueueSheet: React.FC<Props> = ({
                     <Text style={styles.rowArtist} numberOfLines={1}>
                       {track.artist.name}
                     </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.removeBtn}
-                    onPress={() => onRemove(track.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${track.title} from queue`}
-                  >
-                    <X color={COLORS.text.muted} size={SIZES.icon.sm - 2} />
                   </TouchableOpacity>
 
                   {/* Drag handle, per the reference: the grab affordance sits at
@@ -246,11 +270,6 @@ export const QueueSheet: React.FC<Props> = ({
   );
 };
 
-/** The trailing affordance on the Now Playing card, per the reference. */
-const ArtworkEllipsis: React.FC = () => (
-  <EllipsisVertical color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
-);
-
 const styles = StyleSheet.create({
   nowPlayingBlock: {
     marginBottom: SIZES.md,
@@ -277,8 +296,10 @@ const styles = StyleSheet.create({
   nowInfo: {
     flex: 1,
   },
+  /** Fills the tall sheet, so the list scrolls instead of the panel growing. */
   list: {
-    maxHeight: 316,
+    flex: 1,
+    minHeight: 0,
   },
   queueRow: {
     height: ROW_HEIGHT,
@@ -299,7 +320,7 @@ const styles = StyleSheet.create({
   },
   queueRowDragging: {
     backgroundColor: COLORS.surfacePressed,
-    borderColor: 'rgba(61, 214, 195, 0.30)',
+    borderColor: 'rgba(53, 214, 198, 0.30)',
     zIndex: 10,
     elevation: 8,
   },
@@ -324,12 +345,6 @@ const styles = StyleSheet.create({
     fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.secondary,
     marginTop: 1,
-  },
-  removeBtn: {
-    width: 30,
-    height: ROW_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   emptyText: {
     fontFamily: FONTS.regular,
@@ -356,7 +371,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceElevated,
   },
   footerButtonActive: {
-    borderColor: 'rgba(61, 214, 195, 0.45)',
+    borderColor: 'rgba(53, 214, 198, 0.45)',
     backgroundColor: COLORS.accent.soft,
   },
   footerText: {

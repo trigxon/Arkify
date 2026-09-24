@@ -7,15 +7,15 @@ import { PlayerProvider } from './src/hooks/usePlayer';
 import { LibraryProvider } from './src/hooks/useLibrary';
 import { COLORS } from './src/constants/theme';
 import { DownloadService } from './src/services/DownloadService';
-import { getPlatformInfo, isAudiaNativeAvailable } from './modules/audia-native';
+import { getPlatformInfo, isArkifyNativeAvailable } from './modules/arkify-native';
 
 export default function App() {
   // Proof-of-connection for the Android native module. Dev-only, no UI impact.
   useEffect(() => {
     if (__DEV__) {
       console.log(
-        '[AudiaNative] available:',
-        isAudiaNativeAvailable(),
+        '[ArkifyNative] available:',
+        isArkifyNativeAvailable(),
         'getPlatformInfo():',
         getPlatformInfo()
       );

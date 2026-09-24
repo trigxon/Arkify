@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Search, Library, Clock } from 'lucide-react-native';
@@ -25,7 +26,18 @@ export const TabNavigator = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: [styles.tabBar, { height: barHeight, paddingBottom: bottomInset }],
-        tabBarBackground: () => <View style={styles.tabBarBackground} />,
+        tabBarBackground: () => (
+          <View style={styles.tabBarBackground}>
+            {/* Blends the bar into the page's ambient light instead of
+                sitting on it as a separate grey band, per the reference. */}
+            <LinearGradient
+              colors={['rgba(12, 15, 15, 0.55)', 'rgba(12, 15, 15, 0.97)']}
+              locations={[0, 0.65]}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.tabBarHairline} />
+          </View>
+        ),
         tabBarActiveTintColor: COLORS.accent.primary,
         tabBarInactiveTintColor: COLORS.text.muted,
         tabBarShowLabel: true,
@@ -39,7 +51,7 @@ export const TabNavigator = () => {
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused} label="Home">
-              <Home color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} fill={focused ? 'rgba(61,214,195,0.14)' : 'transparent'} />
+              <Home color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} fill={focused ? 'rgba(53,214,198,0.14)' : 'transparent'} />
             </TabIcon>
           ),
         }}
@@ -75,7 +87,7 @@ export const TabNavigator = () => {
           tabBarLabel: 'Library',
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused} label="Library">
-              <Library color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} fill={focused ? 'rgba(61,214,195,0.14)' : 'transparent'} />
+              <Library color={color} size={SIZES.icon.md} strokeWidth={focused ? 2.4 : 1.7} fill={focused ? 'rgba(53,214,198,0.14)' : 'transparent'} />
             </TabIcon>
           ),
         }}
@@ -112,10 +124,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    // Opaque: blur does not reliably hide content behind it on Android.
-    backgroundColor: COLORS.surfaceRaised,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.hairline,
+  },
+  tabBarHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: COLORS.accent.border,
   },
   tabBar: {
     position: 'absolute',

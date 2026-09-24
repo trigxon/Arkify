@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Check, Heart, ListMusic, Plus, Download, Trash2, Share2 } from 'lucide-react-native';
+import { Check, Heart, ListMusic, Plus, Download, Trash2, Share } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { Track } from '../../core/types';
@@ -231,7 +231,7 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
               accessibilityLabel="Share track"
             >
               <View style={styles.rowIcon}>
-                <Share2 color={COLORS.text.primary} size={SIZES.icon.sm + 2} />
+                <Share color={COLORS.text.primary} size={SIZES.icon.sm + 2} />
               </View>
               <Text style={styles.rowLabel}>Share</Text>
             </TouchableOpacity>
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: '#04211D',
+    color: 'COLORS.text.dark',
   },
   disabled: {
     opacity: 0.4,

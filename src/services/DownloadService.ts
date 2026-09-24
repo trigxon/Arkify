@@ -4,10 +4,12 @@ import * as Sharing from 'expo-sharing';
 import { Share } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Track } from '../core/types';
+import { DOWNLOADS_STORAGE_KEY, ensureMigrated } from '../core/storage';
 import { MusicService } from './MusicService';
 
-const STORAGE_KEY = 'audia:v1:downloads';
-const DOWNLOAD_DIR = 'audia_downloads';
+/** Index key used before the Arkify rename; read once, then migrated away. */
+const LEGACY_STORAGE_KEY = 'audia:v1:downloads';
+const DOWNLOAD_DIR = 'arkify_downloads';
 
 type DownloadedMeta = {
   id: string;
@@ -40,7 +42,17 @@ async function ensureDir(): Promise<string> {
 
 async function loadIndex(): Promise<DownloadedMeta[]> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    await ensureMigrated();
+    let raw = await AsyncStorage.getItem(DOWNLOADS_STORAGE_KEY);
+    if (raw == null) {
+      // Pre-rename index: adopt it so existing downloads stay listed. The
+      // downloaded files themselves keep their absolute URIs and still play.
+      raw = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+      if (raw != null) {
+        await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, raw);
+        await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
+    }
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -51,7 +63,7 @@ async function loadIndex(): Promise<DownloadedMeta[]> {
 
 async function saveIndex(list: DownloadedMeta[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(list));
   } catch {}
 }
 

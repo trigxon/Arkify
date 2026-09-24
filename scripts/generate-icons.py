@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate every Audia logo/favicon asset from one source image.
+Generate every Arkify logo/favicon asset from one source image.
 
 Dev tool (not part of the app runtime). Requires Pillow:  pip3 install pillow
 

@@ -8,14 +8,54 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * several times a second and must never turn into a storage write storm.
  */
 
-const PREFIX = 'audia:v1:';
+const PREFIX = 'arkify:v1:';
 const key = (k: string) => PREFIX + k;
+
+/**
+ * Namespace used before the Arkify rename. Entries written under it are copied
+ * into the Arkify namespace once and then removed, so an install that updates
+ * in place keeps its liked songs, playlists, queue, history and playback
+ * position. Arkify is canonical: nothing writes to the old namespace again.
+ */
+const LEGACY_PREFIX = 'audia:v1:';
+
+/** Full key (namespace included) of the offline download index. */
+export const DOWNLOADS_STORAGE_KEY = PREFIX + 'downloads';
+
+let migration: Promise<void> | null = null;
+
+/** Run the rename migration at most once per session. */
+export function ensureMigrated(): Promise<void> {
+  if (!migration) migration = migrateLegacyEntries();
+  return migration;
+}
+
+async function migrateLegacyEntries(): Promise<void> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const legacy = keys.filter((k) => k.startsWith(LEGACY_PREFIX));
+
+    for (const legacyKey of legacy) {
+      const target = PREFIX + legacyKey.slice(LEGACY_PREFIX.length);
+      const raw = await AsyncStorage.getItem(legacyKey);
+      // Never clobber a value Arkify already wrote -- that one is fresher.
+      if (raw != null && (await AsyncStorage.getItem(target)) == null) {
+        await AsyncStorage.setItem(target, raw);
+      }
+      await AsyncStorage.removeItem(legacyKey);
+    }
+  } catch {
+    // Best-effort: the Arkify namespace stays canonical either way.
+  }
+}
 
 const pending = new Map<string, unknown>();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export async function readJson<T>(k: string, fallback: T): Promise<T> {
   try {
+    await ensureMigrated();
+
     // A debounced write that has not landed yet is still the freshest value.
     if (pending.has(k)) return pending.get(k) as T;
 
@@ -30,6 +70,8 @@ export async function readJson<T>(k: string, fallback: T): Promise<T> {
 
 export async function writeJson(k: string, value: unknown): Promise<void> {
   try {
+    await ensureMigrated();
+
     pending.delete(k);
     await AsyncStorage.setItem(key(k), JSON.stringify(value));
   } catch {

@@ -66,5 +66,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[server] Audia production server listening on port ${PORT}`);
+  console.log(`[server] Arkify production server listening on port ${PORT}`);
 });

@@ -1,12 +1,12 @@
-import AudiaNativeModule from './src/AudiaNativeModule';
-import { NativeStreamResult, PlatformInfo } from './src/AudiaNative.types';
+import ArkifyNativeModule from './src/ArkifyNativeModule';
+import { NativeStreamResult, PlatformInfo } from './src/ArkifyNative.types';
 
-export * from './src/AudiaNative.types';
-export { default as AudiaNativeModule } from './src/AudiaNativeModule';
+export * from './src/ArkifyNative.types';
+export { default as ArkifyNativeModule } from './src/ArkifyNativeModule';
 
-/** True when this binary actually contains the Audia native module. */
-export function isAudiaNativeAvailable(): boolean {
-  return AudiaNativeModule != null;
+/** True when this binary actually contains the Arkify native module. */
+export function isArkifyNativeAvailable(): boolean {
+  return ArkifyNativeModule != null;
 }
 
 /**
@@ -14,7 +14,7 @@ export function isAudiaNativeAvailable(): boolean {
  * Returns null instead of throwing when the native module is absent.
  */
 export function getPlatformInfo(): PlatformInfo | null {
-  return AudiaNativeModule?.getPlatformInfo() ?? null;
+  return ArkifyNativeModule?.getPlatformInfo() ?? null;
 }
 
 /**
@@ -27,12 +27,12 @@ export function getPlatformInfo(): PlatformInfo | null {
 export async function resolveYouTubeStream(
   videoId: string
 ): Promise<NativeStreamResult> {
-  const module = AudiaNativeModule;
+  const module = ArkifyNativeModule;
   if (!module) {
     return {
       ok: false,
       reason: 'module_unavailable',
-      message: 'AudiaNative is not present in this binary',
+      message: 'ArkifyNative is not present in this binary',
     };
   }
 

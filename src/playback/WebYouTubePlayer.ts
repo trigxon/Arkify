@@ -13,8 +13,8 @@ export class WebYouTubePlayer {
   private player: any = null;
   private isApiLoaded = false;
   private isPlayerReady = false;
-  private containerId = 'audia-yt-player-container';
-  private frameId = 'audia-yt-frame';
+  private containerId = 'arkify-yt-player-container';
+  private frameId = 'arkify-yt-frame';
 
   private currentTrack: Track | null = null;
   private desiredVolume = 1;

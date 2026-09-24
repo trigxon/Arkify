@@ -4,10 +4,10 @@ import * as IntentLauncher from 'expo-intent-launcher';
 /**
  * Voice search, using the device's own speech recogniser.
  *
- * Android exposes speech recognition as an activity, so Audia can hand the
+ * Android exposes speech recognition as an activity, so Arkify can hand the
  * user's words to the recogniser that already ships with the phone and read
  * the transcript back — no third-party service, no API key, no recording
- * stored by Audia, and no microphone permission required by our own manifest.
+ * stored by Arkify, and no microphone permission required by our own manifest.
  *
  * Returns the recognised query, or null when the user cancelled, nothing was
  * heard, or the device has no recogniser installed.
@@ -21,7 +21,7 @@ export async function listenForQuery(): Promise<string | null> {
     const result = await IntentLauncher.startActivityAsync(RECOGNIZE_SPEECH, {
       extra: {
         'android.speech.extra.LANGUAGE_MODEL': 'free_form',
-        'android.speech.extra.PROMPT': 'Search Audia',
+        'android.speech.extra.PROMPT': 'Search Arkify',
         'android.speech.extra.MAX_RESULTS': 1,
       },
     });

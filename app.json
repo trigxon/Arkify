@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Audia",
-    "slug": "Audia",
+    "name": "Arkify",
+    "slug": "Arkify",
     "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -30,7 +30,7 @@
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
-      "package": "com.trigxon.audia"
+      "package": "com.trigxon.arkify"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -47,8 +47,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/brand-mark.png",
+          "imageWidth": 208,
           "resizeMode": "contain",
           "backgroundColor": "#060808"
         }

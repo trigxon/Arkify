@@ -1,10 +1,10 @@
 /**
- * Audia design system.
+ * Arkify design system — "Nocturne Cyan".
  *
- * Dark-first, cinematic, quiet-chrome: deep blacks for the foundation, a
- * single restrained accent for interaction and playback state, and artwork as
- * the visual star. Every screen reads from here — nothing hard-codes colors,
- * sizes or type outside this file's scale.
+ * Tokens are locked to the product spec: near-black cinematic surfaces
+ * (#0C0F0F / #121414 / #161A1A), one restrained cyan (#35D6C6) reserved for
+ * interaction and playback state, and a three-step neutral text scale.
+ * Every screen reads from here — nothing hard-codes colors outside this file.
  */
 
 // ---------------------------------------------------------------------------
@@ -12,73 +12,78 @@
 // ---------------------------------------------------------------------------
 
 export const COLORS = {
-  /** App background: deepest cinematic obsidian teal. */
-  background: '#05080A',
-  /** Flat cards, list backdrops, and containers. */
-  surface: '#0B1316',
-  /** Elevated cards, inputs, thumbnails, action rows. */
-  surfaceElevated: '#0F1A1D',
+  /** Global canvas background. */
+  background: '#0C0F0F',
+  /** Primary viewports, header backings, dock surfaces. */
+  surface: '#121414',
+  /** Interactive cards, tiles, bottom sheets, search inputs. */
+  surfaceElevated: '#161A1A',
   /** Floating bars over scrolling content (tab bar, mini player, sheets). */
-  surfaceRaised: '#0C1619',
+  surfaceRaised: '#121414',
   /** Pressed state for surfaces. */
-  surfacePressed: '#142226',
-  /** Subtle surface card background for high contrast. */
-  surfaceCard: '#0D171A',
+  surfacePressed: '#1A1C1C',
+  /** Hover/resting variant between surface and elevated. */
+  surfaceCard: '#121414',
   /** Legacy alias. */
-  surfaceLight: '#0F1A1D',
+  surfaceLight: '#161A1A',
 
   text: {
     primary: '#FFFFFF',
-    secondary: '#94A3B8',
-    muted: '#5A6C74',
-    dark: '#041014',
+    /** Artist names, greetings, inactive tab labels. */
+    secondary: '#8E9E9D',
+    /** Chip/label tone: brighter than secondary, softer than pure white. */
+    soft: '#B8C4C3',
+    /** Secondary timestamps, disabled glyphs, subtle metadata. */
+    muted: '#546362',
+    /** Ink used on filled cyan surfaces. */
+    dark: '#0C0F0F',
   },
 
   /**
-   * Audia signature electric cyan / turquoise accent.
-   * High vibrance, glowing halo, dark text on filled surfaces.
+   * Nocturne Cyan — applied with strict intentionality: active states,
+   * interactive controls, playback state, scrubbers, halos.
    */
   accent: {
-    primary: '#18E5D5',
-    bright: '#00E5FF',
-    pressed: '#14C5B7',
-    glow: 'rgba(24, 229, 213, 0.28)',
-    soft: 'rgba(24, 229, 213, 0.10)',
-    ring: '#18E5D5',
-    border: 'rgba(24, 229, 213, 0.35)',
+    primary: '#35D6C6',
+    bright: '#35D6C6',
+    pressed: '#2BC4B4',
+    glow: 'rgba(53, 214, 198, 0.45)',
+    soft: 'rgba(53, 214, 198, 0.12)',
+    ring: '#35D6C6',
+    border: 'rgba(53, 214, 198, 0.22)',
     // Legacy aliases
-    green: '#18E5D5',
-    greenGlow: 'rgba(24, 229, 213, 0.28)',
-    red: '#FF5252',
-    redGlow: 'rgba(255, 82, 82, 0.20)',
+    green: '#35D6C6',
+    greenGlow: 'rgba(53, 214, 198, 0.45)',
+    red: '#EF4444',
+    redGlow: 'rgba(239, 68, 68, 0.20)',
   },
 
   /** Semantic status colors. */
   status: {
     success: '#10B981',
     warning: '#F59E0B',
-    error: '#FF5252',
-    errorGlow: 'rgba(255, 82, 82, 0.20)',
+    error: '#EF4444',
+    errorGlow: 'rgba(239, 68, 68, 0.20)',
   },
 
   /** Borders, hairlines and atmospheric scrims. */
-  hairline: 'rgba(24, 229, 213, 0.12)',
+  hairline: 'rgba(255, 255, 255, 0.05)',
   hairlineMuted: 'rgba(255, 255, 255, 0.08)',
-  divider: 'rgba(255, 255, 255, 0.06)',
-  glassBorder: 'rgba(24, 229, 213, 0.22)',
-  glass: 'rgba(15, 26, 29, 0.75)',
-  scrim: 'rgba(0, 0, 0, 0.72)',
+  divider: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(53, 214, 198, 0.22)',
+  glass: 'rgba(18, 20, 20, 0.85)',
+  scrim: 'rgba(0, 0, 0, 0.60)',
 
   player: {
-    progressTrack: 'rgba(255, 255, 255, 0.12)',
-    progressFill: '#18E5D5',
+    progressTrack: 'rgba(255, 255, 255, 0.10)',
+    progressFill: '#35D6C6',
     progressFillLegacy: '#FFFFFF',
   },
 
   atmosphere: {
-    soft: 'rgba(24, 229, 213, 0.06)',
-    medium: 'rgba(24, 229, 213, 0.12)',
-    glow: 'rgba(24, 229, 213, 0.20)',
+    soft: 'rgba(53, 214, 198, 0.06)',
+    medium: 'rgba(53, 214, 198, 0.12)',
+    glow: 'rgba(53, 214, 198, 0.22)',
   },
 } as const;
 

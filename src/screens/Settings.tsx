@@ -34,14 +34,14 @@ const GENDERS: { value: Gender; label: string }[] = [
   { value: 'unspecified', label: 'Prefer not to say' },
 ];
 
-const REPO_URL = 'https://github.com/trigxon/Audia';
+const REPO_URL = 'https://github.com/trigxon/Arkify';
 const GPL_URL = 'https://www.gnu.org/licenses/gpl-3.0.en.html';
 const NEWPIPE_URL = 'https://github.com/TeamNewPipe/NewPipeExtractor';
 
 /**
  * Settings, profile and the legal notices.
  *
- * Audia is GPL-3.0-or-later because it links the NewPipe Extractor, and that
+ * Arkify is GPL-3.0-or-later because it links the NewPipe Extractor, and that
  * licence expects the terms and the upstream attribution to be discoverable
  * from the app itself rather than only in the repository. This screen is where
  * they live — the licence card collapses to a summary and expands to the full
@@ -180,7 +180,7 @@ export default function SettingsScreen() {
         <View style={[styles.card, styles.statsCard]}>
           <Stat Icon={Heart} value={liked.length} label="Liked" />
           <Stat Icon={Music2} value={playlists.length} label="Playlists" />
-          <Stat Icon={Headphones} value={history.length} label="Listens" />
+          <Stat Icon={Headphones} value={history.length} label="Listen" />
         </View>
 
         {/* ---- About ---- */}
@@ -204,7 +204,7 @@ export default function SettingsScreen() {
           accessibilityState={{ expanded: licenceExpanded }}
         >
           <View style={styles.licenceHeader}>
-            <Text style={styles.legalTitle}>Audia</Text>
+            <Text style={styles.legalTitle}>Arkify</Text>
             <ChevronDown
               color={COLORS.text.muted}
               size={SIZES.icon.sm}
@@ -228,8 +228,8 @@ export default function SettingsScreen() {
           <Text style={styles.legalTitle}>NewPipe Extractor</Text>
           <Text style={styles.legalBody}>
             Copyright © Team NewPipe and contributors, licensed GPL-3.0-or-later.{'\n\n'}
-            Audia uses it, unmodified, to resolve playable audio. No NewPipe source is included in
-            this app, and linking it is why Audia carries the same licence.
+            Arkify uses it, unmodified, to resolve playable audio. No NewPipe source is included in
+            this app, and linking it is why Arkify carries the same licence.
           </Text>
           <LinkRow label="NewPipeExtractor on GitHub" onPress={() => open(NEWPIPE_URL)} />
         </View>
@@ -333,9 +333,9 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(61, 214, 195, 0.06)',
+    backgroundColor: 'rgba(53, 214, 198, 0.06)',
     borderWidth: 1.5,
-    borderColor: 'rgba(61, 214, 195, 0.55)',
+    borderColor: 'rgba(53, 214, 198, 0.55)',
   },
   avatarInitial: {
     fontFamily: FONTS.medium,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   pillTextActive: {
-    color: '#04211D',
+    color: 'COLORS.text.dark',
   },
   statsCard: {
     flexDirection: 'row',

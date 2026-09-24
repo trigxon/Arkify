@@ -1,6 +1,6 @@
 <div align="center">
 
-# Audia
+# Arkify
 
 **A music player for Android. Search, queue, and play — with the screen off.**
 
@@ -8,7 +8,7 @@ No account. No ads. No backend. No tracking.
 
 [![License: GPL v3 or later](https://img.shields.io/badge/License-GPLv3%2B-blue.svg)](LICENSE)
 [![Platform: Android](https://img.shields.io/badge/Platform-Android-3DDC84.svg)](#download)
-[![Release](https://img.shields.io/github/v/release/trigxon/Audia?include_prereleases)](https://github.com/trigxon/Audia/releases/latest)
+[![Release](https://img.shields.io/github/v/release/trigxon/Arkify?include_prereleases)](https://github.com/trigxon/Arkify/releases/latest)
 
 </div>
 
@@ -16,8 +16,8 @@ No account. No ads. No backend. No tracking.
 
 <div align="center">
 
-<a href="https://github.com/trigxon/Audia/releases/latest">
-  <img src="docs/preview.jpg" alt="Audia — search, queue, and play with the screen off" width="820">
+<a href="https://github.com/trigxon/Arkify/releases/latest">
+  <img src="docs/preview.jpg" alt="Arkify — search, queue, and play with the screen off" width="820">
 </a>
 
 <!-- To replace this still with the inline showcase video:
@@ -34,12 +34,12 @@ No account. No ads. No backend. No tracking.
 
 ## What it is
 
-Audia is a free, open-source music player. You search for a song, tap it, and it plays —
+Arkify is a free, open-source music player. You search for a song, tap it, and it plays —
 including in the background, with the screen locked, using your phone's normal lock-screen
 media controls.
 
 Everything you build up — liked songs, playlists, history, queue — is stored **on your
-device only**. There is no Audia account, no Audia server, and nothing is sent anywhere
+device only**. There is no Arkify account, no Arkify server, and nothing is sent anywhere
 except the requests needed to search for and stream the audio you asked for.
 
 ## Features
@@ -55,25 +55,25 @@ except the requests needed to search for and stream the audio you asked for.
 
 ## Download
 
-Grab the signed APK from the **[latest release](https://github.com/trigxon/Audia/releases/latest)**:
+Grab the signed APK from the **[latest release](https://github.com/trigxon/Arkify/releases/latest)**:
 
-**[⬇ Download Audia-v1.1.0.apk](https://github.com/trigxon/Audia/releases/latest/download/Audia-v1.1.0.apk)**
+**[⬇ Download Arkify-v1.2.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v1.2.0.apk)**
 
 Verify it before installing:
 
 ```
-SHA-256  168bb5e985caec8749179acd30f4e6df828005623f839a5f7b617bb12a0f61b6
+SHA-256  1e60f9be884ac7a50364b8352494c03f5724e10d78eebe037e7a1699d247f9bf
 ```
 
 ```bash
 # Linux / macOS
-sha256sum Audia-v1.0.0.apk
+sha256sum Arkify-v1.2.0.apk
 
 # Windows (PowerShell)
-Get-FileHash Audia-v1.0.0.apk -Algorithm SHA256
+Get-FileHash Arkify-v1.2.0.apk -Algorithm SHA256
 ```
 
-Audia is **not distributed through Google Play**, so you install it by sideloading. Android
+Arkify is **not distributed through Google Play**, so you install it by sideloading. Android
 will warn you about installing from an unknown source — that warning is expected for any
 APK obtained outside the Play Store. Only install a build whose checksum matches the one
 published above, or one you compiled yourself from this repository.
@@ -115,8 +115,8 @@ You do not have to trust the published APK — you can build your own.
 **Steps**
 
 ```bash
-git clone https://github.com/trigxon/Audia.git
-cd Audia
+git clone https://github.com/trigxon/Arkify.git
+cd Arkify
 npm install
 
 # Generate the native Android project (android/ is not committed)
@@ -156,16 +156,16 @@ methods — nothing else in the app changes.
 
 # Legal
 
-Please read this section before using, building, or redistributing Audia.
+Please read this section before using, building, or redistributing Arkify.
 
 ## License
 
-**Audia is licensed under the GNU General Public License, version 3 or (at your option) any
+**Arkify is licensed under the GNU General Public License, version 3 or (at your option) any
 later version (GPL-3.0-or-later).** The full license text is in [`LICENSE`](LICENSE); the
 project copyright notice is in [`COPYRIGHT`](COPYRIGHT).
 
 ```
-Audia — a music player for Android
+Arkify — a music player for Android
 Copyright (C) 2026 ARK DURRANI (PATHAN)
 
 This program is free software: you can redistribute it and/or modify it under the
@@ -175,9 +175,9 @@ either version 3 of the License, or (at your option) any later version.
 
 ### Why GPL and not a permissive license
 
-Audia links the **NewPipe Extractor**, which is GPL-3.0-or-later. GPL is a copyleft
+Arkify links the **NewPipe Extractor**, which is GPL-3.0-or-later. GPL is a copyleft
 license, so any distributed work that combines with it must be released under the same
-terms. Audia is therefore GPL-3.0-or-later. This is not optional and not a preference — it
+terms. Arkify is therefore GPL-3.0-or-later. This is not optional and not a preference — it
 is the licensing consequence of the dependency.
 
 An earlier revision of this repository carried an MIT `LICENSE` inherited from the Expo
@@ -185,21 +185,21 @@ project template. That text did not describe the combined work and has been repl
 
 ### What the license means for you
 
-You may **use, study, modify, and redistribute** Audia, including commercially. In exchange,
-if you distribute Audia or any derivative of it — modified or not, as source or as an APK —
+You may **use, study, modify, and redistribute** Arkify, including commercially. In exchange,
+if you distribute Arkify or any derivative of it — modified or not, as source or as an APK —
 you must:
 
 1. License the whole work under GPL-3.0-or-later,
 2. Provide or offer the **complete corresponding source code**, including your changes, and
 3. Preserve the copyright notices and this license information.
 
-You may **not** relicense Audia or any derivative under a permissive or proprietary license,
+You may **not** relicense Arkify or any derivative under a permissive or proprietary license,
 and you may not distribute a binary without making the matching source available.
 
 ### Source code availability
 
 This repository **is** the complete corresponding source for the released APK, as required
-by GPL-3.0-or-later §3 and §6. If you received an Audia binary from anywhere else and cannot
+by GPL-3.0-or-later §3 and §6. If you received an Arkify binary from anywhere else and cannot
 obtain its source, that redistribution is not compliant with the license.
 
 ## Warranty disclaimer
@@ -210,7 +210,7 @@ As stated in sections 15 and 16 of the GPL:
 > WARRANTY**; without even the implied warranty of **MERCHANTABILITY** or **FITNESS FOR A
 > PARTICULAR PURPOSE**. See the GNU General Public License for more details.
 
-You use Audia entirely at your own risk. The author accepts no liability for any damages
+You use Arkify entirely at your own risk. The author accepts no liability for any damages
 arising from its use.
 
 ## Third-party components
@@ -230,21 +230,21 @@ The NewPipe **application** is not used or bundled — only the extractor librar
 
 ## No affiliation or endorsement
 
-- Audia is **not affiliated with, authorised by, endorsed by, or sponsored by Google LLC,
+- Arkify is **not affiliated with, authorised by, endorsed by, or sponsored by Google LLC,
   YouTube, or any of their subsidiaries.** "YouTube" and "Google" are trademarks of
   Google LLC. They are referred to here only to describe what the software does
   (nominative use); no claim is made to those marks.
-- Audia is **not affiliated with Team NewPipe.** NewPipe Extractor is used as an
+- Arkify is **not affiliated with Team NewPipe.** NewPipe Extractor is used as an
   independent, unmodified library under its own license, and its authors have no
   involvement in this project.
-- Audia is an independent project maintained by **ARK DURRANI (PATHAN)** (trigxon).
+- Arkify is an independent project maintained by **ARK DURRANI (PATHAN)** (trigxon).
 
 ## No content is hosted or distributed
 
-**Audia does not host, store, upload, cache for redistribution, or provide any music, audio,
+**Arkify does not host, store, upload, cache for redistribution, or provide any music, audio,
 video, or other copyrighted content.** It contains no media library of its own.
 
-Audia is a client. It performs the same kind of requests a browser performs, on your device,
+Arkify is a client. It performs the same kind of requests a browser performs, on your device,
 at your direction, and plays the result back to you. All content remains with its original
 host and its rights holders. No content passes through any infrastructure operated by the
 author.
@@ -254,13 +254,13 @@ author.
 Accessing a third-party service through an unofficial client **may conflict with that
 service's terms of service**, and those terms are a matter between you and that service.
 
-By using Audia you accept that:
+By using Arkify you accept that:
 
 - You are solely responsible for how you use it, and for complying with the terms of
   service of any platform you access through it, as well as with the copyright law and any
   other laws that apply where you live.
 - The author does not encourage or condone copyright infringement.
-- Audia is published as **free software for personal, educational, and interoperability
+- Arkify is published as **free software for personal, educational, and interoperability
   purposes**, and is provided as-is with no warranty of any kind.
 
 If you are unsure whether your intended use is lawful in your jurisdiction, seek your own
@@ -268,12 +268,12 @@ legal advice. Nothing in this document is legal advice.
 
 ## Privacy
 
-Audia has no account system, no analytics, no telemetry, no crash reporting, and no server
+Arkify has no account system, no analytics, no telemetry, no crash reporting, and no server
 operated by the author.
 
 Liked songs, playlists, history, queue, playback position, and settings are written to your
 device's local storage and never leave it. Uninstalling the app removes them. The only
-network requests Audia makes are those required to fulfil a search or play a track you
+network requests Arkify makes are those required to fulfil a search or play a track you
 selected.
 
 ## DMCA and contact

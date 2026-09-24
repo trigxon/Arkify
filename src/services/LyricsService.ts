@@ -22,12 +22,12 @@ export interface LyricsProvider {
 const TTL = 24 * 60 * 60 * 1000;
 
 /**
- * Built-in Roman English Lyrics Provider powered by Audia AI & synced databases.
+ * Built-in Roman English Lyrics Provider powered by Arkify AI & synced databases.
  * Automatically romanizes any song (Punjabi, Hindi, Urdu, K-Pop, Japanese, Spanish, etc.)
  * into clear Roman English phonetic script.
  */
 class RomanEnglishLyricsProvider implements LyricsProvider {
-  readonly id = 'audia-roman-lyrics';
+  readonly id = 'arkify-roman-lyrics';
 
   async fetch(track: Track, signal?: AbortSignal): Promise<Lyrics | null> {
     try {
@@ -59,7 +59,7 @@ class RomanEnglishLyricsProvider implements LyricsProvider {
         trackId: track.id,
         lines: data.lines,
         synced: data.synced ?? true,
-        source: data.source || 'Roman English (Audia AI)',
+        source: data.source || 'Roman English (Arkify AI)',
       };
     } catch {
       return null;
@@ -79,7 +79,7 @@ class LyricsServiceImpl {
   }
 
   get providerName(): string | null {
-    return this.provider?.id ?? 'audia-roman-lyrics';
+    return this.provider?.id ?? 'arkify-roman-lyrics';
   }
 
   /** Returns Roman English lyrics for any given track. */

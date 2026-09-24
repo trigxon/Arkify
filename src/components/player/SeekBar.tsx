@@ -202,22 +202,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent.primary,
     borderRadius: 2,
   },
+  /** Light thumb inside an accent ring, per the reference. */
   dot: {
     position: 'absolute',
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: COLORS.accent.primary,
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
+    borderColor: COLORS.accent.ring,
     marginLeft: -7,
   },
   /** Slight grow while dragging, so the thumb reads as grabbed. */
   dotActive: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    marginLeft: -10,
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    marginLeft: -8.5,
   },
   timeRow: {
     flexDirection: 'row',

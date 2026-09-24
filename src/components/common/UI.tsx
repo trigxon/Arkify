@@ -117,7 +117,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <Text
           style={[
             styles.stateActionLabel,
-            accentAction ? { color: COLORS.text.dark, fontWeight: '600' } : null,
+            accentAction ? { color: COLORS.accent.primary } : null,
           ]}
         >
           {actionLabel}
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 2,
-    borderColor: 'rgba(24, 229, 213, 0.40)',
-    backgroundColor: 'rgba(24, 229, 213, 0.10)',
+    borderColor: 'rgba(53, 214, 198, 0.40)',
+    backgroundColor: 'rgba(53, 214, 198, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SIZES.md + 2,
@@ -251,15 +251,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** Solid accent pill, per the reference empty states. */
+  /** Outlined accent pill, per the reference empty states (Explore Music). */
   stateActionAccent: {
-    backgroundColor: COLORS.accent.primary,
-    borderWidth: 0,
-    shadowColor: COLORS.accent.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: COLORS.accent.border,
   },
   stateActionLabel: {
     fontFamily: FONTS.medium,

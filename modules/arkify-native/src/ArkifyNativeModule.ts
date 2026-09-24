@@ -1,8 +1,8 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 
-import { NativeStreamResult, PlatformInfo } from './AudiaNative.types';
+import { NativeStreamResult, PlatformInfo } from './ArkifyNative.types';
 
-declare class AudiaNativeModule extends NativeModule<{}> {
+declare class ArkifyNativeModule extends NativeModule<{}> {
   getPlatformInfo(): PlatformInfo;
   resolveYouTubeStream(videoId: string): Promise<NativeStreamResult>;
 }
@@ -12,4 +12,4 @@ declare class AudiaNativeModule extends NativeModule<{}> {
  * development build made before this module existed. Callers must handle that,
  * which is why `index.ts` exposes the guarded helpers instead.
  */
-export default requireOptionalNativeModule<AudiaNativeModule>('AudiaNative');
+export default requireOptionalNativeModule<ArkifyNativeModule>('ArkifyNative');

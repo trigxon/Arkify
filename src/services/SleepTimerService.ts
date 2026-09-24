@@ -16,7 +16,7 @@ class SleepTimerServiceImpl {
   private fireCallback: (() => void) | null = null;
 
   /**
-   * @param fire Called when the timer elapses. Audia passes its own
+   * @param fire Called when the timer elapses. Arkify passes its own
    *             togglePlayPause so the pause goes through the app's normal
    *             pause path.
    */

@@ -112,7 +112,7 @@ async function fetchFromLrclib(title, artist, duration) {
     try {
       const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`, {
         signal: AbortSignal.timeout(3500),
-        headers: { 'User-Agent': 'AudiaMusic/1.2.0 (contact@audiamusic.internal)' },
+        headers: { 'User-Agent': 'ArkifyMusic/1.2.0 (contact@arkifymusic.internal)' },
       });
       if (!res.ok) continue;
 
@@ -152,7 +152,7 @@ async function fetchFromLrclib(title, artist, duration) {
     const directUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanedTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`;
     const res = await fetch(directUrl, {
       signal: AbortSignal.timeout(3000),
-      headers: { 'User-Agent': 'AudiaMusic/1.2.0' },
+      headers: { 'User-Agent': 'ArkifyMusic/1.2.0' },
     });
     if (res.ok) {
       const hit = await res.json();

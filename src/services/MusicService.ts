@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import { DOWNLOADS_STORAGE_KEY, ensureMigrated } from '../core/storage';
 import { metadataCache } from '../core/cache';
 import { appError, toAppError } from '../core/errors';
 import {
@@ -140,7 +141,8 @@ class MusicServiceImpl {
     // audioUrl around.
     if (Platform.OS !== 'web') {
       try {
-        const raw = await AsyncStorage.getItem('audia:v1:downloads');
+        await ensureMigrated();
+        const raw = await AsyncStorage.getItem(DOWNLOADS_STORAGE_KEY);
         if (raw) {
           const list = JSON.parse(raw) as { id: string; fileUri: string }[];
           const hit = list.find((e) => e.id === track.id);

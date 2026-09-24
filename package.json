@@ -1,5 +1,5 @@
 {
-  "name": "audia",
+  "name": "arkify",
   "version": "1.3.0",
   "main": "index.ts",
   "dependencies": {
@@ -51,6 +51,6 @@
   "private": true,
   "license": "GPL-3.0-or-later",
   "author": "ARK DURRANI (PATHAN) <5073340abdulrehmankhandurrani@gmail.com>",
-  "homepage": "https://github.com/trigxon/Audia#readme",
-  "bugs": "https://github.com/trigxon/Audia/issues"
+  "homepage": "https://github.com/trigxon/Arkify#readme",
+  "bugs": "https://github.com/trigxon/Arkify/issues"
 }

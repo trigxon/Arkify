@@ -6,6 +6,7 @@ import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { AmbientGlow } from '../components/common/AmbientGlow';
 import { EmptyState } from '../components/common/UI';
 import { History } from 'lucide-react-native';
 import { Track } from '../core/types';
@@ -105,6 +106,8 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
+      <AmbientGlow />
+
       <View style={[styles.header, { paddingTop: insets.top + SIZES.lg }]}>
         <Text style={styles.title}>History</Text>
         {history.length > 0 && (
@@ -130,6 +133,7 @@ export default function HistoryScreen() {
             actionLabel="Explore Music"
             onAction={() => navigation.navigate('HomeTab' as never)}
             accentAction
+            style={styles.emptyCard}
           />
         </View>
       ) : (
@@ -201,7 +205,9 @@ const styles = StyleSheet.create({
   },
   emptyWrap: {
     paddingHorizontal: SIZES.gutter,
-    flex: 1,
-    justifyContent: 'center',
+  },
+  /** The reference's empty card: generous vertical air, sits under the title. */
+  emptyCard: {
+    paddingVertical: SIZES.xxl,
   },
 });

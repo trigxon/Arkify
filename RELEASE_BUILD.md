@@ -1,6 +1,6 @@
-# Audia — Release Build Guide
+# Arkify — Release Build Guide
 
-How to produce, sign, verify and publish a production Audia APK.
+How to produce, sign, verify and publish a production Arkify APK.
 
 **Golden rules**
 
@@ -33,18 +33,18 @@ Credentials are resolved **in this order**, first match wins:
 1. **Environment variables**
 
    ```bash
-   export AUDIA_STORE_FILE=/absolute/path/audia-release.keystore
-   export AUDIA_STORE_PASSWORD='***'
-   export AUDIA_KEY_ALIAS=audia
-   export AUDIA_KEY_PASSWORD='***'
+   export ARKIFY_STORE_FILE=/absolute/path/arkify-release.keystore
+   export ARKIFY_STORE_PASSWORD='***'
+   export ARKIFY_KEY_ALIAS=arkify
+   export ARKIFY_KEY_PASSWORD='***'
    ```
 
 2. **`keystore.properties`** (project root, gitignored)
 
    ```properties
-   storeFile=/absolute/path/audia-release.keystore
+   storeFile=/absolute/path/arkify-release.keystore
    storePassword=***
-   keyAlias=audia
+   keyAlias=arkify
    keyPassword=***
    ```
 
@@ -52,9 +52,9 @@ Credentials are resolved **in this order**, first match wins:
 
    ```json
    {
-     "keystorePath": "credentials/audia-release.keystore",
+     "keystorePath": "credentials/arkify-release.keystore",
      "storePassword": "***",
-     "keyAlias": "audia",
+     "keyAlias": "arkify",
      "keyPassword": "***"
    }
    ```
@@ -64,7 +64,9 @@ a fresh clone never fails on missing secrets.
 
 > **Existing key:** a keystore is already in use for published builds
 > (CI-generated, `CN=ARK DURRANI (PATHAN), OU=trigxon`, cached under the
-> GitHub Actions cache key `audia-signing-keystore-v1`). Do **not** generate
+> GitHub Actions cache key `audia-signing-keystore-v1`, kept under its original
+> name on purpose — the name is what restores the existing key material).
+> Do **not** generate
 > a new one for an update release: Android treats a different key as a
 > different app. Only generate a fresh key for a deliberate new identity
 > (see §7).
@@ -72,7 +74,7 @@ a fresh clone never fails on missing secrets.
 > CI generates that keystore's password with `openssl rand` at creation time
 > and stores it only in the cached `credentials/keystore.json` — no password
 > appears anywhere in the repository. If you build locally and want the
-> **same signing identity** as CI, export the four `AUDIA_*` variables with
+> **same signing identity** as CI, export the four `ARKIFY_*` variables with
 > a copy of that keystore and its password (kept outside Git).
 
 ---
@@ -83,8 +85,8 @@ Run this **once**, keep the output for the life of the app:
 
 ```bash
 keytool -genkeypair -v \
-  -keystore audia-release.keystore -storetype PKCS12 \
-  -alias audia -keyalg RSA -keysize 2048 -validity 10950 \
+  -keystore arkify-release.keystore -storetype PKCS12 \
+  -alias arkify -keyalg RSA -keysize 2048 -validity 10950 \
   -storepass 'YOUR_STRONG_STORE_PASSWORD' \
   -keypass  'YOUR_STRONG_KEY_PASSWORD' \
   -dname "CN=ARK DURRANI, OU=trigxon, O=trigxon, C=IN"
@@ -93,14 +95,14 @@ keytool -genkeypair -v \
 - `10950` days ≈ 30 years (Android's recommended maximum).
 - PKCS12 keys can be moved between machines/toolchains.
 - Then point one of the three credential mechanisms above at
-  `/absolute/path/audia-release.keystore`.
+  `/absolute/path/arkify-release.keystore`.
 - Back the file + passwords up (encrypted USB / password manager).
 
 ## 3. Build a release APK
 
 ```bash
-git clone https://github.com/trigxon/Audia.git
-cd Audia
+git clone https://github.com/trigxon/Arkify.git
+cd Arkify
 npm install
 
 # generate android/ with all plugins applied (idempotent)
@@ -121,14 +123,14 @@ android/app/build/outputs/apk/release/app-release.apk
 For distribution, copy it with a versioned name:
 
 ```bash
-cp android/app/build/outputs/apk/release/app-release.apk Audia-v1.1.0.apk
+cp android/app/build/outputs/apk/release/app-release.apk Arkify-v1.3.0.apk
 ```
 
 ## 5. Verify the signature
 
 ```bash
 # apksigner ships with Android build-tools
-apksigner verify --print-certs Audia-v1.1.0.apk
+apksigner verify --print-certs Arkify-v1.3.0.apk
 ```
 
 Expected:
@@ -146,8 +148,8 @@ your build.
 ## 6. Calculate SHA-256
 
 ```bash
-sha256sum Audia-v1.1.0.apk            # Linux / macOS
-Get-FileHash Audia-v1.1.0.apk -Algorithm SHA256   # Windows
+sha256sum Arkify-v1.3.0.apk            # Linux / macOS
+Get-FileHash Arkify-v1.3.0.apk -Algorithm SHA256   # Windows
 ```
 
 Publish the hash next to the APK (GitHub Release + README) so users can

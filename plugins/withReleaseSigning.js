@@ -3,7 +3,7 @@ const fs = require('fs');
 const { withAppBuildGradle, withDangerousMod } = require('expo/config-plugins');
 
 /**
- * Signs release builds with Audia's own keystore instead of the debug key.
+ * Signs release builds with Arkify's own keystore instead of the debug key.
  *
  * The Expo template points the release buildType at signingConfigs.debug.
  * A debug-signed APK installs fine, but the debug key is a well-known shared
@@ -12,16 +12,16 @@ const { withAppBuildGradle, withDangerousMod } = require('expo/config-plugins');
  *
  * Credentials are resolved in this order (first match wins):
  *
- *   1. Environment variables  -- AUDIA_STORE_FILE, AUDIA_STORE_PASSWORD,
- *                                AUDIA_KEY_ALIAS, AUDIA_KEY_PASSWORD
+ *   1. Environment variables  -- ARKIFY_STORE_FILE, ARKIFY_STORE_PASSWORD,
+ *                                ARKIFY_KEY_ALIAS, ARKIFY_KEY_PASSWORD
  *      (recommended for CI secrets and for local one-off builds)
  *
  *   2. keystore.properties at the project root -- a gitignored Java
  *      properties file:
  *
- *        storeFile=/absolute/path/to/audia-release.keystore
+ *        storeFile=/absolute/path/to/arkify-release.keystore
  *        storePassword=...
- *        keyAlias=audia
+ *        keyAlias=arkify
  *        keyPassword=...
  *
  *   3. credentials/keystore.json -- the mechanism CI uses (see
@@ -41,13 +41,13 @@ const { withAppBuildGradle, withDangerousMod } = require('expo/config-plugins');
  */
 
 function fromEnv() {
-  const { AUDIA_STORE_FILE, AUDIA_STORE_PASSWORD, AUDIA_KEY_ALIAS, AUDIA_KEY_PASSWORD } = process.env;
-  if (AUDIA_STORE_FILE && AUDIA_STORE_PASSWORD && AUDIA_KEY_ALIAS && AUDIA_KEY_PASSWORD) {
+  const { ARKIFY_STORE_FILE, ARKIFY_STORE_PASSWORD, ARKIFY_KEY_ALIAS, ARKIFY_KEY_PASSWORD } = process.env;
+  if (ARKIFY_STORE_FILE && ARKIFY_STORE_PASSWORD && ARKIFY_KEY_ALIAS && ARKIFY_KEY_PASSWORD) {
     return {
-      keystorePath: AUDIA_STORE_FILE,
-      storePassword: AUDIA_STORE_PASSWORD,
-      keyAlias: AUDIA_KEY_ALIAS,
-      keyPassword: AUDIA_KEY_PASSWORD,
+      keystorePath: ARKIFY_STORE_FILE,
+      storePassword: ARKIFY_STORE_PASSWORD,
+      keyAlias: ARKIFY_KEY_ALIAS,
+      keyPassword: ARKIFY_KEY_PASSWORD,
       source: 'environment',
     };
   }
@@ -172,7 +172,7 @@ function withSigningConfig(config, credentials) {
     contents = contents.replace(
       releaseAnchor,
       [
-        `            // Signed with Audia's own keystore (via ${credentials.source}).`,
+        `            // Signed with Arkify's own keystore (via ${credentials.source}).`,
         '            signingConfig signingConfigs.release',
       ].join('\n')
     );

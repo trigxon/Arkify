@@ -24,7 +24,7 @@ const KINDS: EndpointKind[] = ['invidious', 'piped', 'custom'];
  *
  * Discovery (search, playlists, metadata) works out of the box. Actually
  * streaming audio goes through whichever authorized endpoint the user points
- * Audia at -- their own, or one they are permitted to use -- which is why this
+ * Arkify at -- their own, or one they are permitted to use -- which is why this
  * is configured here rather than shipped with a hard-coded server.
  */
 export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => void }> = ({
@@ -105,7 +105,7 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
           </View>
 
           <Text style={styles.explainer}>
-            Search and playlists work already. To stream audio, point Audia at a
+            Search and playlists work already. To stream audio, point Arkify at a
             playback service you're authorized to use.
           </Text>
 
@@ -145,9 +145,9 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
               accessibilityLabel="Add source"
             >
               {checking ? (
-                <ActivityIndicator size="small" color="#04211D" />
+                <ActivityIndicator size="small" color="COLORS.text.dark" />
               ) : (
-                <Check color="#04211D" size={SIZES.icon.sm + 2} />
+                <Check color="COLORS.text.dark" size={SIZES.icon.sm + 2} />
               )}
             </TouchableOpacity>
           </View>
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
   },
   kindTextActive: {
-    color: '#04211D',
+    color: 'COLORS.text.dark',
   },
   inputRow: {
     flexDirection: 'row',
