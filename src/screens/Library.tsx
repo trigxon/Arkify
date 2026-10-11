@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, X, Trash2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2, Share } from 'lucide-react-native';
@@ -289,7 +290,7 @@ export default function LibraryScreen() {
                     accessibilityLabel={`Open playlist ${playlist.name}, ${playlist.tracks.length} tracks`}
                   >
                     <LinearGradient
-                      colors={[COLORS.accent.primary, '#127269']}
+                      colors={[COLORS.accent.primary, COLORS.accent.deep]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.rowArtwork}
@@ -331,7 +332,21 @@ export default function LibraryScreen() {
                     <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
                     <TouchableOpacity
                       style={styles.rowAction}
-                      onPress={() => deletePlaylist(playlist.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={() =>
+                        Alert.alert(
+                          'Delete playlist',
+                          `“${playlist.name}” will be removed. Your liked songs and downloads stay.`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: () => deletePlaylist(playlist.id),
+                            },
+                          ]
+                        )
+                      }
                       accessibilityRole="button"
                       accessibilityLabel={`Delete playlist ${playlist.name}`}
                     >
@@ -455,6 +470,7 @@ export default function LibraryScreen() {
                     </View>
                     <TouchableOpacity
                       style={styles.rowAction}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       onPress={async () => { await DownloadService.remove(track.id); await refreshDownloads(); }}
                       accessibilityRole="button"
                       accessibilityLabel={`Remove download ${track.title}`}
@@ -463,6 +479,7 @@ export default function LibraryScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.rowAction}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       onPress={() => DownloadService.shareTrack(track)}
                       accessibilityRole="button"
                       accessibilityLabel={`Share ${track.title}`}

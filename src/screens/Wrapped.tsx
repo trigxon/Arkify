@@ -12,10 +12,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, ChevronRight, Flame, Headphones, Play, Sparkles, Trophy } from 'lucide-react-native';
+import { ArrowLeft, CalendarHeart, ChevronRight, Flame, Headphones, Play, Sparkles, Trophy } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, GRADIENTS, MOOD_PALETTE } from '../constants/theme';
 import { SpringPressable, FadeInUp, GlassView } from '../components/common/Glass';
+import { EmptyState } from '../components/common/UI';
 import { ShareSheet, ShareRequest } from '../components/share/ShareSheet';
 import { computeWrapped, formatHours } from '../engagement/wrapped';
 import { useEngagement } from '../hooks/useEngagement';
@@ -44,6 +45,37 @@ export default function WrappedScreen() {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
     if (idx !== page) setPage(idx);
   };
+
+  // Cold start: no listens this month means the recap would be posters of
+  // zeros — show an inviting empty state instead.
+  if (wrapped.listens === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + SIZES.sm }]}>
+          <SpringPressable
+            style={styles.backBtn}
+            pressScale={0.9}
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <ArrowLeft color={COLORS.text.primary} size={SIZES.icon.md} />
+          </SpringPressable>
+          <Text style={styles.headerTitle}>Wrapped</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <EmptyState
+          Icon={CalendarHeart}
+          title="Your month is still unwritten"
+          hint="Play a few songs and this space fills up with your listening story — top artists, minutes, moods and more."
+          actionLabel="Explore Music"
+          onAction={() => navigation.goBack()}
+          accentAction
+          style={{ marginTop: SIZES.xxl * 2, marginHorizontal: SIZES.gutter }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

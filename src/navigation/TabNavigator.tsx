@@ -47,16 +47,21 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
 
   // The liquid pill: one shared value, interpolated per slot, spring-driven.
   const pillX = useSharedValue(state.index * tabW);
+  // Liquid squish: the pill stretches wide on switch, then springs back —
+  // the same fluid overshoot iOS uses on segmented controls.
+  const squish = useSharedValue(1);
   useEffect(() => {
     pillX.value = withSpring(state.index * tabW, {
       damping: 20,
       stiffness: 320,
       mass: 0.9,
     });
-  }, [state.index, tabW, pillX]);
+    squish.value = 1.09;
+    squish.value = withSpring(1, SPRINGS.release);
+  }, [state.index, tabW, pillX, squish]);
 
   const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: pillX.value }],
+    transform: [{ translateX: pillX.value }, { scaleX: squish.value }],
   }));
 
   const pressTab = (routeName: string, routeKey: string, isFocused: boolean) => {

@@ -93,6 +93,15 @@ export default function HomeScreen() {
 
   const hasRecents = recentlyPlayed.length > 0;
 
+  // Outlive async work: never touch state after the screen is gone.
+  const alive = React.useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    []
+  );
+
   const loadHome = useCallback(async (): Promise<void> => {
     try {
       // Featured card + made-for-you load together; each is independently
@@ -103,37 +112,55 @@ export default function HomeScreen() {
         recommendationEngine.suggestedMood().catch(() => null),
       ]);
 
+      if (!alive.current) return;
       if (featuredRes) setFeatured(featuredRes.tracks);
       setDiscover(discoverRes);
       setSuggestedMood(mood);
       setLoadError(!featuredRes);
     } catch {
-      setLoadError(true);
+      if (alive.current) setLoadError(true);
     } finally {
-      setFeaturedLoading(false);
-      setMixLoading(false);
+      if (alive.current) {
+        setFeaturedLoading(false);
+        setMixLoading(false);
+      }
     }
   }, []);
 
   // On Repeat is derived from history; refresh it whenever the screen mounts.
   useEffect(() => {
     void loadHome();
-    void tasteProfile.load().then(() => {
-      setColdStart(tasteProfile.isColdStart);
-      return recommendationEngine
-        .generateRepeatFavorites()
-        .then((rows) => {
-          setOnRepeat(rows);
-        })
-        .catch(() => undefined)
-        .finally(() => setRepeatLoading(false));
-    });
+    void tasteProfile
+      .load()
+      .catch(() => undefined)
+      .then(() => {
+        if (!alive.current) return;
+        setColdStart(tasteProfile.isColdStart);
+        return recommendationEngine
+          .generateRepeatFavorites()
+          .then((rows) => {
+            if (alive.current) setOnRepeat(rows);
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            if (alive.current) setRepeatLoading(false);
+          });
+      });
   }, [loadHome]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadHome();
-    setRefreshing(false);
+    try {
+      await loadHome();
+      // "On Repeat" is derived from history — pull it too so pull-to-refresh
+      // actually refreshes the whole page.
+      const rows = await recommendationEngine.generateRepeatFavorites();
+      if (alive.current) setOnRepeat(rows);
+    } catch {
+      // loadHome already routes its own failure state.
+    } finally {
+      if (alive.current) setRefreshing(false);
+    }
   }, [loadHome]);
 
   const runAction = useCallback(
@@ -197,7 +224,7 @@ export default function HomeScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`${streak} day streak`}
                   >
-                    <Flame color="#FF8A3D" size={15} fill="rgba(255,138,61,0.3)" />
+                    <Flame color={COLORS.warm.primary} size={15} fill={COLORS.warm.soft} />
                     <Text style={styles.streakCount}>{streak}</Text>
                   </SpringPressable>
                 </FadeInUp>
@@ -574,7 +601,7 @@ const styles = StyleSheet.create({
   streakCount: {
     fontFamily: FONTS.bold,
     fontSize: TYPE.callout.fontSize,
-    color: '#FF8A3D',
+    color: COLORS.warm.primary,
   },
   avatar: {
     width: 46,

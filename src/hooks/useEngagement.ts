@@ -35,7 +35,8 @@ export function useEngagement() {
   const state = engagement.getState();
   const level = levelForXp(state.xp);
   const week = engagement.weekSeconds();
-  const unlocks = engagement.drainUnlocks();
+  // Badge unlocks are delivered live to the toast host via engagement.onUnlock;
+  // draining here would silently swallow them between renders.
 
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
 
@@ -56,7 +57,6 @@ export function useEngagement() {
     badgeDefinitions: BADGES,
     earnedBadges: BADGES.filter((b) => state.badges.includes(b.id)),
     nextBadges: BADGES.filter((b) => !state.badges.includes(b.id)).slice(0, 3),
-    unlocks,
     refresh,
   };
 }

@@ -206,7 +206,6 @@ export default function NowPlayingScreen() {
     error,
     retry,
     seekTo,
-    seekBy,
     next,
     previous,
     shuffle,
@@ -220,7 +219,6 @@ export default function NowPlayingScreen() {
     removeFromQueue,
     reorderUpcomingInQueue,
     clearQueue,
-    canPlayCurrent,
   } = usePlayer();
 
   const { isLiked, toggleLike } = useLibrary();
@@ -248,20 +246,26 @@ export default function NowPlayingScreen() {
 
   const loadLyrics = useCallback(() => {
     if (!currentTrack) return;
+    // Guard: a fast track switch must never land an older track's lyrics.
+    let cancelled = false;
     setLyrics(null);
     setLyricsLoading(true);
     LyricsService.get(currentTrack)
       .then((result) => {
-        setLyrics(result);
+        if (!cancelled) setLyrics(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLyrics(null);
       })
       .finally(() => {
-        setLyricsLoading(false);
+        if (!cancelled) setLyricsLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [currentTrack]);
 
-  useEffect(() => {
-    loadLyrics();
-  }, [loadLyrics]);
+  useEffect(() => loadLyrics(), [loadLyrics]);
 
   // Sleep timer: wired here so the action sheet's picker controls real
   // playback pause through the app's own play/pause path. pauseIfPlaying is
@@ -758,7 +762,7 @@ export default function NowPlayingScreen() {
         initial={actionsInitial}
         onClose={() => setActionsTrack(null)}
         onGoToArtist={(t) => goToString(t.artist.name)}
-        onViewAlbum={(t) => goToString(`${t.album} ${t.artist.name}`)}
+        onViewAlbum={(t) => goToString([t.album, t.artist?.name].filter(Boolean).join(" "))}
         onSleepTimer={handleSleepTimer}
       />
 

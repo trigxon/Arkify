@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Platform,
   ActivityIndicator,
   StyleSheet,
   Text,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search as SearchIcon, X, SearchX, WifiOff, Mic, Bot, ChevronRight } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, GLASS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
@@ -274,8 +275,10 @@ export default function SearchScreen() {
             >
               <X color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
             </TouchableOpacity>
-          ) : (
-            /* Voice search — the phone's own recogniser, per the reference. */
+          ) : Platform.OS === 'android' ? (
+            /* Voice search — the phone's own recogniser, per the reference.
+               Android only: the speech recogniser is a silent no-op elsewhere,
+               so other platforms get a cleaner input row instead of a dead mic. */
             <TouchableOpacity
               onPress={onVoiceSearch}
               disabled={listening}
@@ -290,7 +293,7 @@ export default function SearchScreen() {
                 <Mic color={COLORS.text.secondary} size={SIZES.icon.md - 2} />
               )}
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         {/* Ask Arkify AI — a playlist from a prompt, right from Search. */}
@@ -500,8 +503,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SIZES.md,
-    borderRadius: 18,
-    backgroundColor: 'rgba(18, 24, 24, 0.55)',
+    borderRadius: SIZES.radius.md,
+    backgroundColor: GLASS.fill.thin,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
     paddingVertical: 12,

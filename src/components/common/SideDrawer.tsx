@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -24,8 +24,8 @@ import {
   Sparkles,
   X,
 } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS, TYPE, SPRINGS } from '../../constants/theme';
-import { SpringPressable, GlassView } from './Glass';
+import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { SpringPressable, GlassView, FadeInUp } from './Glass';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useEngagement } from '../../hooks/useEngagement';
 
@@ -114,6 +114,16 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [animateTo]);
 
   // Drag-to-close: real physics on the panel, rubber-band past the edge.
+  // Track progress through the documented listener API instead of poking at
+  // Animated.Value's private _value.
+  const progressValue = useRef(0);
+  useEffect(() => {
+    const id = progress.addListener(({ value }) => {
+      progressValue.current = value;
+    });
+    return () => progress.removeListener(id);
+  }, [progress]);
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -125,7 +135,7 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         },
         onPanResponderRelease: (_e, g) => {
           dragging.current = false;
-          const current = (progress as unknown as { _value: number })._value ?? 1;
+          const current = progressValue.current;
           if (current < 0.65 || g.vx < -0.4) closeDrawer();
           else animateTo(1);
         },
@@ -142,6 +152,13 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     outputRange: [-panelW - 24, 0],
     extrapolate: 'clamp',
   });
+  // iOS drawer parallax: the panel's content trails the panel by a few
+  // pixels while sliding, which makes the glass feel like it has depth.
+  const contentShift = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-28, 0],
+    extrapolate: 'clamp',
+  });
   const scrimOpacity = progress.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
@@ -152,10 +169,9 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     (route: string) => {
       closeDrawer();
       // Let the drawer start sliding away before the push lands.
-      const t = setTimeout(() => {
+      setTimeout(() => {
         (navigation.navigate as (name: string, params?: object) => void)(route);
       }, 120);
-      return () => clearTimeout(t);
     },
     [closeDrawer, navigation]
   );
@@ -207,7 +223,10 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 pointerEvents="box-none"
               />
 
-              <View style={styles.panelContent} pointerEvents="box-none">
+              <Animated.View
+                style={[styles.panelContent, { transform: [{ translateX: contentShift }] }]}
+                pointerEvents="box-none"
+              >
                 {/* Close affordance */}
                 <SpringPressable
                   style={styles.closeBtn}
@@ -235,23 +254,24 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   </View>
                 </View>
 
-                {/* Nav items */}
+                {/* Nav items — each row lands on its own beat as the panel slides in */}
                 <View style={styles.navList}>
-                  {NAV_ITEMS.map((item) => (
-                    <SpringPressable
-                      key={item.route}
-                      style={styles.navRow}
-                      pressScale={0.97}
-                      onPress={() => go(item.route)}
-                      accessibilityRole="button"
-                      accessibilityLabel={item.label}
-                    >
-                      <View style={[styles.navIcon, item.tint ? { backgroundColor: `${item.tint}22`, borderColor: `${item.tint}55` } : null]}>
-                        <item.icon color={item.tint ?? COLORS.accent.primary} size={17} />
-                      </View>
-                      <Text style={styles.navLabel}>{item.label}</Text>
-                      <ChevronRight color={COLORS.text.muted} size={15} />
-                    </SpringPressable>
+                  {NAV_ITEMS.map((item, i) => (
+                    <FadeInUp key={item.route} index={i} preset="fast">
+                      <SpringPressable
+                        style={styles.navRow}
+                        pressScale={0.97}
+                        onPress={() => go(item.route)}
+                        accessibilityRole="button"
+                        accessibilityLabel={item.label}
+                      >
+                        <View style={[styles.navIcon, item.tint ? { backgroundColor: `${item.tint}22`, borderColor: `${item.tint}55` } : null]}>
+                          <item.icon color={item.tint ?? COLORS.accent.primary} size={17} />
+                        </View>
+                        <Text style={styles.navLabel}>{item.label}</Text>
+                        <ChevronRight color={COLORS.text.muted} size={15} />
+                      </SpringPressable>
+                    </FadeInUp>
                   ))}
                 </View>
 
@@ -276,7 +296,7 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 <View style={styles.footer}>
                   <Text style={styles.footerText}>Arkify v2.0 · powered by Arkify AI</Text>
                 </View>
-              </View>
+              </Animated.View>
             </GlassView>
           </Animated.View>
         </View>

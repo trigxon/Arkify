@@ -106,8 +106,8 @@ export default function YouScreen() {
                 </View>
                 {eng.streakActive && eng.streak > 0 ? (
                   <View style={[styles.levelChip, styles.streakChip]}>
-                    <Flame color="#FF8A3D" size={12} fill="rgba(255,138,61,0.3)" />
-                    <Text style={[styles.levelText, { color: '#FF8A3D' }]}>{eng.streak}d</Text>
+                    <Flame color={COLORS.warm.primary} size={12} fill={COLORS.warm.soft} />
+                    <Text style={[styles.levelText, { color: COLORS.warm.primary }]}>{eng.streak}d</Text>
                   </View>
                 ) : null}
               </View>

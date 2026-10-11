@@ -57,6 +57,92 @@ export type AIPlaylistPlan = {
 export function onDevicePlan(prompt: string): AIPlaylistPlan {
   const p = prompt.toLowerCase();
 
+  // Genre → query templates. Genres are the strongest signal in a prompt —
+  // "late night drive synthwave" is a synthwave mix that happens to be at
+  // night, so genres are matched BEFORE mood keywords.
+  const genres: [RegExp, { title: string; queries: string[]; exclude?: string[] }][] = [
+    [/synthwave|retrowave|outrun|vaporwave|darksynth/, {
+      title: 'Neon Nights',
+      queries: ['synthwave night drive mix', 'retrowave essentials', 'dark synthwave playlist'],
+    }],
+    [/phonk/, {
+      title: 'Phonk Drift',
+      queries: ['phonk drift mix', 'dark phonk bangers', 'aggressive phonk playlist'],
+    }],
+    [/lo-?fi/, {
+      title: 'Lo-Fi Corners',
+      queries: ['lofi hip hop beats', 'chill lofi study mix', 'lofi rainy day'],
+    }],
+    [/jazz|saxophone/, {
+      title: 'Blue Hours',
+      queries: ['smooth jazz classics', 'late night jazz mix', 'jazz cafe ambience'],
+    }],
+    [/classical|piano|orchestra|orchestral|mozart|bach|chopin/, {
+      title: 'The Concert Hall',
+      queries: ['classical masterpieces', 'piano focus music', 'orchestral essentials'],
+      exclude: ['remix'],
+    }],
+    [/metal|screamo/, {
+      title: 'Full Volume',
+      queries: ['metal essentials', 'metal bangers mix', 'heavy riffs playlist'],
+      exclude: ['sleep'],
+    }],
+    [/rock|riff/, {
+      title: 'Full Volume',
+      queries: ['rock anthems', 'classic rock mix', 'hard rock essentials'],
+      exclude: ['sleep'],
+    }],
+    [/edm|electronic|house|techno|trance|drum and bass|dnb|rave/, {
+      title: 'The Dancefloor',
+      queries: ['edm hits mix', 'house music essentials', 'techno warehouse vibes'],
+      exclude: ['sleep'],
+    }],
+    [/hip hop|hip-hop|rap|trap/, {
+      title: 'Bars Only',
+      queries: ['hip hop essentials', 'rap classics mix', 'new hip hop heat'],
+    }],
+    [/k-?pop/, {
+      title: 'Seoul Frequency',
+      queries: ['kpop hits', 'kpop mix playlist', 'k-r&b essentials'],
+    }],
+    [/ambient|drone|soundscape/, {
+      title: 'Weightless',
+      queries: ['ambient space music', 'drone atmosphere mix', 'ambient textures'],
+    }],
+    [/funk|disco|soul|motown/, {
+      title: 'Groove Line',
+      queries: ['funk classics', 'disco hits mix', 'soul groove essentials'],
+    }],
+    [/country|folk|americana/, {
+      title: 'Open Plains',
+      queries: ['country classics', 'folk revival mix', 'americana road songs'],
+    }],
+    [/reggae|dancehall|dance hall/, {
+      title: 'Island Air',
+      queries: ['reggae classics', 'dancehall hits mix', 'island vibes playlist'],
+    }],
+    [/punk|emo/, {
+      title: 'Ripped Denim',
+      queries: ['punk essentials', 'emo anthems', 'punk rock mix'],
+    }],
+    [/indie|alternative/, {
+      title: 'The Basement',
+      queries: ['indie essentials', 'alternative hits mix', 'indie rock discoveries'],
+    }],
+  ];
+
+  for (const [re, plan] of genres) {
+    if (re.test(p)) {
+      return {
+        title: plan.title,
+        description: `Built from your prompt: "${prompt.trim()}"`,
+        queries: plan.queries,
+        exclude: plan.exclude,
+        source: 'on-device',
+      };
+    }
+  }
+
   // Keyword → query templates. Ordered: first match wins the flavour.
   const templates: [RegExp, { title: string; queries: string[]; exclude?: string[] }][] = [
     [/gym|workout|pump|lift|training/, {

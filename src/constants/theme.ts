@@ -51,11 +51,23 @@ export const COLORS = {
     soft: 'rgba(53, 214, 198, 0.12)',
     ring: '#35D6C6',
     border: 'rgba(53, 214, 198, 0.22)',
+    /** Deep shade of the brand hue for gradients that need a darker stop. */
+    deep: '#1FA396',
     // Legacy aliases
     green: '#35D6C6',
     greenGlow: 'rgba(53, 214, 198, 0.45)',
     red: '#EF4444',
     redGlow: 'rgba(239, 68, 68, 0.20)',
+  },
+
+  /**
+   * Warm ember — the streak/flame identity used across Home, You and Stats.
+   * One hue, one place, so the flame never drifts between screens.
+   */
+  warm: {
+    primary: '#FF8A3D',
+    soft: 'rgba(255, 138, 61, 0.30)',
+    glow: 'rgba(255, 138, 61, 0.35)',
   },
 
   /** Semantic status colors. */

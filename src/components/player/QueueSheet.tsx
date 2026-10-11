@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
   Alert,
   Animated,
@@ -37,8 +37,8 @@ type Props = {
   onShuffle: () => void;
 };
 
-/** Height of one reorderable row — must match the rendered row height. */
-const ROW_HEIGHT = 60;
+/** Height of one reorderable row — must match the rendered row height (60px row + 4px gap). */
+const ROW_HEIGHT = 64;
 
 /**
  * The queue sheet, per the Queue reference: "Now Playing" pinned at the top,
@@ -96,6 +96,15 @@ export const QueueSheet: React.FC<Props> = ({
   const settleRows = useCallback(() => {
     rowOffsets.current.forEach((v) => v.setValue(0));
   }, []);
+
+  // Evict displacement values for rows that left the queue, so the map can't
+  // grow unbounded across a long listening session.
+  useEffect(() => {
+    const live = new Set(upcoming.map((t) => t.id));
+    rowOffsets.current.forEach((_v, id) => {
+      if (!live.has(id)) rowOffsets.current.delete(id);
+    });
+  }, [upcoming]);
 
   /** Animate neighbours when the hover slot changes (not every frame). */
   const displaceRows = useCallback(

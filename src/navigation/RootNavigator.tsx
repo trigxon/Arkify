@@ -7,6 +7,7 @@ import { TabNavigator } from './TabNavigator';
 import { COLORS } from '../constants/theme';
 import { useLibrary } from '../hooks/useLibrary';
 import { DrawerProvider } from '../components/common/SideDrawer';
+import { BadgeToastHost } from '../components/common/BadgeToast';
 import LaunchScreen from '../screens/Launch';
 import ProfileSetupScreen from '../screens/ProfileSetup';
 import PlaylistDetailScreen from '../screens/PlaylistDetail';
@@ -121,6 +122,8 @@ export const RootNavigator = () => {
           <Stack.Screen name="MoodRadios" component={MoodRadiosScreen} />
           <Stack.Screen name="Downloads" component={DownloadsScreen} />
         </Stack.Navigator>
+        {/* Celebration layer: badge toasts float above every route. */}
+        <BadgeToastHost />
       </DrawerProvider>
     </NavigationContainer>
   );

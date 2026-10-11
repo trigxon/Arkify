@@ -14,6 +14,8 @@ class SleepTimerServiceImpl {
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<() => void>();
   private fireCallback: (() => void) | null = null;
+  /** Held AppState subscription; removed on cancel so starts never stack. */
+  private appStateSub: { remove: () => void } | null = null;
 
   /**
    * @param fire Called when the timer elapses. Arkify passes its own
@@ -26,7 +28,7 @@ class SleepTimerServiceImpl {
     this.deadline = Date.now() + minutes * 60 * 1000;
     this.schedule();
 
-    AppState.addEventListener('change', this.onAppStateChange);
+    this.appStateSub = AppState.addEventListener('change', this.onAppStateChange);
   }
 
   cancel(): void {
@@ -34,6 +36,10 @@ class SleepTimerServiceImpl {
     this.timeout = null;
     this.deadline = null;
     this.fireCallback = null;
+    if (this.appStateSub) {
+      this.appStateSub.remove();
+      this.appStateSub = null;
+    }
     this.emit();
   }
 

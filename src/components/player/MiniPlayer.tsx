@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
     backgroundColor: Platform.OS === 'web' ? COLORS.surfaceRaised : 'rgba(18, 22, 22, 0.78)',
-    borderColor: 'rgba(61, 214, 195, 0.16)',
+    borderColor: COLORS.glassBorder,
     borderWidth: 1,
   },
   content: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     padding: 2,
     backgroundColor: COLORS.accent.soft,
     borderWidth: 1,
-    borderColor: 'rgba(61, 214, 195, 0.18)',
+    borderColor: COLORS.glassBorder,
   },
   infoContainer: {
     flex: 1,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: 'rgba(61, 214, 195, 0.60)',
+    borderColor: 'rgba(53, 214, 198, 0.60)',
     backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',

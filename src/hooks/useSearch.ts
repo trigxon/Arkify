@@ -124,8 +124,13 @@ export function useSearch(): UseSearch {
 
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const found = await MusicService.getSuggestions(trimmed);
-      if (!cancelled) setSuggestions(found);
+      try {
+        const found = await MusicService.getSuggestions(trimmed);
+        if (!cancelled) setSuggestions(found);
+      } catch {
+        // Suggestions are decorative — never let a network hiccup reject.
+        if (!cancelled) setSuggestions([]);
+      }
     }, DEBOUNCE_MS + 100);
 
     return () => {

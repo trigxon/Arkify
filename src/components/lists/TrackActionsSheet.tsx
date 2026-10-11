@@ -372,7 +372,7 @@ const DownloadRow: React.FC<{ track: Track; onDone: () => void }> = ({ track, on
         disabled={downloading}
         onPress={async () => {
           if (downloaded) {
-            await DownloadService.remove(track.id);
+            await DownloadService.remove(track.id).catch(() => undefined);
             setDownloaded(false);
             return;
           }

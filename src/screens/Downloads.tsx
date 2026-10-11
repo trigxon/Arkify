@@ -10,6 +10,7 @@ import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { usePlayer } from '../hooks/usePlayer';
 import { GlassView, SpringPressable, FadeInUp } from '../components/common/Glass';
+import { ErrorState } from '../components/common/UI';
 import { TrackRow } from '../components/lists/TrackRow';
 import { useLibrary } from '../hooks/useLibrary';
 import { DownloadService } from '../services/DownloadService';
@@ -38,13 +39,22 @@ export default function DownloadsScreen() {
     count: 0,
   });
 
+  const [loadError, setLoadError] = useState(false);
+
   const reload = useCallback(async () => {
-    const [list, s] = await Promise.all([
-      DownloadService.getDownloadedTracks(),
-      DownloadService.storageSummary(),
-    ]);
-    setTracks(list);
-    setSummary(s);
+    try {
+      const [list, s] = await Promise.all([
+        DownloadService.getDownloadedTracks(),
+        DownloadService.storageSummary(),
+      ]);
+      setTracks(list);
+      setSummary(s);
+      setLoadError(false);
+    } catch {
+      // Storage can be flaky (permission/IO); show a real error, not a fake
+      // "nothing saved yet" empty state.
+      setLoadError(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -112,16 +122,16 @@ export default function DownloadsScreen() {
               <Text style={styles.settingTitle}>Smart offline</Text>
               <Text style={styles.settingBody}>Auto-save recent likes while on Wi-Fi</Text>
             </View>
-            <SpringPressable
-              style={[styles.toggle, settings.autoDownload && styles.toggleOn]}
-              pressScale={0.93}
-              onPress={() => updateSettings({ autoDownload: !settings.autoDownload })}
-              accessibilityRole="switch"
-              accessibilityState={{ selected: settings.autoDownload }}
+            <IOSToggle
+              value={settings.autoDownload}
+              onValueChange={(v) => {
+                updateSettings({ autoDownload: v });
+                // Take effect immediately — the switch should feel alive,
+                // not wait for the next cold launch.
+                if (v) void DownloadService.smartAutoDownload().catch(() => undefined);
+              }}
               accessibilityLabel="Smart offline"
-            >
-              <View style={[styles.toggleKnob, settings.autoDownload && styles.toggleKnobOn]} />
-            </SpringPressable>
+            />
           </GlassView>
         </FadeInUp>
 
@@ -142,7 +152,13 @@ export default function DownloadsScreen() {
         ) : null}
 
         {/* Track list */}
-        {tracks.length ? (
+        {loadError ? (
+          <ErrorState
+            message="Couldn't read the offline library"
+            onRetry={() => void reload()}
+            Icon={Download}
+          />
+        ) : tracks.length ? (
           <>
             <Text style={styles.listTitle}>On this device</Text>
             {tracks.map((track, i) => (
@@ -266,29 +282,6 @@ const styles = StyleSheet.create({
     fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.muted,
     marginTop: 1,
-  },
-  toggle: {
-    width: 52,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    padding: 3,
-  },
-  toggleOn: {
-    backgroundColor: COLORS.accent.primary,
-    borderColor: COLORS.accent.primary,
-  },
-  toggleKnob: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.text.secondary,
-  },
-  toggleKnobOn: {
-    backgroundColor: '#FFFFFF',
-    alignSelf: 'flex-end',
   },
 
   clearBtn: {

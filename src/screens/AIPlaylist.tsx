@@ -23,6 +23,8 @@ import { SpringPressable, FadeInUp, GlassView, PulsingGlow } from '../components
 import { ErrorState } from '../components/common/UI';
 import { TrackRow } from '../components/lists/TrackRow';
 import { Track } from '../core/types';
+import { MiniPlayer } from '../components/player/MiniPlayer';
+import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
 import { recommendationEngine } from '../ai/RecommendationEngine';
@@ -50,10 +52,20 @@ const DEFAULT_MIX_TITLE = 'Arkify AI Mix';
  * Either way the results are ranked through the listener's taste model, and
  * one tap saves the mix to the library.
  */
+/** Fisher-Yates — unbiased shuffle (matches playback/queue.ts). */
+function shuffled<T>(list: T[]): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 export default function AIPlaylistScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { playTrack } = usePlayer();
+  const { playTrack, isLoading, currentTrack, isPlaying, togglePlayPause } = usePlayer();
   const { createPlaylist } = useLibrary();
 
   const [prompt, setPrompt] = useState('');
@@ -120,6 +132,7 @@ export default function AIPlaylistScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBarScrim />
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SIZES.sm }]}>
         <SpringPressable
@@ -164,6 +177,7 @@ export default function AIPlaylistScreen() {
             onSubmitEditing={() => void generate(prompt)}
             returnKeyType="go"
             maxLength={80}
+            accessibilityLabel="Describe the mix you want"
           />
           <SpringPressable
             style={[styles.goBtn, (!prompt.trim() || loading) && styles.goBtnDisabled]}
@@ -172,6 +186,7 @@ export default function AIPlaylistScreen() {
             onPress={() => void generate(prompt)}
             accessibilityRole="button"
             accessibilityLabel="Generate playlist"
+            accessibilityState={{ busy: loading }}
           >
             {loading ? (
               <ActivityIndicator size="small" color={COLORS.text.dark} />
@@ -261,7 +276,7 @@ export default function AIPlaylistScreen() {
                     pressScale={0.94}
                     onPress={() =>
                       playTrack(tracks[0], {
-                        tracks: [...tracks].sort(() => Math.random() - 0.5),
+                        tracks: shuffled(tracks),
                         label: mixLabel,
                       })
                     }
@@ -303,6 +318,16 @@ export default function AIPlaylistScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      {currentTrack ? (
+        <MiniPlayer
+          track={currentTrack}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          onPlayPause={togglePlayPause}
+          onPress={() => navigation.navigate('NowPlaying' as never)}
+        />
+      ) : null}
     </View>
   );
 }

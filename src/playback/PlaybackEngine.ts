@@ -75,6 +75,11 @@ export class PlaybackEngine {
   /** Active fade direction: null | 'out' | 'in'. */
   private fade: { dir: 'out' | 'in'; timer: ReturnType<typeof setInterval>; startAt: number } | null = null;
 
+  /** Web fallback state: if the IFrame player fails, retry once via HTML5 audio. */
+  private webFallbackUsed = false;
+  private lastWebTrack: Track | null = null;
+  private lastWebStream: ResolvedStream | null = null;
+
   constructor() {
     if (Platform.OS === 'web') {
       this.webPlayer = new WebYouTubePlayer({
@@ -92,6 +97,22 @@ export class PlaybackEngine {
         onError: (err) => {
           if (this.isWebActive) {
             this.clearLoadTimer();
+            // One-shot fallback: the IFrame player can be refused by YouTube
+            // (embed restrictions, network-level blocks). If we hold a
+            // resolved stream URL, retry the track through the HTML5 audio
+            // element backed by the same-origin proxy before giving up.
+            if (
+              !this.webFallbackUsed &&
+              this.lastWebTrack &&
+              this.lastWebStream &&
+              /^https?:\/\//.test(this.lastWebStream.url)
+            ) {
+              this.webFallbackUsed = true;
+              void this.fallbackToAudio(this.lastWebTrack, this.lastWebStream).catch(() => {
+                this.listeners.onError?.(err);
+              });
+              return;
+            }
             this.listeners.onError?.(err);
           }
         },
@@ -279,46 +300,107 @@ export class PlaybackEngine {
     const { autoPlay = true, startPosition = 0 } = options;
     const token = ++this.loadToken;
 
+    // Remember the resolved stream so the web error fallback can retry via
+    // the audio element if the IFrame player is refused.
+    this.lastWebTrack = track;
+    this.lastWebStream = stream;
+    this.webFallbackUsed = false;
+
     try {
       this.currentTrackId = track.id;
       this.completionFired = false;
 
-      // On Web with YouTube tracks, use the WebYouTubePlayer
+      // On Web with YouTube tracks, use the WebYouTubePlayer first; the
+      // constructor's onError handles the HTML5-audio fallback if YouTube
+      // refuses the embed.
       if (Platform.OS === 'web' && this.webPlayer && (track.provider === 'youtube' || track.sourceId)) {
         this.isWebActive = true;
         try {
           this.player?.pause();
         } catch {}
 
-        this.webPlayer.setVolume(this.desiredVolume);
-        await this.webPlayer.load(track, { autoPlay, startPosition });
-        return;
+        try {
+          this.webPlayer.setVolume(this.desiredVolume);
+          await this.webPlayer.load(track, { autoPlay, startPosition });
+          return;
+        } catch (webErr) {
+          // Synchronous IFrame failure (API refused to load, etc.) — fall
+          // back to the audio element exactly once.
+          if (
+            !this.webFallbackUsed &&
+            /^https?:\/\//.test(stream.url)
+          ) {
+            this.webFallbackUsed = true;
+            await this.fallbackToAudio(track, stream, { autoPlay, startPosition });
+            return;
+          }
+          throw webErr;
+        }
       }
 
-      this.isWebActive = false;
+      await this.loadIntoAudioPlayer(track, stream, token, { autoPlay, startPosition });
+    } catch (e) {
+      this.clearLoadTimer();
+      throw toAppError(e, 'playback_failed');
+    }
+  }
+
+  /**
+   * Web-only rescue path: replay the current track through the HTML5 audio
+   * element (expo-audio web) using the already-resolved stream URL.
+   */
+  private async fallbackToAudio(
+    track: Track,
+    stream: ResolvedStream,
+    options: { autoPlay?: boolean; startPosition?: number } = {}
+  ): Promise<void> {
+    const token = ++this.loadToken;
+    try {
       try {
         this.webPlayer?.stop();
       } catch {}
-
-      const player = this.ensurePlayer();
-      await this.configure();
-
-      this.status = { ...IDLE_STATUS, isBuffering: true, volume: this.desiredVolume };
-      this.listeners.onStatus?.(this.status);
-
-      // Headers matter: a googlevideo URL fetched with a different User-Agent
-      // than the one that extracted it comes back 403.
-      player.replace({ uri: stream.url, headers: stream.headers });
-      player.volume = this.desiredVolume;
-
-      // If the source never loads, surface a real error instead of hanging.
+      this.isWebActive = false;
+      await this.loadIntoAudioPlayer(track, stream, token, options);
+    } catch (e) {
       this.clearLoadTimer();
-      this.loadTimer = setTimeout(() => {
-        if (token !== this.loadToken) return;
-        if (this.status.isLoaded) return;
-        this.listeners.onError?.(appError('playback_failed', 'Stream did not start'));
-      }, 20_000);
+      throw toAppError(e, 'playback_failed');
+    }
+  }
 
+  /** Load a resolved stream into the (HTML5) audio player and start it. */
+  private async loadIntoAudioPlayer(
+    track: Track,
+    stream: ResolvedStream,
+    token: number,
+    options: { autoPlay?: boolean; startPosition?: number } = {}
+  ): Promise<void> {
+    const { autoPlay = true, startPosition = 0 } = options;
+
+    this.isWebActive = false;
+    try {
+      this.webPlayer?.stop();
+    } catch {}
+
+    const player = this.ensurePlayer();
+    await this.configure();
+
+    this.status = { ...IDLE_STATUS, isBuffering: true, volume: this.desiredVolume };
+    this.listeners.onStatus?.(this.status);
+
+    // Headers matter: a googlevideo URL fetched with a different User-Agent
+    // than the one that extracted it comes back 403.
+    player.replace({ uri: stream.url, headers: stream.headers });
+    player.volume = this.desiredVolume;
+
+    // If the source never loads, surface a real error instead of hanging.
+    this.clearLoadTimer();
+    this.loadTimer = setTimeout(() => {
+      if (token !== this.loadToken) return;
+      if (this.status.isLoaded) return;
+      this.listeners.onError?.(appError('playback_failed', 'Stream did not start'));
+    }, 20_000);
+
+    try {
       if (startPosition > 0) {
         try {
           await player.seekTo(startPosition);

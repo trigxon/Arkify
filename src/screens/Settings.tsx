@@ -91,7 +91,7 @@ export default function SettingsScreen() {
   }, [geminiKey]);
 
   const version =
-    Constants.expoConfig?.version ?? Constants.manifest2?.extra?.expoClient?.version ?? '1.0.0';
+    Constants.expoConfig?.version ?? Constants.manifest2?.extra?.expoClient?.version ?? '2.0.0';
 
   const commitName = useCallback(() => {
     const trimmed = name.trim();
@@ -219,8 +219,8 @@ export default function SettingsScreen() {
               <Text style={styles.settingTitle}>Arkify AI · cloud planner</Text>
               <Text style={styles.settingBody}>
                 {geminiOn
-                  ? 'Connected — Arkify AI plans playlists with Gemini.'
-                  : 'Optional. On-device recommendations always run, no key needed.'}
+                  ? 'Cloud boost connected — Arkify AI now plans richer playlists.'
+                  : 'Optional cloud boost. On-device intelligence always runs, no key needed.'}
               </Text>
             </View>
           </View>
@@ -231,13 +231,13 @@ export default function SettingsScreen() {
               onChangeText={setGeminiKeyValue}
               onBlur={() => void saveKey()}
               onSubmitEditing={() => void saveKey()}
-              placeholder="Paste Gemini API key (optional)"
+              placeholder="Paste your Arkify AI cloud key (optional)"
               placeholderTextColor={COLORS.text.muted}
               autoCapitalize="none"
               autoCorrect={false}
               secureTextEntry
               returnKeyType="done"
-              accessibilityLabel="Gemini API key"
+              accessibilityLabel="Arkify AI cloud key"
             />
           </View>
           <Text style={styles.keyHint}>

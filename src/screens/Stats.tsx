@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import {
-  ArrowLeft,
   Bot,
   Compass,
   Download,
@@ -19,8 +18,7 @@ import {
   Timer,
   Trophy,
 } from 'lucide-react-native';
-import { Animated } from 'react-native';
-import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { BackButton } from '../components/common/Glass';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
@@ -34,6 +32,16 @@ const BADGE_ICONS: Record<string, typeof Trophy> = {
   Play, Flame, Headphones, Timer, Compass, Map, Heart, ListMusic,
   Moon, Sunrise, Download, Sparkles, Trophy, Bot,
 };
+
+/**
+ * Parse a `YYYY-MM-DD` key as a LOCAL date and return its weekday index.
+ * `new Date(key)` parses as UTC midnight, which shifts the weekday in
+ * negative-UTC-offset timezones — every bar label would be off by one day.
+ */
+function weekdayLocal(key: string): number {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1).getDay();
+}
 
 /**
  * Stats — the listener's trophy room. Level ring, streak flame, the weekly
@@ -77,21 +85,19 @@ export default function StatsScreen() {
           <GlassView weight="thin" accent style={styles.hero}>
             {/* Level ring */}
             <View style={styles.ringWrap}>
-              <Animated.View>
-                <View style={[styles.ring, { width: ringSize, height: ringSize }]}>
-                  <View style={[styles.ringInner, { width: ringSize - 10, height: ringSize - 10 }]}>
-                    <Text style={styles.ringLevel}>{eng.level}</Text>
-                    <Text style={styles.ringLabel}>LEVEL</Text>
-                  </View>
+              <View style={[styles.ring, { width: ringSize, height: ringSize }]}>
+                <View style={[styles.ringInner, { width: ringSize - 10, height: ringSize - 10 }]}>
+                  <Text style={styles.ringLevel}>{eng.level}</Text>
+                  <Text style={styles.ringLabel}>LEVEL</Text>
                 </View>
-              </Animated.View>
+              </View>
               <Text style={styles.heroName}>{eng.levelName}</Text>
               <Text style={styles.heroXP}>{eng.levelInto}/{eng.levelSpan} XP</Text>
             </View>
 
             <View style={styles.heroRight}>
               <View style={styles.streakCard}>
-                <Flame color="#FF8A3D" size={22} fill={eng.streakActive ? 'rgba(255,138,61,0.35)' : 'transparent'} />
+                <Flame color={COLORS.warm.primary} size={22} fill={eng.streakActive ? COLORS.warm.glow : 'transparent'} />
                 <Text style={styles.streakNum}>{eng.streak}</Text>
                 <Text style={styles.streakLabel}>day streak</Text>
                 {eng.streakActive ? null : (
@@ -127,7 +133,7 @@ export default function StatsScreen() {
                       />
                     </View>
                     <Text style={[styles.chartDay, isToday && styles.chartDayToday]}>
-                      {['S', 'M', 'T', 'W', 'T', 'F', 'S'][new Date(day.day).getDay()]}
+                      {['S', 'M', 'T', 'W', 'T', 'F', 'S'][weekdayLocal(day.day)]}
                     </Text>
                   </View>
                 );
@@ -295,7 +301,7 @@ const styles = StyleSheet.create({
   streakNum: {
     fontFamily: FONTS.bold,
     fontSize: TYPE.title1.fontSize,
-    color: '#FF8A3D',
+    color: COLORS.warm.primary,
     lineHeight: 30,
   },
   streakLabel: {

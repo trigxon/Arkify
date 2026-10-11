@@ -168,7 +168,7 @@ export const AddToPlaylistSheet: React.FC<Props> = ({ track, onClose }) => {
               onPress={async () => {
                 if (!track) return;
                 if (downloaded) {
-                  await DownloadService.remove(track.id);
+                  await DownloadService.remove(track.id).catch(() => undefined);
                   setDownloaded(false);
                   setDownloadProgress(0);
                 } else {

@@ -32,10 +32,9 @@ import { engagement } from '../engagement/Streaks';
  */
 export default function MoodRadiosScreen() {
   const insets = useSafeAreaInsets();
-  const { currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
+  const { currentTrack, isPlaying, togglePlayPause, isLoading, playTrack } = usePlayer();
   const navigation = useNavigation();
   const route = useRoute<{ key: string; name: string; params?: { moodId?: MoodId } }>();
-  const { playTrack } = usePlayer();
 
   const initialMood = route.params?.moodId ?? null;
   const [activeMood, setActiveMood] = useState<MoodId | null>(initialMood);
@@ -47,8 +46,21 @@ export default function MoodRadiosScreen() {
 
   const mood = useMemo(() => (activeMood ? moodById(activeMood) : null), [activeMood]);
 
+  // Request identity: only the newest radio request may land, so rapid mood
+  // switches or refresh spam can never let a stale response overwrite the
+  // current view. Also guards setState-after-unmount.
+  const reqId = React.useRef(0);
+  const alive = React.useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    []
+  );
+
   const loadRadio = useCallback(
     async (moodId: MoodId, exclude: Set<string>) => {
+      const id = ++reqId.current;
       setLoading(true);
       setError(null);
       try {
@@ -56,13 +68,15 @@ export default function MoodRadiosScreen() {
           excludeIds: exclude,
           size: 30,
         });
+        if (!alive.current || id !== reqId.current) return;
         setTracks(radio.tracks);
         engagement.markAIUsed();
       } catch {
+        if (!alive.current || id !== reqId.current) return;
         setError('The radio signal dropped. Try again.');
         setTracks([]);
       } finally {
-        setLoading(false);
+        if (alive.current && id === reqId.current) setLoading(false);
       }
     },
     []
@@ -105,6 +119,7 @@ export default function MoodRadiosScreen() {
     const palette = MOOD_PALETTE[mood.id];
     return (
       <View style={styles.container}>
+        <StatusBarScrim />
         {/* Mood hero */}
         <View style={styles.hero}>
           <LinearGradient
@@ -193,6 +208,17 @@ export default function MoodRadiosScreen() {
                 <Text style={styles.retryText}>Try again</Text>
               </SpringPressable>
             </GlassView>
+          ) : tracks.length === 0 ? (
+            <GlassView weight="thin" style={styles.emptyCard}>
+              <Radio color={COLORS.text.muted} size={26} />
+              <Text style={styles.emptyTitle}>Nothing on this frequency</Text>
+              <Text style={styles.emptyText}>
+                The dial came back quiet. Re-tune the mix and try again.
+              </Text>
+              <SpringPressable style={styles.retryBtn} onPress={refresh} accessibilityRole="button" accessibilityLabel="Re-tune the mix">
+                <Text style={styles.retryText}>Re-tune</Text>
+              </SpringPressable>
+            </GlassView>
           ) : (
             tracks.map((track, i) => (
               <FadeInUp key={track.id} index={Math.min(i, 6)} preset="fast">
@@ -211,6 +237,16 @@ export default function MoodRadiosScreen() {
             </SpringPressable>
           ) : null}
         </ScrollView>
+
+        {currentTrack ? (
+          <MiniPlayer
+            track={currentTrack}
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            onPlayPause={togglePlayPause}
+            onPress={() => navigation.navigate('NowPlaying' as never)}
+          />
+        ) : null}
       </View>
     );
   }
@@ -413,6 +449,23 @@ const styles = StyleSheet.create({
     padding: SIZES.lg,
     alignItems: 'center',
     gap: SIZES.md,
+  },
+  emptyCard: {
+    padding: SIZES.xl,
+    alignItems: 'center',
+    gap: SIZES.sm,
+  },
+  emptyTitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.headline.fontSize,
+    color: COLORS.text.primary,
+    marginTop: SIZES.xs,
+  },
+  emptyText: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
   },
   errorText: {
     fontFamily: FONTS.regular,

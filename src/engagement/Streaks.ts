@@ -156,6 +156,8 @@ class EngagementEngine {
   private state: EngagementState = { ...EMPTY_ENGAGEMENT };
   private loaded = false;
   private subscribed = false;
+  /** Live subscribers fired the moment a badge unlocks (toast host). */
+  private unlockListeners = new Set<(badge: Badge) => void>();
 
   /** Badge ids newly earned by the most recent event — surfaced as toasts. */
   recentUnlocks: Badge[] = [];
@@ -267,6 +269,15 @@ class EngagementEngine {
           this.state.badges.push(badge.id);
           this.recentUnlocks.push(badge);
           this.state.xp += 50;
+          // Fire live subscribers immediately so the toast lands in the
+          // same beat as the action that earned it.
+          for (const l of this.unlockListeners) {
+            try {
+              l(badge);
+            } catch {
+              // A broken listener must never break the engagement loop.
+            }
+          }
         }
       }
       this.persist();
@@ -303,7 +314,16 @@ class EngagementEngine {
     return this.state.lastListenDay === today || this.state.lastListenDay === yesterday;
   }
 
-  /** Drain the unlock queue (the UI shows each as a toast). */
+  /**
+   * Subscribe to badge unlocks as they happen (used by the toast host).
+   * Returns an unsubscribe function.
+   */
+  onUnlock(cb: (badge: Badge) => void): () => void {
+    this.unlockListeners.add(cb);
+    return () => this.unlockListeners.delete(cb);
+  }
+
+  /** Drain the unlock queue (retained for callers that want a batch read). */
   drainUnlocks(): Badge[] {
     const out = this.recentUnlocks;
     this.recentUnlocks = [];

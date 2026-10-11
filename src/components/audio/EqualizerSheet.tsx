@@ -54,7 +54,11 @@ export const EqualizerSheet: React.FC<{
   const bandFreqs =
     info.centerFreqs && info.centerFreqs.length === bandCount
       ? info.centerFreqs.map(freqLabel)
-      : BAND_LABELS_5.slice(0, bandCount);
+      : bandCount <= BAND_LABELS_5.length
+        ? BAND_LABELS_5.slice(0, bandCount)
+        : // Devices with more bands than our labels: synthesise octave labels
+          // (31 Hz · 4^i) so every slider keeps a real frequency caption.
+          Array.from({ length: bandCount }, (_, i) => freqLabel(Math.round(31 * 4 ** i)));
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title="Sound" subtitle="Equalizer · Bass · Crossfade" tall>
