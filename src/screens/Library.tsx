@@ -20,11 +20,13 @@ import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
 import { Artwork } from '../components/common/Artwork';
 import { EmptyState } from '../components/common/UI';
+import { MenuButton } from '../components/common/ScreenHeader';
+import { FadeInUp } from '../components/common/Glass';
 import { Playlist, Track } from '../core/types';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
 import { DownloadService } from '../services/DownloadService';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type LibraryStackParams = {
@@ -112,7 +114,7 @@ export default function LibraryScreen() {
     playTrack(playlist.tracks[0], { tracks: playlist.tracks, label: playlist.name });
   };
 
-  // Keep Downloaded tab live.
+  // Keep Downloaded tab live: on filter change AND on every screen focus.
   React.useEffect(() => {
     if (activeFilter !== 'Downloaded') return;
     let cancelled = false;
@@ -122,6 +124,13 @@ export default function LibraryScreen() {
     })();
     return () => { cancelled = true; };
   }, [activeFilter]);
+
+  const focus = useFocusEffect(
+    React.useCallback(() => {
+      if (activeFilter === 'Downloaded') void refreshDownloads();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeFilter])
+  );
 
   const refreshDownloads = React.useCallback(async () => {
     const list = await DownloadService.getDownloadedTracks();
@@ -166,7 +175,10 @@ export default function LibraryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Your Library</Text>
+          <View style={styles.headerLead}>
+            <MenuButton />
+            <Text style={styles.headerTitle}>Your Library</Text>
+          </View>
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => {
@@ -181,7 +193,7 @@ export default function LibraryScreen() {
               {showImport ? (
                 <X color={COLORS.text.primary} size={SIZES.icon.md} />
               ) : (
-                <Plus color="COLORS.text.dark" size={SIZES.icon.md} strokeWidth={2.4} />
+                <Plus color={COLORS.text.dark} size={SIZES.icon.md} strokeWidth={2.4} />
               )}
             </View>
           </TouchableOpacity>
@@ -237,7 +249,7 @@ export default function LibraryScreen() {
                 accessibilityLabel="Import playlist"
               >
                 {importing ? (
-                  <ActivityIndicator size="small" color="COLORS.text.dark" />
+                  <ActivityIndicator size="small" color={COLORS.text.dark} />
                 ) : (
                   <Text style={styles.importButtonText}>Add</Text>
                 )}
@@ -373,7 +385,6 @@ export default function LibraryScreen() {
                   activeOpacity={0.7}
                   onPress={() => {
                     // Real action: search this artist so their songs come up.
-                    navigation.navigate('SearchTab' as never);
                     (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
                       browseQuery: artist.name,
                     });
@@ -406,7 +417,6 @@ export default function LibraryScreen() {
                   style={styles.row}
                   activeOpacity={0.7}
                   onPress={() => {
-                    navigation.navigate('SearchTab' as never);
                     (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
                       browseQuery: `${album.name} ${album.artist}`,
                     });
@@ -505,6 +515,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SIZES.md,
   },
+  headerLead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.md,
+  },
   headerTitle: {
     fontFamily: FONTS.bold,
     fontSize: TYPE.title1.fontSize,
@@ -576,7 +591,7 @@ const styles = StyleSheet.create({
   importButtonText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: 'COLORS.text.dark',
+    color: COLORS.text.dark,
   },
   importError: {
     fontFamily: FONTS.regular,

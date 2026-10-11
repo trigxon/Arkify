@@ -21,6 +21,7 @@ import { AmbientGlow } from '../components/common/AmbientGlow';
 import { CategoryTile } from '../components/common/Cards';
 import { SectionHeader, EmptyState, ErrorState, SkeletonList } from '../components/common/UI';
 import { SpringPressable, GlassView, FadeInUp } from '../components/common/Glass';
+import { MenuButton } from '../components/common/ScreenHeader';
 import { BROWSE_CATEGORIES, BROWSE_VISIBLE_COUNT } from '../data/catalog';
 import { SearchFilter, Track } from '../core/types';
 import { useSearch } from '../hooks/useSearch';
@@ -54,6 +55,15 @@ export default function SearchScreen() {
   const [expandingId, setExpandingId] = useState<string | null>(null);
   const [fieldFocused, setFieldFocused] = useState(false);
   const [listening, setListening] = useState(false);
+  /** Shown when an album/playlist/artist expansion fails — never a silent stop. */
+  const [expandError, setExpandError] = useState<string | null>(null);
+  const voiceAlive = useRef(true);
+  useEffect(
+    () => () => {
+      voiceAlive.current = false;
+    },
+    []
+  );
   /** "See all" reveals the rest of the browse grid. */
   const [showAllCategories, setShowAllCategories] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -71,6 +81,7 @@ export default function SearchScreen() {
     if (listening) return;
     setListening(true);
     const spoken = await listenForQuery();
+    if (!voiceAlive.current) return; // screen unmounted mid-listen
     setListening(false);
 
     if (spoken) {
@@ -103,6 +114,7 @@ export default function SearchScreen() {
       kind: 'album' | 'playlist'
     ) => {
       Keyboard.dismiss();
+      setExpandError(null);
       setExpandingId(id);
     try {
       const page =
@@ -112,9 +124,11 @@ export default function SearchScreen() {
 
       if (page.tracks.length) {
         playTrack(page.tracks[0], { tracks: page.tracks, label: name });
+      } else {
+        setExpandError(`No playable tracks found in “${name}”.`);
       }
     } catch {
-      // The inline error row below already covers failed lookups.
+      setExpandError(`Couldn't open “${name}”. Tap to try again.`);
       } finally {
         setExpandingId(null);
       }
@@ -125,12 +139,14 @@ export default function SearchScreen() {
   const onOpenArtist = useCallback(
     async (id: string, browseId: string, name: string) => {
       Keyboard.dismiss();
+      setExpandError(null);
       setExpandingId(id);
     try {
       const tracks = await MusicService.getArtistTracks(browseId);
       if (tracks.length) playTrack(tracks[0], { tracks, label: name });
+      else setExpandError(`No songs found for “${name}”.`);
       } catch {
-        /* handled by the error row */
+        setExpandError(`Couldn't open “${name}”. Tap to try again.`);
       } finally {
         setExpandingId(null);
       }
@@ -223,7 +239,10 @@ export default function SearchScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.headerTitle}>Search</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.headerTitle}>Search</Text>
+          <MenuButton />
+        </View>
 
         <View
           style={[styles.searchContainer, fieldFocused && styles.searchContainerFocused]}
@@ -274,7 +293,7 @@ export default function SearchScreen() {
           )}
         </View>
 
-        {/* Ask AI — a playlist from a prompt, right from Search. */}
+        {/* Ask Arkify AI — a playlist from a prompt, right from Search. */}
         <FadeInUp index={0} preset="fast">
           <SpringPressable
             style={styles.askAICard}
@@ -282,14 +301,14 @@ export default function SearchScreen() {
             glow
             onPress={() => navigation.navigate('AIPlaylist' as never)}
             accessibilityRole="button"
-            accessibilityLabel="Ask AI for a playlist"
+            accessibilityLabel="Ask Arkify AI for a playlist"
           >
             <View style={styles.askAIIcon}>
               <Bot color={COLORS.accent.primary} size={18} />
             </View>
             <View style={styles.askAITextWrap}>
-              <Text style={styles.askAITitle}>Make a playlist with AI</Text>
-              <Text style={styles.askAISub}>Describe any vibe — get 30 tracks</Text>
+              <Text style={styles.askAITitle}>Ask Arkify AI</Text>
+              <Text style={styles.askAISub}>Describe any vibe — get a playlist</Text>
             </View>
             <ChevronRight color={COLORS.text.muted} size={16} />
           </SpringPressable>
@@ -357,6 +376,18 @@ export default function SearchScreen() {
                 style={styles.stateCard}
                 Icon={WifiOff}
               />
+            )}
+
+            {/* Collection-expansion failure (album/playlist/artist). */}
+            {expandError && !isSearching && (
+              <FadeInUp preset="fast">
+                <ErrorState
+                  message={expandError}
+                  onRetry={() => setExpandError(null)}
+                  retryLabel="Dismiss"
+                  style={styles.stateCard}
+                />
+              </FadeInUp>
             )}
 
             {isSearching && !hasResults && (
@@ -502,12 +533,17 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: 1,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SIZES.md,
+  },
   headerTitle: {
     fontFamily: FONTS.bold,
     fontSize: TYPE.title1.fontSize,
     lineHeight: TYPE.title1.lineHeight,
     color: COLORS.text.primary,
-    marginBottom: SIZES.md,
   },
   seeAllRow: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -9,12 +9,22 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Bot, Play, Shuffle, Sparkles } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  BookmarkPlus,
+  Check,
+  Play,
+  Shuffle,
+  Sparkles,
+  Wand2,
+} from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { SpringPressable, FadeInUp, GlassView, PulsingGlow } from '../components/common/Glass';
+import { ErrorState } from '../components/common/UI';
 import { TrackRow } from '../components/lists/TrackRow';
 import { Track } from '../core/types';
 import { usePlayer } from '../hooks/usePlayer';
+import { useLibrary } from '../hooks/useLibrary';
 import { recommendationEngine } from '../ai/RecommendationEngine';
 import { engagement } from '../engagement/Streaks';
 import { isGeminiConfigured } from '../ai/gemini';
@@ -30,17 +40,21 @@ const PROMPT_IDEAS = [
   'main character energy',
 ];
 
+const DEFAULT_MIX_TITLE = 'Arkify AI Mix';
+
 /**
- * AIPlaylist — "Ask AI for anything".
+ * AIPlaylist — "Ask Arkify AI".
  *
- * Type a vibe, get a playlist. Gemini plans the queries when a key is set;
- * the on-device planner handles it otherwise. Either way the results are
- * ranked through the listener's taste model.
+ * Type a vibe, get a playlist. Arkify AI plans the queries (Gemini backs the
+ * planner when a key is set); the on-device planner handles it otherwise.
+ * Either way the results are ranked through the listener's taste model, and
+ * one tap saves the mix to the library.
  */
 export default function AIPlaylistScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { playTrack } = usePlayer();
+  const { createPlaylist } = useLibrary();
 
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,9 +62,18 @@ export default function AIPlaylistScreen() {
   const [planTitle, setPlanTitle] = useState('');
   const [planSource, setPlanSource] = useState<'gemini' | 'on-device' | null>(null);
   const [geminiReady, setGeminiReady] = useState(false);
-
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  // Never touch state after unmount (slow AI calls can outlive the screen).
+  const alive = useRef(true);
   useEffect(() => {
-    void isGeminiConfigured().then(setGeminiReady);
+    alive.current = true;
+    void isGeminiConfigured().then((ok) => {
+      if (alive.current) setGeminiReady(ok);
+    });
+    return () => {
+      alive.current = false;
+    };
   }, []);
 
   const generate = useCallback(
@@ -61,20 +84,37 @@ export default function AIPlaylistScreen() {
       setLoading(true);
       setTracks([]);
       setPlanTitle('');
+      setPlanSource(null);
+      setError(null);
+      setSaved(false);
       try {
         const { plan, tracks: result } = await recommendationEngine.generateFromPrompt(q);
+        if (!alive.current) return;
         setTracks(result);
         setPlanTitle(plan.title);
         setPlanSource(plan.source);
+        if (!result.length) {
+          setError('No tracks matched that vibe. Try a different wording.');
+        }
         engagement.markAIUsed();
       } catch {
+        if (!alive.current) return;
         setTracks([]);
+        setError("Arkify AI couldn't reach the music service. Check your connection and retry.");
       } finally {
-        setLoading(false);
+        if (alive.current) setLoading(false);
       }
     },
     [loading]
   );
+
+  const mixLabel = planTitle || DEFAULT_MIX_TITLE;
+
+  const saveMix = useCallback(() => {
+    if (!tracks.length || saved) return;
+    createPlaylist(mixLabel, tracks);
+    setSaved(true);
+  }, [tracks, saved, createPlaylist, mixLabel]);
 
   const canPlay = tracks.length > 0;
 
@@ -91,7 +131,7 @@ export default function AIPlaylistScreen() {
         >
           <ArrowLeft color={COLORS.text.primary} size={SIZES.icon.md} />
         </SpringPressable>
-        <Text style={styles.headerTitle}>Ask AI</Text>
+        <Text style={styles.headerTitle}>Arkify AI</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -104,11 +144,12 @@ export default function AIPlaylistScreen() {
         <View style={styles.hero}>
           <PulsingGlow size={180} color="rgba(53,214,198,0.14)" style={styles.heroGlow} />
           <View style={styles.heroIcon}>
-            <Bot color={COLORS.accent.primary} size={34} />
+            <Wand2 color={COLORS.accent.primary} size={32} />
           </View>
           <Text style={styles.heroTitle}>Describe a vibe.</Text>
           <Text style={styles.heroSub}>
-            I'll build the playlist. {geminiReady ? 'Gemini is on — expect magic.' : 'Running on-device.'}
+            Arkify AI will build the playlist —{'\n'}
+            {geminiReady ? 'cloud planner on, expect magic.' : 'planning on-device, fully private.'}
           </Text>
         </View>
 
@@ -141,7 +182,7 @@ export default function AIPlaylistScreen() {
         </View>
 
         {/* Ideas */}
-        {!tracks.length && !loading ? (
+        {!tracks.length && !loading && !error ? (
           <View style={styles.ideasWrap}>
             <Text style={styles.ideasTitle}>Try one</Text>
             <View style={styles.ideasRow}>
@@ -168,38 +209,94 @@ export default function AIPlaylistScreen() {
         {/* Generating */}
         {loading ? (
           <View style={styles.generating}>
+            <PulsingGlow size={120} color="rgba(53, 214, 198, 0.12)" style={styles.generatingGlow} />
             <ActivityIndicator color={COLORS.accent.primary} size="large" />
-            <Text style={styles.generatingText}>Reading your taste, picking tracks...</Text>
+            <Text style={styles.generatingText}>Arkify AI is reading your taste...</Text>
+            <Text style={styles.generatingSub}>picking, ranking, sequencing</Text>
           </View>
+        ) : null}
+
+        {/* Failure — visible, retryable, never a silent reset */}
+        {!loading && error ? (
+          <FadeInUp>
+            <ErrorState
+              message={error}
+              retryLabel={prompt.trim() ? 'Retry' : undefined}
+              onRetry={prompt.trim() ? () => void generate(prompt) : undefined}
+            />
+          </FadeInUp>
         ) : null}
 
         {/* Results */}
         {canPlay ? (
           <>
-            <View style={styles.resultHeader}>
-              <View>
-                <Text style={styles.resultTitle}>{planTitle || 'Your mix'}</Text>
-                <Text style={styles.resultMeta}>
-                  {tracks.length} tracks · {planSource === 'gemini' ? 'Gemini plan' : 'On-device plan'} · taste-ranked
-                </Text>
-              </View>
-              <SpringPressable
-                style={styles.playBtn}
-                pressScale={0.9}
-                glow
-                onPress={() => playTrack(tracks[0], { tracks, label: planTitle || 'AI Mix' })}
-                accessibilityRole="button"
-                accessibilityLabel="Play mix"
-              >
-                <Play color={COLORS.text.dark} size={20} fill={COLORS.text.dark} />
-              </SpringPressable>
-            </View>
+            <FadeInUp index={0} preset="fast">
+              <GlassView weight="thin" style={styles.resultCard}>
+                <View style={styles.resultHeader}>
+                  <View style={styles.resultTextWrap}>
+                    <Text style={styles.resultTitle} numberOfLines={2}>
+                      {mixLabel}
+                    </Text>
+                    <Text style={styles.resultMeta}>
+                      {tracks.length} tracks ·{' '}
+                      {planSource === 'gemini' ? 'Arkify AI · cloud plan' : 'Arkify AI · on-device'} ·
+                      taste-ranked
+                    </Text>
+                  </View>
+                  <SpringPressable
+                    style={styles.playBtn}
+                    pressScale={0.9}
+                    glow
+                    onPress={() => playTrack(tracks[0], { tracks, label: mixLabel })}
+                    accessibilityRole="button"
+                    accessibilityLabel="Play mix"
+                  >
+                    <Play color={COLORS.text.dark} size={20} fill={COLORS.text.dark} />
+                  </SpringPressable>
+                </View>
+
+                <View style={styles.resultActions}>
+                  <SpringPressable
+                    style={[styles.resultActionBtn, styles.resultActionPrimary]}
+                    pressScale={0.94}
+                    onPress={() =>
+                      playTrack(tracks[0], {
+                        tracks: [...tracks].sort(() => Math.random() - 0.5),
+                        label: mixLabel,
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel="Shuffle play mix"
+                  >
+                    <Shuffle color={COLORS.accent.primary} size={16} />
+                    <Text style={[styles.resultActionText, styles.resultActionTextAccent]}>
+                      Shuffle
+                    </Text>
+                  </SpringPressable>
+                  <SpringPressable
+                    style={[styles.resultActionBtn, saved && styles.resultActionSaved]}
+                    pressScale={0.94}
+                    onPress={saveMix}
+                    disabled={saved}
+                    accessibilityRole="button"
+                    accessibilityLabel={saved ? 'Mix saved to library' : 'Save mix to library'}
+                  >
+                    {saved ? (
+                      <Check color={COLORS.accent.primary} size={16} />
+                    ) : (
+                      <BookmarkPlus color={COLORS.text.primary} size={16} />
+                    )}
+                    <Text style={styles.resultActionText}>{saved ? 'Saved' : 'Save'}</Text>
+                  </SpringPressable>
+                </View>
+              </GlassView>
+            </FadeInUp>
 
             {tracks.map((track, i) => (
-              <FadeInUp key={track.id} index={Math.min(i, 6)} preset="fast">
+              <FadeInUp key={track.id} index={Math.min(i, 6) + 1} preset="fast">
                 <TrackRow
                   track={track}
-                  onPress={(t) => playTrack(t, { tracks, label: planTitle || 'AI Mix' })}
+                  onPress={(t) => playTrack(t, { tracks, label: mixLabel })}
                 />
               </FadeInUp>
             ))}
@@ -272,6 +369,7 @@ const styles = StyleSheet.create({
     fontSize: TYPE.subheadline.fontSize,
     color: COLORS.text.secondary,
     marginTop: 4,
+    textAlign: 'center',
   },
 
   inputRow: {
@@ -335,20 +433,37 @@ const styles = StyleSheet.create({
   generating: {
     alignItems: 'center',
     paddingVertical: SIZES.xxl,
-    gap: SIZES.md,
+    gap: SIZES.sm,
+  },
+  generatingGlow: {
+    position: 'absolute',
+    top: SIZES.xl - 10,
   },
   generatingText: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.primary,
+    marginTop: SIZES.xs,
+  },
+  generatingSub: {
     fontFamily: FONTS.regular,
-    fontSize: TYPE.subheadline.fontSize,
-    color: COLORS.text.secondary,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.muted,
   },
 
+  resultCard: {
+    padding: SIZES.md,
+    marginBottom: SIZES.md,
+    marginTop: SIZES.sm,
+  },
   resultHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SIZES.md,
-    marginTop: SIZES.sm,
+  },
+  resultTextWrap: {
+    flex: 1,
+    marginRight: SIZES.md,
   },
   resultTitle: {
     fontFamily: FONTS.bold,
@@ -368,5 +483,37 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  resultActions: {
+    flexDirection: 'row',
+    gap: SIZES.sm,
+    marginTop: SIZES.md,
+  },
+  resultActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    backgroundColor: COLORS.surface,
+  },
+  resultActionPrimary: {
+    borderColor: COLORS.accent.border,
+    backgroundColor: COLORS.accent.soft,
+  },
+  resultActionSaved: {
+    borderColor: COLORS.accent.border,
+  },
+  resultActionText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.primary,
+  },
+  resultActionTextAccent: {
+    color: COLORS.accent.primary,
   },
 });

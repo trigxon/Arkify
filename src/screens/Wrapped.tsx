@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  useWindowDimensions,
   Animated,
-  Dimensions,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -20,14 +20,13 @@ import { ShareSheet, ShareRequest } from '../components/share/ShareSheet';
 import { computeWrapped, formatHours } from '../engagement/wrapped';
 import { useEngagement } from '../hooks/useEngagement';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-
 /**
  * Wrapped — the monthly listening story, told as swipeable slides.
  * Each slide is a poster; the last one is shareable.
  */
 export default function WrappedScreen() {
   const insets = useSafeAreaInsets();
+  const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
   const navigation = useNavigation();
   const eng = useEngagement();
   const [shareRequest, setShareRequest] = useState<ShareRequest | null>(null);

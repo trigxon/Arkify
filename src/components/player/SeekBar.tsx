@@ -57,6 +57,8 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
   const durationRef = useRef(0);
   const displayRef = useRef(0);
   const seekingRef = useRef(false);
+  /** Recently committed seek target, held until the engine reports it. */
+  const seekHoldRef = useRef<{ value: number; at: number } | null>(null);
 
   barWidthRef.current = barWidth;
   durationRef.current = Number.isFinite(duration) && duration > 0 ? duration : 0;
@@ -140,6 +142,10 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
           }
           // One seek, at the end of the gesture.
           onSeek(displayRef.current);
+          // Hold the drawn thumb at the seek target until the engine's next
+          // position tick catches up — otherwise the pre-seek position
+          // flashes through for a frame (the classic scrubber snap-back).
+          seekHoldRef.current = { value: displayRef.current, at: Date.now() };
           setIsSeeking(false);
         },
 
@@ -151,7 +157,15 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
     [onSeek, positionForX, setDragged]
   );
 
-  const shown = isSeeking ? displayPosition : safePosition;
+  // While seeking, the finger owns the label. Right after a committed seek,
+  // hold the target in view until the engine position lands on it (or 2.5s
+  // pass — covers seeks the engine rejects, e.g. live-ish streams).
+  const hold = seekHoldRef.current;
+  const holdActive =
+    hold !== null &&
+    Date.now() - hold.at < 2500 &&
+    Math.abs(safePosition - hold.value) > 1.2;
+  const shown = isSeeking ? displayPosition : holdActive ? hold!.value : safePosition;
 
   // Pixel geometry, recomputed only when the bar is measured: both the fill and
   // the thumb ride the same animated fraction, so they can never disagree.

@@ -36,7 +36,7 @@ import {
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS, MOOD_PALETTE, MoodId } from '../constants/theme';
 import { Artwork } from '../components/common/Artwork';
 import { SectionHeader, SkeletonList, ErrorState } from '../components/common/UI';
-import { ScreenHeader } from '../components/common/ScreenHeader';
+import { ScreenHeader, MenuButton } from '../components/common/ScreenHeader';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { GlassView, SpringPressable, FadeInUp, PulsingGlow } from '../components/common/Glass';
@@ -87,6 +87,7 @@ export default function HomeScreen() {
   const [discover, setDiscover] = useState<Track[]>([]);
   const [onRepeat, setOnRepeat] = useState<Track[]>([]);
   const [mixLoading, setMixLoading] = useState(true);
+  const [repeatLoading, setRepeatLoading] = useState(true);
   const [suggestedMood, setSuggestedMood] = useState<{ id: MoodId; reason: string } | null>(null);
   const [coldStart, setColdStart] = useState(true);
 
@@ -121,8 +122,11 @@ export default function HomeScreen() {
       setColdStart(tasteProfile.isColdStart);
       return recommendationEngine
         .generateRepeatFavorites()
-        .then(setOnRepeat)
-        .catch(() => undefined);
+        .then((rows) => {
+          setOnRepeat(rows);
+        })
+        .catch(() => undefined)
+        .finally(() => setRepeatLoading(false));
     });
   }, [loadHome]);
 
@@ -181,6 +185,7 @@ export default function HomeScreen() {
         <ScreenHeader
           kicker={greeting}
           title={firstName}
+          left={<MenuButton />}
           right={
             <View style={styles.headerRight}>
               {streakActive && streak > 0 ? (
@@ -297,7 +302,7 @@ export default function HomeScreen() {
         {/* ---------------- Made for you (AI) ---------------- */}
         <SectionHeader
           title="Made for you"
-          actionLabel="Ask AI"
+          actionLabel="Arkify AI"
           onAction={() => navigation.navigate('AIPlaylist' as never)}
         />
 
@@ -322,7 +327,7 @@ export default function HomeScreen() {
               subtitle={coldStart ? 'Plays will land here' : 'The songs you loop'}
               gradient={['#FF8A5C', '#FF4E8E']}
               Icon={Repeat2}
-              loading={false}
+              loading={repeatLoading && !onRepeat.length}
               tracks={onRepeat.length ? onRepeat : recentlyPlayed.slice(0, 20)}
               onPress={() =>
                 runAction('repeat', 'On Repeat', onRepeat.length ? onRepeat : recentlyPlayed.slice(0, 20), null)
@@ -339,14 +344,14 @@ export default function HomeScreen() {
             glow
             onPress={() => navigation.navigate('AIPlaylist' as never)}
             accessibilityRole="button"
-            accessibilityLabel="Ask AI for a playlist"
+            accessibilityLabel="Ask Arkify AI for a playlist"
           >
             <PulsingGlow size={130} color="rgba(53, 214, 198, 0.16)" style={styles.askAIGlow} />
             <View style={styles.askAIIcon}>
               <Bot color={COLORS.accent.primary} size={26} />
             </View>
             <View style={styles.askAIText}>
-              <Text style={styles.askAITitle}>Ask AI for anything</Text>
+              <Text style={styles.askAITitle}>Ask Arkify AI anything</Text>
               <Text style={styles.askAISub} numberOfLines={1}>
                 "gym energy" · "3am heartbreak" · "study flow"
               </Text>

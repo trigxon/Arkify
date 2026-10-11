@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bot,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Download,
   ExternalLink,
@@ -23,6 +22,7 @@ import {
   Music2,
   PenLine,
   SlidersHorizontal,
+  Sparkles,
   User,
 } from 'lucide-react-native';
 import Constants from 'expo-constants';
@@ -30,8 +30,12 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Gender } from '../services/LibraryService';
 import { useLibrary } from '../hooks/useLibrary';
+import { usePlayer } from '../hooks/usePlayer';
 import { PlaybackSourceSheet } from '../components/player/PlaybackSourceSheet';
 import { EqualizerSheet } from '../components/audio/EqualizerSheet';
+import { BackButton, IOSToggle } from '../components/common/Glass';
+import { MiniPlayer } from '../components/player/MiniPlayer';
+import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AudioFX } from '../services/AudioFX';
 import { getGeminiKey, setGeminiKey, isGeminiConfigured } from '../ai/gemini';
 import { tasteProfile } from '../ai/TasteProfile';
@@ -60,6 +64,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { profile, saveProfile, history, playlists, liked, settings, updateSettings } = useLibrary();
+  const { currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
 
   const [name, setName] = useState(profile.name);
   const [showSource, setShowSource] = useState(false);
@@ -106,20 +111,12 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SIZES.sm }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ChevronLeft color={COLORS.text.primary} size={SIZES.icon.lg} />
-        </TouchableOpacity>
+        <BackButton />
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + SIZES.xxl }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -211,18 +208,18 @@ export default function SettingsScreen() {
           <Stat Icon={Headphones} value={history.length} label="Listen" />
         </View>
 
-        {/* ---- AI ---- */}
-        <Text style={styles.sectionLabel}>AI</Text>
+        {/* ---- Arkify AI ---- */}
+        <Text style={styles.sectionLabel}>ARKIFY AI</Text>
         <View style={styles.card}>
           <View style={styles.aiHeader}>
             <View style={styles.aiIcon}>
-              <Bot color={COLORS.accent.primary} size={18} />
+              <Sparkles color={COLORS.accent.primary} size={18} />
             </View>
             <View style={styles.settingTextWrap}>
-              <Text style={styles.settingTitle}>Gemini-powered mixes</Text>
+              <Text style={styles.settingTitle}>Arkify AI · cloud planner</Text>
               <Text style={styles.settingBody}>
                 {geminiOn
-                  ? 'Connected — "Ask AI" plans playlists with Gemini.'
+                  ? 'Connected — Arkify AI plans playlists with Gemini.'
                   : 'Optional. On-device recommendations always run, no key needed.'}
               </Text>
             </View>
@@ -308,15 +305,11 @@ export default function SettingsScreen() {
           <Divider />
           <View style={styles.row}>
             <Text style={styles.rowLabel}>High-quality streams</Text>
-            <TouchableOpacity
-              style={[styles.toggle, settings.preferAudioOnly ? styles.toggleOn : null]}
-              onPress={() => updateSettings({ preferAudioOnly: !settings.preferAudioOnly })}
-              accessibilityRole="switch"
-              accessibilityState={{ selected: settings.preferAudioOnly }}
+            <IOSToggle
+              value={settings.preferAudioOnly}
+              onValueChange={(v) => updateSettings({ preferAudioOnly: v })}
               accessibilityLabel="Prefer audio only"
-            >
-              <View style={[styles.toggleKnob, settings.preferAudioOnly && styles.toggleKnobOn]} />
-            </TouchableOpacity>
+            />
           </View>
         </View>
 
@@ -328,15 +321,11 @@ export default function SettingsScreen() {
               <Download color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
               <Text style={styles.rowLabel}>Smart offline</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.toggle, settings.autoDownload && styles.toggleOn]}
-              onPress={() => updateSettings({ autoDownload: !settings.autoDownload })}
-              accessibilityRole="switch"
-              accessibilityState={{ selected: settings.autoDownload }}
+            <IOSToggle
+              value={settings.autoDownload}
+              onValueChange={(v) => updateSettings({ autoDownload: v })}
               accessibilityLabel="Smart offline downloads"
-            >
-              <View style={[styles.toggleKnob, settings.autoDownload && styles.toggleKnobOn]} />
-            </TouchableOpacity>
+            />
           </View>
           <Divider />
           <TouchableOpacity
@@ -413,6 +402,19 @@ export default function SettingsScreen() {
 
       <PlaybackSourceSheet visible={showSource} onClose={() => setShowSource(false)} />
       <EqualizerSheet visible={showEQ} onClose={() => setShowEQ(false)} />
+
+      <StatusBarScrim />
+
+      {currentTrack && (
+        <MiniPlayer
+          track={currentTrack}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          onPlayPause={togglePlayPause}
+          onPress={() => navigation.navigate('NowPlaying' as never)}
+          tabBarHeight={0}
+        />
+      )}
     </View>
   );
 }

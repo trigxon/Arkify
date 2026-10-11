@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BADGES,
   Badge,
@@ -15,12 +15,20 @@ import {
  */
 export function useEngagement() {
   const [version, setVersion] = useState(0);
+  // Skip no-op renders: the 5s poll only bumps when the visible numbers move.
+  const lastSig = useRef<string>('');
 
   useEffect(() => {
     // Nudge once after mount so the first read sees loaded state.
     void engagement.load().then(() => setVersion((v) => v + 1));
 
-    const unsub = LibrarySubscribeBridge(() => setVersion((v) => v + 1));
+    const unsub = LibrarySubscribeBridge(() => {
+      const s = engagement.getState();
+      const sig = `${s.xp}|${s.streak}|${s.badges.length}|${Math.round(s.totalSeconds / 10)}`;
+      if (sig === lastSig.current) return; // nothing visible changed
+      lastSig.current = sig;
+      setVersion((v) => v + 1);
+    });
     return unsub;
   }, []);
 

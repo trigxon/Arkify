@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TabNavigator } from './TabNavigator';
 import { COLORS } from '../constants/theme';
 import { useLibrary } from '../hooks/useLibrary';
+import { DrawerProvider } from '../components/common/SideDrawer';
 import LaunchScreen from '../screens/Launch';
 import ProfileSetupScreen from '../screens/ProfileSetup';
 import PlaylistDetailScreen from '../screens/PlaylistDetail';
@@ -17,6 +18,7 @@ import AIPlaylistScreen from '../screens/AIPlaylist';
 import MoodRadiosScreen from '../screens/MoodRadios';
 import DownloadsScreen from '../screens/Downloads';
 import HistoryScreen from '../screens/History';
+import type { MoodId } from '../constants/theme';
 
 type RootStackParamList = {
   Launch: undefined;
@@ -28,12 +30,14 @@ type RootStackParamList = {
   Stats: undefined;
   Wrapped: undefined;
   AIPlaylist: undefined;
-  MoodRadios: { moodId?: string } | undefined;
+  MoodRadios: { moodId?: MoodId } | undefined;
   Downloads: undefined;
   History: undefined;
 };
 
-const Stack = createNativeStackNavigator();
+export type { RootStackParamList };
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const ArkifyTheme = {
   ...DefaultTheme,
@@ -83,26 +87,41 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer theme={ArkifyTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Launch">
-        <Stack.Screen name="Launch" options={{ animation: 'fade' }}>
-          {() => <LaunchGate />}
-        </Stack.Screen>
-        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-        <Stack.Screen name="Main" component={TabNavigator} />
-        <Stack.Screen name="Playlist" component={PlaylistDetailScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="History" component={HistoryScreen} />
-        <Stack.Screen
-          name="NowPlaying"
-          component={NowPlayingScreen}
-          options={{ presentation: 'fullScreenModal' }}
-        />
-        <Stack.Screen name="Stats" component={StatsScreen} />
-        <Stack.Screen name="Wrapped" component={WrappedScreen} options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="AIPlaylist" component={AIPlaylistScreen} options={{ animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="MoodRadios" component={MoodRadiosScreen} options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="Downloads" component={DownloadsScreen} />
-      </Stack.Navigator>
+      {/* DrawerProvider hosts the iOS-style sliding sidebar above every route. */}
+      <DrawerProvider>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            // iOS push feel everywhere; individual screens override below.
+            animation: 'slide_from_right',
+            gestureEnabled: true,
+          }}
+          initialRouteName="Launch"
+        >
+          <Stack.Screen name="Launch" options={{ animation: 'fade', gestureEnabled: false }}>
+            {() => <LaunchGate />}
+          </Stack.Screen>
+          <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} options={{ animation: 'fade', gestureEnabled: false }} />
+          <Stack.Screen name="Main" component={TabNavigator} options={{ animation: 'fade' }} />
+          <Stack.Screen name="Playlist" component={PlaylistDetailScreen} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="History" component={HistoryScreen} />
+          <Stack.Screen
+            name="NowPlaying"
+            component={NowPlayingScreen}
+            options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen name="Stats" component={StatsScreen} />
+          <Stack.Screen name="Wrapped" component={WrappedScreen} />
+          <Stack.Screen
+            name="AIPlaylist"
+            component={AIPlaylistScreen}
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen name="MoodRadios" component={MoodRadiosScreen} />
+          <Stack.Screen name="Downloads" component={DownloadsScreen} />
+        </Stack.Navigator>
+      </DrawerProvider>
     </NavigationContainer>
   );
 };

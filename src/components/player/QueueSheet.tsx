@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { ChevronRight, Menu, Shuffle } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
@@ -68,46 +69,107 @@ export const QueueSheet: React.FC<Props> = ({
   const startIndex = useRef(0);
   const active = useRef(false);
 
-  // Refs mirror state for the long-lived PanResponder (created once).
+  // Refs mirror the freshest values for the long-lived PanResponder: the
+  // responder is created once, so every closure must read from refs, never
+  // from render-scope state.
   const dragIndexRef = useRef<number | null>(null);
   const hoverIndexRef = useRef<number | null>(null);
+  const upcomingRef = useRef<Track[]>(upcoming);
+  const reorderRef = useRef(onReorder);
+  const lastOverRef = useRef<number | null>(null);
   dragIndexRef.current = dragIndex;
   hoverIndexRef.current = hoverIndex;
+  upcomingRef.current = upcoming;
+  reorderRef.current = onReorder;
+
+  /** Per-row displacement springs so neighbours glide out of the way. */
+  const rowOffsets = useRef<Map<string, Animated.Value>>(new Map());
+  const getOffset = useCallback((id: string): Animated.Value => {
+    let v = rowOffsets.current.get(id);
+    if (!v) {
+      v = new Animated.Value(0);
+      rowOffsets.current.set(id, v);
+    }
+    return v;
+  }, []);
+
+  const settleRows = useCallback(() => {
+    rowOffsets.current.forEach((v) => v.setValue(0));
+  }, []);
+
+  /** Animate neighbours when the hover slot changes (not every frame). */
+  const displaceRows = useCallback(
+    (from: number, over: number) => {
+      const list = upcomingRef.current;
+      list.forEach((track, i) => {
+        if (i === from) return;
+        let target = 0;
+        if (from < over && i > from && i <= over) target = -ROW_HEIGHT;
+        else if (from > over && i < from && i >= over) target = ROW_HEIGHT;
+        Animated.spring(getOffset(track.id), {
+          toValue: target,
+          stiffness: 500,
+          damping: 34,
+          mass: 0.7,
+          useNativeDriver: Platform.OS !== 'web',
+        }).start();
+      });
+    },
+    [getOffset]
+  );
 
   const endDrag = useCallback(() => {
     active.current = false;
+    lastOverRef.current = null;
     setDragIndex(null);
     setHoverIndex(null);
     dragY.setValue(0);
-  }, [dragY]);
+    settleRows();
+  }, [dragY, settleRows]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_e, g) => active.current && Math.abs(g.dy) > 6,
-      onPanResponderMove: (_e, g) => {
-        dragY.setValue(g.dy);
+  const hapticTick = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => undefined);
+    }
+  }, []);
 
-        const draggedY = startIndex.current * ROW_HEIGHT + g.dy;
-        const over = Math.max(0, Math.min(upcoming.length - 1, Math.round(draggedY / ROW_HEIGHT)));
-        if (over !== hoverIndexRef.current) setHoverIndex(over);
-      },
-      onPanResponderRelease: () => {
-        if (active.current && hoverIndexRef.current !== null && dragIndexRef.current !== null) {
-          if (hoverIndexRef.current !== dragIndexRef.current) {
-            onReorder(dragIndexRef.current, hoverIndexRef.current);
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_e, g) => active.current && Math.abs(g.dy) > 6,
+        onPanResponderMove: (_e, g) => {
+          dragY.setValue(g.dy);
+
+          const count = upcomingRef.current.length;
+          const draggedY = startIndex.current * ROW_HEIGHT + g.dy;
+          const over = Math.max(0, Math.min(count - 1, Math.round(draggedY / ROW_HEIGHT)));
+          if (over !== hoverIndexRef.current) {
+            setHoverIndex(over);
+            hapticTick();
+            const from = dragIndexRef.current;
+            if (from !== null) displaceRows(from, over);
           }
-        }
-        endDrag();
-      },
-      onPanResponderTerminate: endDrag,
-    })
-  ).current;
+        },
+        onPanResponderRelease: () => {
+          if (active.current && hoverIndexRef.current !== null && dragIndexRef.current !== null) {
+            if (hoverIndexRef.current !== dragIndexRef.current) {
+              reorderRef.current(dragIndexRef.current, hoverIndexRef.current);
+            }
+          }
+          endDrag();
+        },
+        onPanResponderTerminate: endDrag,
+      }),
+    [dragY, endDrag, displaceRows, hapticTick]
+  );
 
   const beginDrag = (index: number) => {
     startIndex.current = index;
+    lastOverRef.current = index;
     active.current = true;
     setDragIndex(index);
+    hapticTick();
   };
 
   const clear = useCallback(() => {
@@ -181,12 +243,13 @@ export const QueueSheet: React.FC<Props> = ({
             const isHovered = hoverIndex === i && !isDragging;
 
             return (
-              <View
+              <Animated.View
                 key={track.id}
                 style={[
                   styles.queueRow,
                   isHovered && styles.queueRowHover,
                   isDragging && styles.queueRowDragging,
+                  { transform: [{ translateY: getOffset(track.id) }] },
                 ]}
               >
                 <Animated.View
@@ -194,7 +257,7 @@ export const QueueSheet: React.FC<Props> = ({
                     styles.queueRowInner,
                     { transform: [{ translateY: isDragging ? dragY : 0 }] },
                   ]}
-                  {...(isDragging ? panResponder.panHandlers : {})}
+                  {...panResponder.panHandlers}
                 >
                   <Artwork uri={track.albumImageUrl} size={44} radius={8} />
 
@@ -218,18 +281,21 @@ export const QueueSheet: React.FC<Props> = ({
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Drag handle, per the reference: the grab affordance sits at
-                      the row's trailing edge. */}
+                  {/* Drag handle: press to arm, drag to reorder. The row's
+                      pan handlers are always attached but only capture once
+                      the grip arms the gesture, so list scroll is unaffected. */}
                   <TouchableOpacity
                     style={styles.grip}
                     onPressIn={() => beginDrag(i)}
+                    onPress={() => undefined}
                     accessibilityRole="button"
                     accessibilityLabel={`Reorder ${track.title}`}
+                    accessibilityHint="Hold and drag to reorder"
                   >
                     <Menu color={COLORS.text.secondary} size={SIZES.icon.sm} />
                   </TouchableOpacity>
                 </Animated.View>
-              </View>
+              </Animated.View>
             );
           })}
         </ScrollView>

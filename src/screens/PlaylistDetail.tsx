@@ -13,6 +13,7 @@ import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
+import { BackButton, FadeInUp } from '../components/common/Glass';
 import { Artwork } from '../components/common/Artwork';
 import { EmptyState } from '../components/common/UI';
 import { Track } from '../core/types';
@@ -33,7 +34,7 @@ export default function PlaylistDetailScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute<PlaylistRoute>();
-  const { playlistId } = route.params;
+  const playlistId = route.params?.playlistId ?? '';
 
   const { playlists, likedPlaylist } = useLibrary();
   const {
@@ -99,20 +100,14 @@ export default function PlaylistDetailScreen() {
   if (!playlist) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + SIZES.lg }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ChevronLeft color={COLORS.text.primary} size={SIZES.icon.xl} />
-        </TouchableOpacity>
+        <BackButton style={styles.backButton} />
         <EmptyState title="This playlist is no longer available." style={styles.emptyCard} />
       </View>
     );
   }
 
   const header = (
+    <FadeInUp preset="slow">
     <View style={styles.headerBlock}>
       <View style={styles.artworkWrap}>
         <View style={[styles.artworkShadow, SHADOWS.artwork]}>
@@ -139,7 +134,7 @@ export default function PlaylistDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Play playlist"
         >
-          <Play color="COLORS.text.dark" size={SIZES.icon.sm + 2} fill="COLORS.text.dark" />
+          <Play color={COLORS.text.dark} size={SIZES.icon.sm + 2} fill={COLORS.text.dark} />
           <Text style={styles.primaryActionText}>Play</Text>
         </TouchableOpacity>
 
@@ -167,6 +162,7 @@ export default function PlaylistDetailScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </FadeInUp>
   );
 
   return (
@@ -218,6 +214,7 @@ export default function PlaylistDetailScreen() {
           isLoading={isLoading}
           onPlayPause={togglePlayPause}
           onPress={() => navigation.navigate('NowPlaying' as never)}
+          tabBarHeight={0}
         />
       )}
     </View>
@@ -291,7 +288,7 @@ const styles = StyleSheet.create({
   primaryActionText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: 'COLORS.text.dark',
+    color: COLORS.text.dark,
   },
   secondaryAction: {
     flexDirection: 'row',

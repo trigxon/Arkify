@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   BarChart3,
   ChevronRight,
@@ -17,7 +17,7 @@ import {
   User,
 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, GRADIENTS } from '../constants/theme';
-import { ScreenHeader } from '../components/common/ScreenHeader';
+import { ScreenHeader, MenuButton } from '../components/common/ScreenHeader';
 import { GlassView, SpringPressable, FadeInUp } from '../components/common/Glass';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
@@ -41,9 +41,12 @@ export default function YouScreen() {
 
   const [downloadCount, setDownloadCount] = useState(0);
 
-  React.useEffect(() => {
-    void DownloadService.getDownloaded().then((list) => setDownloadCount(list.length));
-  }, []);
+  // Reload on every focus so the count is live after downloading anywhere.
+  useFocusEffect(
+    useCallback(() => {
+      void DownloadService.getDownloaded().then((list) => setDownloadCount(list.length));
+    }, [])
+  );
 
   const firstName = profile.name?.trim() || 'You';
 
@@ -66,6 +69,7 @@ export default function YouScreen() {
         <ScreenHeader
           title="You"
           kicker="Your world of sound"
+          left={<MenuButton />}
           right={
             <SpringPressable
               style={styles.settingsBtn}
@@ -200,7 +204,7 @@ export default function YouScreen() {
             <ListAction
               Icon={SettingsIcon}
               label="Settings"
-              detail="AI, audio, playback"
+              detail="Arkify AI, audio, playback"
               onPress={openSettings}
               last
             />

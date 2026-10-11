@@ -10,11 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Play, Radio, Shuffle } from 'lucide-react-native';
+import { MiniPlayer } from '../components/player/MiniPlayer';
+import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { usePlayer } from '../hooks/usePlayer';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS, MOOD_PALETTE, MoodId } from '../constants/theme';
 import { SpringPressable, FadeInUp, GlassView } from '../components/common/Glass';
 import { TrackRow } from '../components/lists/TrackRow';
 import { Track } from '../core/types';
-import { usePlayer } from '../hooks/usePlayer';
 import { recommendationEngine } from '../ai/RecommendationEngine';
 import { MOODS, moodById } from '../ai/moods';
 import { engagement } from '../engagement/Streaks';
@@ -30,6 +32,7 @@ import { engagement } from '../engagement/Streaks';
  */
 export default function MoodRadiosScreen() {
   const insets = useSafeAreaInsets();
+  const { currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
   const navigation = useNavigation();
   const route = useRoute<{ key: string; name: string; params?: { moodId?: MoodId } }>();
   const { playTrack } = usePlayer();

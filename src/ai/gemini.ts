@@ -114,7 +114,7 @@ export function onDevicePlan(prompt: string): AIPlaylistPlan {
 
   // Generic: treat the whole prompt as a search seed.
   return {
-    title: prompt.trim().slice(0, 42) || 'AI Mix',
+    title: prompt.trim().slice(0, 42) || 'Arkify AI Mix',
     description: `Built from your prompt: "${prompt.trim()}"`,
     queries: [prompt.trim(), `${prompt.trim()} mix`, `${prompt.trim()} playlist`],
     source: 'on-device',
@@ -166,7 +166,7 @@ export async function geminiPlaylistPlan(
     }
 
     return {
-      title: String(parsed.title || 'AI Mix').slice(0, 42),
+      title: String(parsed.title || 'Arkify AI Mix').slice(0, 42),
       description: String(parsed.description || '').slice(0, 90),
       queries: parsed.queries.slice(0, 5).map(String),
       exclude: Array.isArray(parsed.exclude) ? parsed.exclude.map(String).slice(0, 4) : undefined,

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   TextStyle,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { MoreVertical } from 'lucide-react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Track } from '../../core/types';
-import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, SPRINGS } from '../../constants/theme';
 import { Artwork } from '../common/Artwork';
 
 interface TrackRowProps {
@@ -29,18 +31,34 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
   isLoading,
   onMorePress,
 }) => {
-  const handlePress = useCallback(() => onPress(track), [onPress, track]);
+  const handlePress = useCallback(() => {
+    if (Haptics && typeof Haptics.impactAsync === 'function') {
+      // Tactile tick on native; no-op on web.
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    }
+    onPress(track);
+  }, [onPress, track]);
   const handleMorePress = useCallback(
     () => onMorePress?.(track),
     [onMorePress, track]
   );
 
+  // iOS-style press-in: the row dips almost imperceptibly, then springs back.
+  const scale = useSharedValue(1);
+  const pressAnim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
   return (
-    <View style={[styles.container, isPlaying && styles.containerPlaying]}>
+    <Animated.View style={[styles.container, isPlaying && styles.containerPlaying, pressAnim]}>
       <TouchableOpacity
         style={styles.mainPressArea}
-        activeOpacity={0.6}
+        activeOpacity={0.7}
         onPress={handlePress}
+        onPressIn={() => {
+          scale.value = withSpring(0.982, SPRINGS.press);
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, SPRINGS.release);
+        }}
         delayPressIn={30}
         accessibilityRole="button"
         accessibilityLabel={
@@ -85,7 +103,7 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
           <MoreVertical color={COLORS.text.muted} size={SIZES.icon.sm} />
         </TouchableOpacity>
       )}
-    </View>
+    </Animated.View>
   );
 };
 

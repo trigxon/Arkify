@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { ArrowLeft } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,7 +22,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { GLASS, SPRINGS, ENTRANCE } from '../../constants/theme';
+import * as Haptics from 'expo-haptics';
+import { COLORS, GLASS, SPRINGS, ENTRANCE, TYPE, FONTS, SIZES } from '../../constants/theme';
 
 // ---------------------------------------------------------------------------
 // GlassView — the material everything translucent is made of
@@ -53,7 +56,9 @@ export const GlassView: React.FC<GlassViewProps> = ({
   weight = 'regular',
   specular = true,
   accent = false,
-  blur = false,
+  // Real translucent material on native (iOS UIBlurEffect / Android blur);
+  // web keeps the layered translucent fill, which reads nearly identically.
+  blur = Platform.OS !== 'web',
   pill = false,
   style,
   children,
@@ -198,6 +203,109 @@ export const FadeInUp: React.FC<{
 };
 
 // ---------------------------------------------------------------------------
+// IOSToggle — the iOS switch. Knob slides on a spring, track colour crossfades,
+// a selection haptic ticks on change. Drop-in for every settings row.
+// ---------------------------------------------------------------------------
+
+export const IOSToggle: React.FC<{
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
+}> = ({ value, onValueChange, disabled = false, accessibilityLabel, style }) => {
+  const knob = useSharedValue(value ? 1 : 0);
+
+  React.useEffect(() => {
+    knob.value = withSpring(value ? 1 : 0,
+      value ? SPRINGS.release : SPRINGS.gentle);
+  }, [value, knob]);
+
+  const knobStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: knob.value * 20 }],
+  }));
+  const onOpacity = useAnimatedStyle(() => ({ opacity: knob.value }));
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      disabled={disabled}
+      onPress={() => {
+        if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => undefined);
+        onValueChange(!value);
+      }}
+      accessibilityRole="switch"
+      accessibilityState={{ selected: value, disabled }}
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.toggleWrap, style]}
+    >
+      <View style={[styles.toggleTrack, { backgroundColor: 'rgba(120, 120, 128, 0.32)' }, value && styles.toggleTrackOn]}>
+        <Animated.View style={[StyleSheet.absoluteFill, styles.toggleTrackOnLayer, onOpacity]} />
+        <Animated.View style={[styles.toggleKnob, knobStyle]} />
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// BackButton — one circular glass back button for every stack screen.
+// Spring press, haptic, iOS-style pop.
+// ---------------------------------------------------------------------------
+
+export const BackButton: React.FC<{
+  onPress?: () => void;
+  label?: string;
+  style?: StyleProp<ViewStyle>;
+}> = ({ onPress, label = 'Back', style }) => {
+  const navigation = useNavigation();
+  return (
+    <SpringPressable
+      style={[styles.backBtn, style]}
+      pressScale={0.88}
+      onPress={
+        onPress ??
+        (() => {
+          if (navigation.canGoBack()) navigation.goBack();
+        })
+      }
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <ArrowLeft color={COLORS.text.primary} size={SIZES.icon.md} strokeWidth={2.2} />
+    </SpringPressable>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// usePressScale — shared press-physics hook for custom animated controls
+// (transport buttons, thumbs). Returns { pressed, scale, handlers }.
+// ---------------------------------------------------------------------------
+
+export const usePressScale = (pressScale = 0.9) => {
+  const pressed = useSharedValue(0);
+  const scale = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: withSpring(pressed.value ? pressScale : 1,
+          pressed.value ? SPRINGS.press : SPRINGS.release),
+      },
+    ],
+  }));
+
+  return {
+    scale,
+    handlers: {
+      onPressIn: () => {
+        pressed.value = 1;
+      },
+      onPressOut: () => {
+        pressed.value = 0;
+      },
+    },
+  };
+};
+
+// ---------------------------------------------------------------------------
 // PulsingGlow — a breathing halo used behind AI / Now Playing artwork.
 // Purely decorative, pointer-transparent.
 // ---------------------------------------------------------------------------
@@ -297,6 +405,41 @@ export const ShimmerBar: React.FC<{ width: number | `${number}%`; height?: numbe
 
 const styles = StyleSheet.create({
   base: {},
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleWrap: {
+    padding: 4,
+  },
+  toggleTrack: {
+    width: 51,
+    height: 31,
+    borderRadius: 15.5,
+    padding: 2,
+  } as ViewStyle,
+  toggleTrackOnLayer: {
+    borderRadius: 15.5,
+    backgroundColor: COLORS.status.success,
+  },
+  toggleTrackOn: {},
+  toggleKnob: {
+    width: 27,
+    height: 27,
+    borderRadius: 13.5,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   glowRing: {
     borderRadius: 999,
     borderWidth: 1.5,

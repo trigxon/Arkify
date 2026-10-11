@@ -5,6 +5,7 @@ import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
+import { BackButton } from '../components/common/Glass';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
 import { EmptyState } from '../components/common/UI';
@@ -43,7 +44,7 @@ function groupByDay(entries: HistoryEntry[]): Section[] {
 
     let title: string;
     if (age <= 0) title = 'Today';
-    else if (age === DAY) title = 'Yesterday';
+    else if (Math.round(age / DAY) === 1) title = 'Yesterday'; // DST-safe day diff
     else if (age < 7 * DAY) title = 'Earlier this week';
     else title = 'Older';
 
@@ -110,15 +111,7 @@ export default function HistoryScreen() {
 
       <View style={[styles.header, { paddingTop: insets.top + SIZES.lg }]}>
         {/* Now a stack screen (reached from You), so it carries a back affordance. */}
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ChevronLeft color={COLORS.text.primary} size={SIZES.icon.md} />
-        </TouchableOpacity>
+        <BackButton />
         <Text style={styles.title}>History</Text>
         {history.length > 0 && (
           <TouchableOpacity
@@ -172,6 +165,7 @@ export default function HistoryScreen() {
           isLoading={isLoading}
           onPlayPause={togglePlayPause}
           onPress={() => navigation.navigate('NowPlaying' as never)}
+          tabBarHeight={0}
         />
       )}
     </View>

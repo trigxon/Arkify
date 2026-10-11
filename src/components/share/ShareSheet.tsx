@@ -36,6 +36,8 @@ export const ShareSheet: React.FC<{
 }> = ({ request, onClose }) => {
   const shotRef = useRef<ViewShot>(null);
   const [busy, setBusy] = useState(false);
+  // Keep the capture card mounted while the sheet lives so the ref is usable.
+  const cardRequest = request;
 
   const share = useCallback(async () => {
     if (!request) return;
@@ -76,13 +78,14 @@ export const ShareSheet: React.FC<{
     }
   }, [request, onClose]);
 
-  if (!request) return null;
-
+  // Mounted always (so the Modal animates out properly); content is gated.
   return (
-    <BottomSheet visible onClose={onClose} title="Share" subtitle="Send a card, not just a link">
+    <BottomSheet visible={!!request} onClose={onClose} title="Share" subtitle="Send a card, not just a link">
+      {request ? (
+        <>
       {/* Hidden, off-card render used for capture. */}
       <View style={styles.offscreen} pointerEvents="none">
-        <ShareCard ref={shotRef} {...request} />
+        <ShareCard ref={shotRef} {...cardRequest!} />
       </View>
 
       <GlassView weight="thin" style={styles.previewWrap}>
@@ -104,6 +107,8 @@ export const ShareSheet: React.FC<{
       </SpringPressable>
 
       {request.message ? <Text style={styles.messageHint}>{request.message}</Text> : null}
+        </>
+      ) : null}
     </BottomSheet>
   );
 };

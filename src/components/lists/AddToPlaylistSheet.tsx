@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: 'COLORS.text.dark',
+    color: COLORS.text.dark,
   },
   disabled: {
     opacity: 0.4,

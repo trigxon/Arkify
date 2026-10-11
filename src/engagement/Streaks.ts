@@ -135,7 +135,7 @@ export const BADGES: Badge[] = [
   { id: 'offline', name: 'Ready Anywhere', description: 'Keep 5 songs downloaded', icon: 'Download', tier: 'bronze', check: (c) => c.downloadsCount >= 5 },
   { id: 'level-5', name: 'Level 5', description: 'Reach level 5', icon: 'Sparkles', tier: 'silver', check: (c) => levelForXp(c.state.xp).level >= 5 },
   { id: 'level-10', name: 'Level 10', description: 'Reach level 10', icon: 'Sparkles', tier: 'gold', check: (c) => levelForXp(c.state.xp).level >= 10 },
-  { id: 'ai-user', name: 'Sound Sommelier', description: 'Ask the AI for a mix', icon: 'Bot', tier: 'silver', check: (c) => c.state.badges.includes('ai-user') },
+  { id: 'ai-user', name: 'Sound Sommelier', description: 'Ask Arkify AI for a mix', icon: 'Bot', tier: 'silver', check: (c) => c.state.badges.includes('ai-user') },
 ];
 
 const TIER_META: Record<Badge['tier'], { label: string; color: string }> = {

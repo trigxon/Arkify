@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -96,14 +98,45 @@ export const TrackActionsSheet: React.FC<Props> = ({
     close();
   };
 
-  if (!track) return null;
+  /**
+   * Destructive removal asks first, matching History/Downloads patterns.
+   * Unlike + drop the track from every local playlist it appears in.
+   */
+  const removeFromLibrary = (t: Track) => {
+    if (isLiked(t.id)) toggleLike(t);
+    for (const p of playlists) {
+      if (p.tracks.some((x) => x.id === t.id)) {
+        removeFromPlaylist(p.id, t.id);
+      }
+    }
+    close();
+  };
+
+  const confirmRemoveFromLibrary = (t: Track) => {
+    const message = isLiked(t.id)
+      ? `Remove “${t.title}” from Liked Songs?`
+      : `Remove “${t.title}” from your library and every playlist?`;
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(message)) removeFromLibrary(t);
+      return;
+    }
+    Alert.alert('Remove from library?', message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => removeFromLibrary(t) },
+    ]);
+  };
 
   const sleepActive = remainingMs !== null;
 
   return (
     <>
-    {/* No title bar: the reference's action sheet opens straight into its rows. */}
+    {/* No title bar: the reference's action sheet opens straight into its rows.
+        The sheet stays mounted when track becomes null, so the slide-out
+        animation plays instead of the sheet vanishing. */}
     <BottomSheet visible={track !== null} onClose={close}>
+      {track ? (
+      <>
       {sleepPickerOpen ? (
         <>
           <Text style={styles.pickerHint}>Pause playback after</Text>
@@ -293,19 +326,11 @@ export const TrackActionsSheet: React.FC<Props> = ({
           Icon={Trash2}
           label={liked ? 'Remove from Liked Songs' : 'Remove from library'}
           destructive
-          onPress={() => {
-            // Real removal: unlike, and drop the track from every local
-            // playlist it appears in.
-            if (liked) toggleLike(track);
-            for (const p of playlists) {
-              if (p.tracks.some((t) => t.id === track.id)) {
-                removeFromPlaylist(p.id, track.id);
-              }
-            }
-            close();
-          }}
+          onPress={() => confirmRemoveFromLibrary(track)}
         />
       )}
+      </>
+      ) : null}
     </BottomSheet>
 
     {/* Rendered outside the action sheet so both can animate independently. */}
@@ -324,6 +349,14 @@ const DownloadRow: React.FC<{ track: Track; onDone: () => void }> = ({ track, on
   const [downloaded, setDownloaded] = useState(DownloadService.isDownloaded(track.id));
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Progress callbacks must not poke state after the sheet is gone.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     setDownloaded(DownloadService.isDownloaded(track.id));
@@ -346,13 +379,16 @@ const DownloadRow: React.FC<{ track: Track; onDone: () => void }> = ({ track, on
           setDownloading(true);
           setError(null);
           try {
-            await DownloadService.download(track, setProgress);
+            await DownloadService.download(track, (p) => {
+              if (alive.current) setProgress(p);
+            });
+            if (!alive.current) return;
             setDownloaded(true);
             onDone();
           } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : 'Download failed');
+            if (alive.current) setError(e instanceof Error ? e.message : 'Download failed');
           } finally {
-            setDownloading(false);
+            if (alive.current) setDownloading(false);
           }
         }}
         accessibilityRole="button"
@@ -527,7 +563,7 @@ const styles = StyleSheet.create({
   createBtnText: {
     fontFamily: FONTS.medium,
     fontSize: TYPE.callout.fontSize,
-    color: 'COLORS.text.dark',
+    color: COLORS.text.dark,
   },
   disabled: {
     opacity: 0.4,

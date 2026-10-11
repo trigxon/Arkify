@@ -200,6 +200,7 @@ export default function NowPlayingScreen() {
     currentTrack,
     isPlaying,
     togglePlayPause,
+    pauseIfPlaying,
     isLoading,
     isBuffering,
     error,
@@ -226,6 +227,8 @@ export default function NowPlayingScreen() {
   const [view, setView] = useState<'player' | 'lyrics' | 'about'>('player');
   const [showQueue, setShowQueue] = useState(false);
   const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
+  // Timer shortcuts land straight in the sleep picker, not the generic menu.
+  const [actionsInitial, setActionsInitial] = useState<'actions' | 'sleep'>('actions');
   const [shareRequest, setShareRequest] = useState<ShareRequest | null>(null);
 
   // Responsive artwork sizing so all controls stay comfortably on-screen
@@ -261,21 +264,19 @@ export default function NowPlayingScreen() {
   }, [loadLyrics]);
 
   // Sleep timer: wired here so the action sheet's picker controls real
-  // playback pause through the app's own play/pause path.
+  // playback pause through the app's own play/pause path. pauseIfPlaying is
+  // ref-stable, so the timer always does the right thing no matter how often
+  // the user pauses/resumes while it runs.
   const handleSleepTimer = useCallback(
     (minutes: number | null) => {
       if (minutes === null) {
         SleepTimer.cancel();
         return;
       }
-      SleepTimer.start(minutes, () => {
-        // Fires through the same toggle used by the play button, so the UI,
-        // notification controls and engine state all stay in sync.
-        if (isPlaying) togglePlayPause();
-      });
+      SleepTimer.start(minutes, pauseIfPlaying);
       Alert.alert('Sleep timer', `Playback will pause in ${minutes} minutes.`);
     },
-    [isPlaying, togglePlayPause]
+    [pauseIfPlaying]
   );
 
   const play = usePressScale();
@@ -290,14 +291,12 @@ export default function NowPlayingScreen() {
     setShowQueue(false);
     setActionsTrack(null);
     navigation.goBack();
-    navigation.navigate('Main' as never);
-    // SearchTab picks up browseQuery params from other screens; run the
-    // lookup through the same route param Home's chips use.
-    setTimeout(() => {
-      (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
-        browseQuery: q,
-      });
-    }, 80);
+    // SearchTab picks up browseQuery params from other screens; one
+    // synchronous navigate lands on the right tab with the query attached —
+    // no timer, no unmount race.
+    (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
+      browseQuery: q,
+    });
   };
 
   return (
@@ -306,7 +305,7 @@ export default function NowPlayingScreen() {
       <Image
         source={{ uri: currentTrack.albumImageUrl }}
         style={StyleSheet.absoluteFill}
-        blurRadius={100}
+        blurRadius={24}
       />
       <LinearGradient
         colors={['rgba(12, 15, 15, 0.55)', COLORS.background]}
@@ -542,7 +541,10 @@ export default function NowPlayingScreen() {
             <View style={styles.bottomActions}>
               <TouchableOpacity
                 style={styles.bottomIcon}
-                onPress={() => setActionsTrack(currentTrack)}
+                onPress={() => {
+                  setActionsInitial('sleep');
+                  setActionsTrack(currentTrack);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Sleep timer"
               >
@@ -711,7 +713,10 @@ export default function NowPlayingScreen() {
             <View style={styles.bottomActions}>
               <TouchableOpacity
                 style={styles.bottomIcon}
-                onPress={() => setActionsTrack(currentTrack)}
+                onPress={() => {
+                  setActionsInitial('sleep');
+                  setActionsTrack(currentTrack);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Sleep timer"
               >
@@ -750,6 +755,7 @@ export default function NowPlayingScreen() {
       {/* Action sheet (reference composition) */}
       <TrackActionsSheet
         track={actionsTrack}
+        initial={actionsInitial}
         onClose={() => setActionsTrack(null)}
         onGoToArtist={(t) => goToString(t.artist.name)}
         onViewAlbum={(t) => goToString(`${t.album} ${t.artist.name}`)}

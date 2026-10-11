@@ -3,6 +3,7 @@ import { LayoutChangeEvent, StyleSheet, Text, View, ScrollView } from 'react-nat
 import { BottomSheet } from '../common/BottomSheet';
 import { GlassView, SpringPressable } from '../common/Glass';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { IOSToggle } from '../common/Glass';
 import { AudioFX, EQ_PRESETS } from '../../services/AudioFX';
 
 /**
@@ -36,7 +37,11 @@ export const EqualizerSheet: React.FC<{
       setInfo(AudioFX.deviceInfo);
       setCrossfadeState(AudioFX.getState().crossfade);
     });
-    return AudioFX.subscribe(() => setState(AudioFX.getState()));
+    const unsub = AudioFX.subscribe(() => setState(AudioFX.getState()));
+    return () => {
+      unsub();
+      if (debounce.current) clearTimeout(debounce.current); // no leak past unmount
+    };
   }, []);
 
   const applyCrossfade = (seconds: number) => {
@@ -88,16 +93,11 @@ export const EqualizerSheet: React.FC<{
             {/* Power toggle */}
             <View style={styles.rowBetween}>
               <Text style={styles.sectionLabel}>Equalizer {state.enabled ? 'on' : 'off'}</Text>
-              <SpringPressable
-                style={[styles.powerBtn, state.enabled && styles.powerBtnOn]}
-                pressScale={0.93}
-                onPress={() => AudioFX.setEnabled(!state.enabled)}
-                accessibilityRole="switch"
-                accessibilityState={{ selected: state.enabled }}
+              <IOSToggle
+                value={state.enabled}
+                onValueChange={(v) => AudioFX.setEnabled(v)}
                 accessibilityLabel="Toggle equalizer"
-              >
-                <View style={[styles.powerKnob, state.enabled && styles.powerKnobOn]} />
-              </SpringPressable>
+              />
             </View>
 
             {/* Band sliders */}
@@ -171,6 +171,7 @@ const HSlider: React.FC<{ value: number; onChange: (v: number) => void }> = ({ v
       onResponderGrant={(e) => fromX(e.nativeEvent.locationX)}
       onResponderMove={(e) => fromX(e.nativeEvent.locationX)}
       onResponderRelease={() => undefined}
+      onResponderTerminate={() => undefined}
     >
       <View style={[styles.sliderFill, { width: `${Math.round(local * 100)}%` }]} />
       <View style={[styles.sliderThumb, { left: `${Math.round(local * 100)}%` }]} />
@@ -194,11 +195,18 @@ const VerticalBand: React.FC<{ value: number; onChange: (v: number) => void }> =
 
   // Bands are ± around the middle: 0.5 maps to the vertical centre.
   const pctFromBottom = local * 100;
+  /** Symmetric fill around the centre line: above when boosted, below when cut. */
+  const upFill = Math.max(0, (local - 0.5) * 100);
+  const downFill = Math.max(0, (0.5 - local) * 100);
 
   const fromY = (y: number) => {
     const pct = 1 - Math.max(0, Math.min(1, y / BAND_TRACK_H));
     setLocal(pct);
     onChange(pct);
+  };
+
+  const endDrag = () => {
+    dragging.current = false;
   };
 
   return (
@@ -211,10 +219,25 @@ const VerticalBand: React.FC<{ value: number; onChange: (v: number) => void }> =
       onMoveShouldSetResponder={() => true}
       onResponderGrant={(e) => fromY(e.nativeEvent.locationY)}
       onResponderMove={(e) => fromY(e.nativeEvent.locationY)}
-      onResponderRelease={() => (dragging.current = false)}
+      onResponderRelease={endDrag}
+      onResponderTerminate={endDrag}
     >
       <View style={styles.bandMid} />
-      <View style={[styles.bandFill, { height: `${Math.round(pctFromBottom / 2)}%` }]} />
+      {/* Boost: rises from the centre line. */}
+      <View
+        style={[
+          styles.bandFill,
+          { height: `${Math.round(upFill)}%`, bottom: '50%', top: undefined },
+        ]}
+      />
+      {/* Cut: hangs below the centre line. */}
+      <View
+        style={[
+          styles.bandFill,
+          styles.bandFillCut,
+          { height: `${Math.round(downFill)}%`, top: '50%', bottom: undefined },
+        ]}
+      />
       <View style={[styles.bandThumb, { bottom: `${Math.round(Math.max(2, Math.min(94, pctFromBottom - 3)))}%` }]} />
     </View>
   );
@@ -333,8 +356,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
   bandFill: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     width: '100%',
     backgroundColor: 'rgba(53, 214, 198, 0.35)',
+  },
+  /** The "cut" half of the band: quieter, cooler tone below centre. */
+  bandFillCut: {
+    backgroundColor: 'rgba(142, 158, 157, 0.30)',
   },
   bandThumb: {
     position: 'absolute',

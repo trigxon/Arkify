@@ -145,9 +145,9 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
               accessibilityLabel="Add source"
             >
               {checking ? (
-                <ActivityIndicator size="small" color="COLORS.text.dark" />
+                <ActivityIndicator size="small" color={COLORS.text.dark} />
               ) : (
-                <Check color="COLORS.text.dark" size={SIZES.icon.sm + 2} />
+                <Check color={COLORS.text.dark} size={SIZES.icon.sm + 2} />
               )}
             </TouchableOpacity>
           </View>
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
   },
   kindTextActive: {
-    color: 'COLORS.text.dark',
+    color: COLORS.text.dark,
   },
   inputRow: {
     flexDirection: 'row',

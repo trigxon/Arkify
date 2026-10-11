@@ -35,12 +35,12 @@ type Props = {
   personality?: string;
 };
 
-export const ShareCard = React.forwardRef<ViewShot, Props>((props, _ref) => {
+export const ShareCard = React.forwardRef<ViewShot, Props>((props, ref) => {
   const { kind } = props;
 
   if (kind === 'track') {
     return (
-      <ViewShot style={styles.root}>
+      <ViewShot ref={ref} style={styles.root}>
         <LinearGradient colors={GRADIENTS.aurora} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.canvas}>
           <View style={styles.card}>
             <Artwork uri={props.artworkUri} size={220} radius={20} />
@@ -59,7 +59,7 @@ export const ShareCard = React.forwardRef<ViewShot, Props>((props, _ref) => {
 
   if (kind === 'streak') {
     return (
-      <ViewShot style={styles.root}>
+      <ViewShot ref={ref} style={styles.root}>
         <LinearGradient colors={GRADIENTS.sunset} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.canvas}>
           <View style={styles.card}>
             <Flame color="#FFFFFF" size={64} fill="rgba(255,255,255,0.25)" />
@@ -78,7 +78,7 @@ export const ShareCard = React.forwardRef<ViewShot, Props>((props, _ref) => {
 
   if (kind === 'wrapped') {
     return (
-      <ViewShot style={styles.root}>
+      <ViewShot ref={ref} style={styles.root}>
         <LinearGradient colors={GRADIENTS.midnight} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.canvas}>
           <View style={styles.card}>
             <Text style={styles.wrappedKicker}>{props.monthLabel}</Text>
@@ -106,7 +106,7 @@ export const ShareCard = React.forwardRef<ViewShot, Props>((props, _ref) => {
 
   // mix
   return (
-    <ViewShot style={styles.root}>
+    <ViewShot ref={ref} style={styles.root}>
       <LinearGradient colors={GRADIENTS.aurora} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.canvas}>
         <View style={styles.card}>
           <View style={styles.mixIcon}>

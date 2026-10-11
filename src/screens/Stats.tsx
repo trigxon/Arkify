@@ -21,6 +21,10 @@ import {
 } from 'lucide-react-native';
 import { Animated } from 'react-native';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
+import { BackButton } from '../components/common/Glass';
+import { MiniPlayer } from '../components/player/MiniPlayer';
+import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { usePlayer } from '../hooks/usePlayer';
 import { GlassView, SpringPressable, FadeInUp } from '../components/common/Glass';
 import { useEngagement, badgeTierMeta } from '../hooks/useEngagement';
 import { BADGES, Badge } from '../engagement/Streaks';
@@ -39,6 +43,7 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const eng = useEngagement();
+  const { currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
 
   const [artistCount, setArtistCount] = React.useState(0);
   React.useEffect(() => {
@@ -58,15 +63,7 @@ export default function StatsScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SIZES.sm }]}>
-        <SpringPressable
-          style={styles.backBtn}
-          pressScale={0.9}
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft color={COLORS.text.primary} size={SIZES.icon.md} />
-        </SpringPressable>
+        <BackButton />
         <Text style={styles.headerTitle}>Stats & Badges</Text>
         <View style={{ width: 38 }} />
       </View>
@@ -152,6 +149,19 @@ export default function StatsScreen() {
           ))}
         </View>
       </ScrollView>
+
+      <StatusBarScrim />
+
+      {currentTrack && (
+        <MiniPlayer
+          track={currentTrack}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          onPlayPause={togglePlayPause}
+          onPress={() => navigation.navigate('NowPlaying' as never)}
+          tabBarHeight={0}
+        />
+      )}
     </View>
   );
 }

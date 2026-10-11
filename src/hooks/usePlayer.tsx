@@ -27,6 +27,8 @@ type PlayerContextType = {
   isPlaying: boolean;
   playTrack: (track: Track, context?: { tracks?: Track[]; label?: string }) => void;
   togglePlayPause: () => void;
+  /** Ref-stable pause for callbacks that must not capture stale state (sleep timer). */
+  pauseIfPlaying: () => void;
 
   // --- everything the real player adds ---
   isLoading: boolean;
@@ -257,7 +259,27 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     playbackEngine.on('onError', (e) => {
       setIsLoading(false);
-      setError(messageFor(e instanceof AppError ? e : toAppError(e, 'playback_failed')));
+      const err = e instanceof AppError ? e : toAppError(e, 'playback_failed');
+
+      // YouTube-embedded playback can be blocked per video (codes 100/101/150)
+      // or per client. A dead track must not strand the queue: step over it
+      // exactly like an unavailable stream, with the same runaway guard.
+      const msg = err.message ?? '';
+      const embedBlocked = /code:\s*(100|101|150)/.test(msg);
+      if (
+        embedBlocked &&
+        autoSkips.current < MAX_AUTO_SKIPS &&
+        queueRef.current.hasNext
+      ) {
+        autoSkips.current += 1;
+        queueRef.current.next(false);
+        bumpQueue();
+        persistQueue();
+        void loadCurrent({ autoPlay: true });
+        return;
+      }
+
+      setError(messageFor(err));
     });
 
     return () => {
@@ -431,6 +453,14 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (status.isPlaying) playbackEngine.pause();
     else playbackEngine.play();
   }, [bumpQueue, currentTrack, loadCurrent, status.isPlaying]);
+
+  /**
+   * Stable-at-identity pause used by fire-and-forget callbacks (sleep timer,
+   * automation): reads the live status ref, so it never acts on stale state.
+   */
+  const pauseIfPlaying = useCallback(() => {
+    if (statusRef.current.isPlaying) playbackEngine.pause();
+  }, []);
 
   /**
    * Manual skip: tell the taste model this artist lost interest, so radios
@@ -632,6 +662,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       isPlaying: status.isPlaying,
       playTrack,
       togglePlayPause,
+      pauseIfPlaying,
 
       isLoading,
       isBuffering: status.isBuffering,
@@ -675,6 +706,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       status.isBuffering,
       playTrack,
       togglePlayPause,
+      pauseIfPlaying,
       isLoading,
       error,
       clearError,

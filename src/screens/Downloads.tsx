@@ -4,10 +4,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Download, Trash2, Wifi } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
+import { IOSToggle } from '../components/common/Glass';
+import { BackButton } from '../components/common/Glass';
+import { MiniPlayer } from '../components/player/MiniPlayer';
+import { StatusBarScrim } from '../components/common/StatusBarScrim';
+import { usePlayer } from '../hooks/usePlayer';
 import { GlassView, SpringPressable, FadeInUp } from '../components/common/Glass';
 import { TrackRow } from '../components/lists/TrackRow';
 import { useLibrary } from '../hooks/useLibrary';
-import { usePlayer } from '../hooks/usePlayer';
 import { DownloadService } from '../services/DownloadService';
 import { Track } from '../core/types';
 
@@ -22,6 +26,7 @@ const fmtBytes = (bytes: number) => {
  */
 export default function DownloadsScreen() {
   const insets = useSafeAreaInsets();
+  const { currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
   const navigation = useNavigation();
   const { playTrack } = usePlayer();
   const { settings, updateSettings } = useLibrary();
@@ -65,15 +70,7 @@ export default function DownloadsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SIZES.sm }]}>
-        <SpringPressable
-          style={styles.backBtn}
-          pressScale={0.9}
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft color={COLORS.text.primary} size={SIZES.icon.md} />
-        </SpringPressable>
+        <BackButton />
         <Text style={styles.headerTitle}>Downloads</Text>
         <View style={{ width: 38 }} />
       </View>
@@ -167,6 +164,19 @@ export default function DownloadsScreen() {
           </GlassView>
         )}
       </ScrollView>
+
+      <StatusBarScrim />
+
+      {currentTrack && (
+        <MiniPlayer
+          track={currentTrack}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          onPlayPause={togglePlayPause}
+          onPress={() => navigation.navigate('NowPlaying' as never)}
+          tabBarHeight={0}
+        />
+      )}
     </View>
   );
 }

@@ -1,11 +1,15 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect } from 'react';
+import { Platform, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Heart, Play, Pause } from 'lucide-react-native';
 import { Track } from '../../core/types';
 import { useProgress } from '../../hooks/usePlayer';
 import { useLibrary } from '../../hooks/useLibrary';
-import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, SHADOWS, SPRINGS } from '../../constants/theme';
 import { Artwork } from '../common/Artwork';
 
 interface MiniPlayerProps {
@@ -40,26 +44,45 @@ MiniPlayerProgress.displayName = 'MiniPlayerProgress';
 
 /**
  * Like button subtree — re-renders only when liked state changes.
+ * The heart pops on like (iOS spring) and ticks a light haptic.
  */
 const MiniPlayerLike: React.FC<{ track: Track }> = ({ track }) => {
   const { isLiked, toggleLike } = useLibrary();
   const liked = isLiked(track.id);
+  const pop = useSharedValue(1);
+
+  useEffect(() => {
+    pop.value = withSpring(liked ? 1.25 : 1, {
+      damping: 12,
+      stiffness: 360,
+      mass: 0.6,
+    });
+  }, [liked, pop]);
+
+  const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
 
   return (
     <TouchableOpacity
       style={styles.iconButton}
-      onPress={() => toggleLike(track)}
+      onPress={() => {
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+        }
+        toggleLike(track);
+      }}
       hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       accessibilityRole="button"
       accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
       accessibilityState={{ selected: liked }}
     >
-      <Heart
-        color={liked ? COLORS.accent.primary : COLORS.text.primary}
-        fill={liked ? COLORS.accent.primary : 'transparent'}
-        size={SIZES.icon.md}
-        strokeWidth={1.9}
-      />
+      <Animated.View style={heartStyle}>
+        <Heart
+          color={liked ? COLORS.accent.primary : COLORS.text.primary}
+          fill={liked ? COLORS.accent.primary : 'transparent'}
+          size={SIZES.icon.md}
+          strokeWidth={1.9}
+        />
+      </Animated.View>
     </TouchableOpacity>
   );
 };
@@ -81,7 +104,19 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 
   return (
     <View style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}>
+      {/* Liquid glass slab: real blur on native, layered translucency on web. */}
       <View style={[styles.container, SHADOWS.glass]}>
+        {Platform.OS !== 'web' ? (
+          <BlurView intensity={42} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+        ) : null}
+        <LinearGradient
+          colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.16, 0.5]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
         <View style={styles.content}>
           {/* Main tap area: opens the full player. Sibling to controls to prevent nested button hydration errors in React Native Web. */}
           <TouchableOpacity
@@ -104,24 +139,7 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 
           <View style={styles.controls}>
             <MiniPlayerLike track={track} />
-            <TouchableOpacity
-              style={styles.playButton}
-              onPress={onPlayPause}
-              accessibilityRole="button"
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={COLORS.accent.primary} />
-              ) : (
-                <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
-                  {isPlaying ? (
-                    <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
-                  ) : (
-                    <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
-                  )}
-                </View>
-              )}
-            </TouchableOpacity>
+            <MiniPlayerPlay isPlaying={isPlaying} isLoading={isLoading} onPlayPause={onPlayPause} />
           </View>
         </View>
 
@@ -129,6 +147,45 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         <MiniPlayerProgress />
       </View>
     </View>
+  );
+};
+
+/** Play/pause with a spring press — the most-touched control in the app. */
+const MiniPlayerPlay: React.FC<{
+  isPlaying: boolean;
+  isLoading: boolean;
+  onPlayPause: () => void;
+}> = ({ isPlaying, isLoading, onPlayPause }) => {
+  const scale = useSharedValue(1);
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  return (
+    <TouchableOpacity
+      style={styles.playButton}
+      onPress={onPlayPause}
+      onPressIn={() => {
+        scale.value = withSpring(0.86, SPRINGS.press);
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, SPRINGS.release);
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+    >
+      <Animated.View style={anim}>
+        {isLoading ? (
+          <ActivityIndicator size="small" color={COLORS.accent.primary} />
+        ) : (
+          <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
+            {isPlaying ? (
+              <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+            ) : (
+              <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
+            )}
+          </View>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
   );
 };
 
@@ -142,7 +199,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
-    backgroundColor: COLORS.surfaceRaised,
+    backgroundColor: Platform.OS === 'web' ? COLORS.surfaceRaised : 'rgba(18, 22, 22, 0.78)',
     borderColor: 'rgba(61, 214, 195, 0.16)',
     borderWidth: 1,
   },
