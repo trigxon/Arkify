@@ -3,7 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const { handleApiRequest } = require('./server/apiProxy');
 
-const PORT = 3000;
+const PORT =
+  Number(process.env.PORT) ||
+  Number(process.env.FC_CUSTOM_LISTEN_PORT) ||
+  3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const DIST_DIR = path.join(__dirname, 'dist');
 
 const MIME_TYPES = {
@@ -65,6 +69,6 @@ const server = http.createServer(async (req, res) => {
   res.end('Not Found');
 });
 
-server.listen(PORT, () => {
-  console.log(`[server] Arkify production server listening on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`[server] Arkify production server listening on ${HOST}:${PORT}`);
 });
