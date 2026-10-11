@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -9,20 +9,37 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import {
+  Orbitron_800ExtraBold,
+  Orbitron_700Bold,
+} from '@expo-google-fonts/orbitron';
+import {
+  ChakraPetch_400Regular,
+  ChakraPetch_400Regular_Italic,
+  ChakraPetch_500Medium,
+} from '@expo-google-fonts/chakra-petch';
 import { Infinity as InfinityIcon, Moon, SquarePen, Zap } from 'lucide-react-native';
-import { COLORS, FONTS, SIZES, TYPE } from '../constants/theme';
+import { COLORS, SIZES, TYPE } from '../constants/theme';
 
 /**
  * Arkify launch experience.
  *
  * Mirrors the native splash (same background, centered logo) so the handoff
  * from the system splash is seamless, then reveals the brand composition:
- * logo, wordmark, "More Than Music", the cyan rule, and the four values as
- * icon circles with their labels beneath.
+ * logo, futuristic wordmark, "More Than Music", the cyan rule, the four
+ * values as icon circles, a TAP TO CONTINUE hint, and the engineer credit.
+ *
+ * Typography is the brand voice: Orbitron 800 for the wordmark (sci-fi
+ * geometric display), Chakra Petch for everything else (tech family with a
+ * true italic so the tagline stays elegant). Fonts bundle locally via the
+ * @expo-google-fonts packages (OFL) — no runtime fetch, no FOUT.
  *
  * Animation is deliberately shallow — fades and one gentle scale, all
- * interruptible, total in-run time ~2.5s so it never delays the app.
+ * interruptible. The reveal lands in ~2.5s, then the composition rests with
+ * a breathing TAP TO CONTINUE hint until the user proceeds (any tap skips
+ * or advances — the brand moment never traps the user).
  */
 
 /** The four brand values: icon-first, label beneath, per the reference. */
@@ -33,6 +50,15 @@ const VALUES = [
   { label: 'Yours', Icon: InfinityIcon },
 ] as const;
 
+/** Brand font faces (loaded below; system fallback until ready). */
+export const BRAND_FONTS = {
+  display: 'Orbitron_800ExtraBold',
+  displayAlt: 'Orbitron_700Bold',
+  tagline: 'ChakraPetch_400Regular_Italic',
+  body: 'ChakraPetch_400Regular',
+  credit: 'ChakraPetch_500Medium',
+} as const;
+
 const PHASES = [0, 250, 450, 650, 950, 1150] as const;
 
 export default function LaunchScreen({ onDone }: { onDone: () => void }) {
@@ -41,6 +67,16 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
   // the "A" at roughly the reference's size ratio.
   const logoSize = Math.min(200, width * 0.46);
 
+  // Brand fonts gate the reveal: first paint keeps the native splash while
+  // the (bundled, local) faces decode, so the wordmark never flashes system.
+  const [fontsLoaded, fontsError] = useFonts({
+    Orbitron_800ExtraBold,
+    Orbitron_700Bold,
+    ChakraPetch_400Regular,
+    ChakraPetch_400Regular_Italic,
+    ChakraPetch_500Medium,
+  });
+
   // One value per animated element: logo scale, logo/wordmark/tagline/rules
   // share fades, the four value pills each get their own.
   const logoScale = useRef(new Animated.Value(0.92)).current;
@@ -48,8 +84,11 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
   const wordmarkOpacity = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const ruleOpacity = useRef(new Animated.Value(0)).current;
+  const hintOpacity = useRef(new Animated.Value(0)).current;
+  const creditOpacity = useRef(new Animated.Value(0)).current;
   const pillFades = useRef(VALUES.map(() => new Animated.Value(0))).current;
   const finishRef = useRef(false);
+  const [hintVisible, setHintVisible] = useState(false);
 
   const finish = useCallback(() => {
     if (finishRef.current) return;
@@ -58,8 +97,12 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
   }, [onDone]);
 
   useEffect(() => {
-    // Native splash hides the instant the brand composition is ready to draw.
+    // Never trap the user: a font decode failure falls back to system faces
+    // and the intro plays exactly the same.
+    if (!fontsLoaded && !fontsError) return;
+
     SplashScreen.hideAsync().catch(() => undefined);
+    setHintVisible(true);
 
     const seq = Animated.sequence([
       Animated.parallel([
@@ -93,21 +136,50 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
           Animated.timing(v, { toValue: 1, duration: 360, useNativeDriver: true })
         )
       ),
+      // Hint + engineer credit land last — the quiet footnotes of the intro.
+      Animated.parallel([
+        Animated.timing(hintOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
+        Animated.timing(creditOpacity, { toValue: 1, duration: 420, useNativeDriver: true }),
+      ]),
     ]);
 
+    // The tap hint breathes (~1.6s cycle) — started only after the intro
+    // sequence lands so the two animations never fight over the value.
+    const breathe = Animated.loop(
+      Animated.sequence([
+        Animated.timing(hintOpacity, {
+          toValue: 0.35,
+          duration: 800,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(hintOpacity, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
     seq.start(({ finished }) => {
-      if (finished) finish();
+      // Reveal lands → the composition RESTS with the breathing hint and
+      // credit visible, and waits for the user's tap. No auto-advance: the
+      // brand moment belongs to the user (generous safety net below).
+      if (finished) breathe.start();
     });
 
-    // Safety: never trap the user if an animation stalls (low-end devices,
-    // dev-mode stalls). ~4s ceiling.
-    const safety = setTimeout(finish, 4000);
+    // Safety: never trap the user if they walk away mid-intro. Generous —
+    // the tap hint is the affordance, this only fires if nobody taps.
+    const safety = setTimeout(finish, 9000);
 
     return () => {
       clearTimeout(safety);
+      breathe.stop();
       seq.stop();
     };
-  }, [finish, logoOpacity, logoScale, wordmarkOpacity, taglineOpacity, ruleOpacity, pillFades]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fontsLoaded, fontsError, finish]);
 
   return (
     <View style={styles.container}>
@@ -170,10 +242,12 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
           </View>
         </Animated.View>
 
-        {/* Wordmark */}
-        <Animated.Text style={[styles.wordmark, { opacity: wordmarkOpacity }]}>Arkify</Animated.Text>
+        {/* Wordmark — Orbitron 800, open tracking, sci-fi title-card energy. */}
+        <Animated.Text style={[styles.wordmark, { opacity: wordmarkOpacity }]}>
+          Arkify
+        </Animated.Text>
 
-        {/* Tagline */}
+        {/* Tagline — Chakra Petch true italic, the brand's one elegant voice. */}
         <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
           More Than Music
         </Animated.Text>
@@ -193,6 +267,18 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
           ))}
         </View>
       </View>
+
+      {/* Tap hint — breathing, functional, never blocking the composition. */}
+      {hintVisible ? (
+        <Animated.Text style={[styles.tapHint, { opacity: hintOpacity }]}>
+          TAP TO CONTINUE
+        </Animated.Text>
+      ) : null}
+
+      {/* Engineer credit — the quiet signature at the base of the moment. */}
+      <Animated.Text style={[styles.credit, { opacity: creditOpacity }]} numberOfLines={1}>
+        ENGINEERED BY ARK DURRANI (PATHAN)
+      </Animated.Text>
     </View>
   );
 }
@@ -227,15 +313,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(53, 214, 198, 0.05)',
   },
   wordmark: {
-    fontFamily: FONTS.bold,
-    fontSize: 52,
+    // Orbitron 800 at 50px: +6% tracking keeps the circular glyphs airy —
+    // futuristic title-card spacing instead of a squeezed block.
+    fontFamily: BRAND_FONTS.display,
+    fontSize: 50,
     lineHeight: 60,
-    letterSpacing: 0.5,
+    letterSpacing: 3,
     color: COLORS.text.primary,
     marginTop: SIZES.lg,
+    textShadowColor: 'rgba(53, 214, 198, 0.35)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 18,
   },
   tagline: {
-    fontFamily: FONTS.medium,
+    fontFamily: BRAND_FONTS.tagline,
     fontStyle: 'italic',
     fontSize: TYPE.headline.fontSize + 1,
     letterSpacing: 4,
@@ -270,9 +361,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillLabel: {
-    fontFamily: FONTS.regular,
+    fontFamily: BRAND_FONTS.body,
     fontSize: TYPE.footnote.fontSize,
+    letterSpacing: 0.8,
     color: COLORS.text.soft,
     marginTop: SIZES.sm + 2,
+  },
+  tapHint: {
+    position: 'absolute',
+    bottom: 86,
+    alignSelf: 'center',
+    fontFamily: BRAND_FONTS.body,
+    fontSize: TYPE.micro.fontSize + 1,
+    letterSpacing: 3.4,
+    color: 'rgba(184, 196, 195, 0.9)',
+  },
+  credit: {
+    position: 'absolute',
+    bottom: 46,
+    alignSelf: 'center',
+    paddingHorizontal: SIZES.xl,
+    fontFamily: BRAND_FONTS.credit,
+    fontSize: TYPE.micro.fontSize,
+    letterSpacing: 2.6,
+    color: 'rgba(142, 158, 157, 0.75)',
   },
 });

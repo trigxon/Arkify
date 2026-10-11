@@ -294,7 +294,7 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
                 {/* Footer brand */}
                 <View style={styles.footer}>
-                  <Text style={styles.footerText}>Arkify v2.0 · powered by Arkify AI</Text>
+                  <Text style={styles.footerText}>Arkify v2.1 · powered by Arkify AI</Text>
                 </View>
               </Animated.View>
             </GlassView>
