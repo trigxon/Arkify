@@ -8,6 +8,7 @@ import {
 import { appError, toAppError } from '../core/errors';
 import { ResolvedStream, Track } from '../core/types';
 import { WebYouTubePlayer } from './WebYouTubePlayer';
+import { AudioFX } from '../services/AudioFX';
 
 export type PlaybackStatus = {
   isPlaying: boolean;
@@ -68,6 +69,11 @@ export class PlaybackEngine {
   private lockScreenTrack: Track | null = null;
   /** Whether metadata has been re-asserted since playback actually began. */
   private lockScreenSynced = false;
+
+  /** Crossfade seconds (0 = off). Ramps volume at track edges. */
+  private crossfadeSeconds = 0;
+  /** Active fade direction: null | 'out' | 'in'. */
+  private fade: { dir: 'out' | 'in'; timer: ReturnType<typeof setInterval>; startAt: number } | null = null;
 
   constructor() {
     if (Platform.OS === 'web') {
@@ -173,6 +179,8 @@ export class PlaybackEngine {
     // notification will accept metadata.
     if (s?.isLoaded && s?.playing) this.syncLockScreenOnce();
 
+    this.tickCrossfade(position, duration);
+
     // `didJustFinish` can repeat across updates; fire completion only once.
     if (s?.didJustFinish && !this.completionFired) {
       this.completionFired = true;
@@ -185,6 +193,81 @@ export class PlaybackEngine {
       clearTimeout(this.loadTimer);
       this.loadTimer = null;
     }
+  }
+
+  // ---- crossfade ---------------------------------------------------------
+
+  /** Configure edge fades. Called from the audio settings surface. */
+  setCrossfade(seconds: number): void {
+    this.crossfadeSeconds = Math.max(0, Math.min(12, seconds));
+  }
+
+  /** Seconds of fade the engine applies at track edges right now. */
+  get crossfade(): number {
+    return this.crossfadeSeconds;
+  }
+
+  /**
+   * Start a fade ramp. The ramp multiplies the user's chosen volume, so a
+   * fade never permanently alters the listening level.
+   */
+  private startFade(dir: 'out' | 'in'): void {
+    this.cancelFade();
+    if (this.crossfadeSeconds <= 0) return;
+
+    const totalMs = this.crossfadeSeconds * 1000;
+    const started = Date.now();
+    const step = 60; // ~16 fps ramp — inaudible granularity for a volume glide
+
+    const timer = setInterval(() => {
+      const t = Math.min(1, (Date.now() - started) / totalMs);
+      const shaped = t * t * (3 - 2 * t); // smoothstep — no audible kinks
+      const factor = dir === 'out' ? 1 - shaped : shaped;
+
+      try {
+        if (!this.isWebActive && this.player) {
+          this.player.volume = this.desiredVolume * factor;
+        } else if (this.webPlayer) {
+          this.webPlayer.setVolume(this.desiredVolume * factor);
+        }
+      } catch {
+        /* player went away mid-fade */
+      }
+
+      if (t >= 1) this.cancelFade();
+    }, step);
+
+    this.fade = { dir, timer, startAt: started };
+  }
+
+  private cancelFade(): void {
+    if (!this.fade) return;
+    clearInterval(this.fade.timer);
+    this.fade = null;
+
+    // Restore the exact user volume once a ramp finishes.
+    try {
+      if (!this.isWebActive && this.player) {
+        this.player.volume = this.desiredVolume;
+      } else if (this.webPlayer) {
+        this.webPlayer.setVolume(this.desiredVolume);
+      }
+    } catch {
+      /* best effort */
+    }
+  }
+
+  /**
+   * Watch the position stream and kick the fade-out when the track is about
+   * to end. Runs on every status tick (~4Hz); starts at most once per track.
+   */
+  private tickCrossfade(position: number, duration: number): void {
+    if (this.crossfadeSeconds <= 0 || this.fade || duration <= 0) return;
+    const remaining = duration - position;
+    if (remaining > this.crossfadeSeconds) return;
+    if (remaining <= 0) return;
+
+    this.startFade('out');
   }
 
   /** Load a resolved stream and begin playing it. */
@@ -246,6 +329,14 @@ export class PlaybackEngine {
 
       if (autoPlay) player.play();
 
+      // Fade-in at the start of the track when crossfade is on.
+      if (this.crossfadeSeconds > 0 && autoPlay) {
+        try {
+          player.volume = 0;
+        } catch {}
+        this.startFade('in');
+      }
+
       this.setLockScreenMetadata(track);
     } catch (e) {
       this.clearLoadTimer();
@@ -302,6 +393,8 @@ export class PlaybackEngine {
 
   setVolume(volume: number): void {
     this.desiredVolume = Math.max(0, Math.min(1, volume));
+    // A user volume change overrides any active fade.
+    this.cancelFade();
     if (this.webPlayer) this.webPlayer.setVolume(this.desiredVolume);
     if (this.player) this.player.volume = this.desiredVolume;
 
@@ -316,6 +409,7 @@ export class PlaybackEngine {
   /** Stop and unload, returning the engine to idle. */
   stop(): void {
     this.clearLoadTimer();
+    this.cancelFade();
     this.loadToken++;
     this.currentTrackId = null;
     this.completionFired = false;

@@ -1,5 +1,5 @@
 import ArkifyNativeModule from './src/ArkifyNativeModule';
-import { NativeStreamResult, PlatformInfo } from './src/ArkifyNative.types';
+import { AudioFxInfo, AudioFxResult, NativeStreamResult, PlatformInfo } from './src/ArkifyNative.types';
 
 export * from './src/ArkifyNative.types';
 export { default as ArkifyNativeModule } from './src/ArkifyNativeModule';
@@ -46,5 +46,44 @@ export async function resolveYouTubeStream(
       reason: 'unknown',
       message: e instanceof Error ? e.message : String(e),
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Audio effects (equalizer + bass boost)
+// ---------------------------------------------------------------------------
+
+/** Device EQ capabilities, or a `supported: false` stub when unavailable. */
+export function getAudioFxInfo(): AudioFxInfo {
+  try {
+    return ArkifyNativeModule?.getAudioFxInfo() ?? { supported: false };
+  } catch {
+    return { supported: false };
+  }
+}
+
+/** Apply a full EQ shape (milli-Bel per band). Never throws. */
+export function setEqualizerLevels(levels: number[]): AudioFxResult {
+  try {
+    return ArkifyNativeModule?.setEqualizerLevels(levels) ?? { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export function setEqualizerEnabled(enabled: boolean): AudioFxResult {
+  try {
+    return ArkifyNativeModule?.setEqualizerEnabled(enabled) ?? { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Bass boost strength 0..1000 (per-mille). Never throws. */
+export function setBassBoost(strength: number): AudioFxResult {
+  try {
+    return ArkifyNativeModule?.setBassBoost(strength) ?? { ok: false };
+  } catch {
+    return { ok: false };
   }
 }

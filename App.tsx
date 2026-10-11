@@ -7,6 +7,10 @@ import { PlayerProvider } from './src/hooks/usePlayer';
 import { LibraryProvider } from './src/hooks/useLibrary';
 import { COLORS } from './src/constants/theme';
 import { DownloadService } from './src/services/DownloadService';
+import { AudioFX } from './src/services/AudioFX';
+import { playbackEngine } from './src/playback/PlaybackEngine';
+import { engagement } from './src/engagement/Streaks';
+import { tasteProfile } from './src/ai/TasteProfile';
 import { getPlatformInfo, isArkifyNativeAvailable } from './modules/arkify-native';
 
 export default function App() {
@@ -27,6 +31,23 @@ export default function App() {
   // first play.
   useEffect(() => {
     void DownloadService.init();
+  }, []);
+
+  // Boot the intelligence + engagement layer once, quietly:
+  //   • taste model loads its persisted state
+  //   • engagement (streaks/XP/badges) subscribes to real listens
+  //   • audio effects restore the equalizer/bass/crossfade shape
+  //   • smart offline quietly tops up downloads on Wi-Fi (best-effort)
+  useEffect(() => {
+    void tasteProfile.load();
+    engagement.attach();
+
+    void (async () => {
+      await AudioFX.load();
+      playbackEngine.setCrossfade(AudioFX.getState().crossfade);
+    })();
+
+    void DownloadService.smartAutoDownload().catch(() => undefined);
   }, []);
 
   return (

@@ -29,12 +29,15 @@ import {
   AudioLines,
   Timer,
   ListMusic,
+  Mic2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { SeekBar } from '../components/player/SeekBar';
 import { QueueSheet } from '../components/player/QueueSheet';
 import { TrackActionsSheet } from '../components/lists/TrackActionsSheet';
+import { KaraokeLyrics } from '../components/player/KaraokeLyrics';
+import { ShareSheet, ShareRequest } from '../components/share/ShareSheet';
 import { Artwork } from '../components/common/Artwork';
 import { DownloadService } from '../services/DownloadService';
 import { LyricsService, Lyrics } from '../services/LyricsService';
@@ -53,7 +56,8 @@ function usePressScale() {
 }
 
 // ---------------------------------------------------------------------------
-// Lyrics view — the reference's focused lyrics layout with Lyrics/About tabs
+// Lyrics view — Roman English lines, with a KARAOKE mode when the track is
+// synced: line-by-line highlight, spring activations, tap-to-seek.
 // ---------------------------------------------------------------------------
 
 const LyricsView: React.FC<{
@@ -68,18 +72,20 @@ const LyricsView: React.FC<{
   const { position } = useProgress();
   const scrollRef = useRef<ScrollView>(null);
   const activeIndexRef = useRef(-1);
+  const [karaoke, setKaraoke] = useState(true);
 
   const activeIndex = useMemo(
     () => (lyrics?.synced ? LyricsService.activeLineIndex(lyrics, position) : -1),
     [lyrics, Math.floor(position * 2)]
   );
 
-  // Keep the active line centred. Runs only when the line actually changes.
+  // Keep the active line centred (plain mode only; karaoke scrolls itself).
   useEffect(() => {
+    if (karaoke) return;
     if (activeIndex < 0 || activeIndex === activeIndexRef.current) return;
     activeIndexRef.current = activeIndex;
     scrollRef.current?.scrollTo({ y: Math.max(0, activeIndex * 48 - 130), animated: true });
-  }, [activeIndex]);
+  }, [activeIndex, karaoke]);
 
   return (
     <View style={styles.lyricsWrap}>
@@ -90,6 +96,20 @@ const LyricsView: React.FC<{
           <Text style={styles.lyricsTitle} numberOfLines={1}>{track.title}</Text>
           <Text style={styles.lyricsArtist} numberOfLines={1}>{track.artist.name}</Text>
         </View>
+        {lyrics?.synced ? (
+          <TouchableOpacity
+            style={[styles.karaokeToggle, karaoke && styles.karaokeToggleOn]}
+            onPress={() => setKaraoke((v) => !v)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={karaoke ? 'Switch to plain lyrics' : 'Switch to karaoke'}
+          >
+            <Mic2 color={karaoke ? COLORS.text.dark : COLORS.accent.primary} size={13} />
+            <Text style={[styles.karaokeToggleText, karaoke && styles.karaokeToggleTextOn]}>
+              KARAOKE
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         {onMore ? (
           <TouchableOpacity
             style={styles.lyricsMore}
@@ -121,6 +141,8 @@ const LyricsView: React.FC<{
             </TouchableOpacity>
           )}
         </View>
+      ) : lyrics.synced && karaoke ? (
+        <KaraokeLyrics lyrics={lyrics} position={position} onSeek={(s) => onSeek?.(s)} />
       ) : (
         <ScrollView
           ref={scrollRef}
@@ -204,6 +226,7 @@ export default function NowPlayingScreen() {
   const [view, setView] = useState<'player' | 'lyrics' | 'about'>('player');
   const [showQueue, setShowQueue] = useState(false);
   const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
+  const [shareRequest, setShareRequest] = useState<ShareRequest | null>(null);
 
   // Responsive artwork sizing so all controls stay comfortably on-screen
   const isCompact = height < 740;
@@ -322,11 +345,18 @@ export default function NowPlayingScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.headerIcon}
-                onPress={() => {
-                  void DownloadService.shareTrack(currentTrack);
-                }}
+                onPress={() =>
+                  setShareRequest({
+                    kind: 'track',
+                    title: currentTrack.title,
+                    artist: currentTrack.artist.name,
+                    artworkUri: currentTrack.albumImageUrl,
+                    contextLabel: queueContext || 'Now playing',
+                    message: `${currentTrack.title} — ${currentTrack.artist.name}`,
+                  })
+                }
                 accessibilityRole="button"
-                accessibilityLabel="Share track"
+                accessibilityLabel="Share as card"
               >
                 <Share color={COLORS.text.primary} size={SIZES.icon.md} />
               </TouchableOpacity>
@@ -725,6 +755,9 @@ export default function NowPlayingScreen() {
         onViewAlbum={(t) => goToString(`${t.album} ${t.artist.name}`)}
         onSleepTimer={handleSleepTimer}
       />
+
+      {/* Share card */}
+      <ShareSheet request={shareRequest} onClose={() => setShareRequest(null)} />
     </View>
   );
 }
@@ -973,6 +1006,31 @@ const styles = StyleSheet.create({
     height: SIZES.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** KARAOKE mode pill on the lyrics header. */
+  karaokeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    backgroundColor: 'rgba(53, 214, 198, 0.10)',
+    borderWidth: 1,
+    borderColor: COLORS.accent.border,
+  },
+  karaokeToggleOn: {
+    backgroundColor: COLORS.accent.primary,
+    borderColor: COLORS.accent.primary,
+  },
+  karaokeToggleText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: COLORS.accent.primary,
+  },
+  karaokeToggleTextOn: {
+    color: COLORS.text.dark,
   },
   lyricsScroll: {
     flex: 1,

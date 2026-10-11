@@ -32,6 +32,10 @@ export type AppSettings = {
   preferAudioOnly: boolean;
   /** Keep the queue rolling with related tracks when it runs out. */
   autoplayRelated: boolean;
+  /** Quietly download recent likes while on Wi-Fi. */
+  autoDownload: boolean;
+  /** AI surface visible (Gemini optional; on-device always on). */
+  aiEnabled: boolean;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -40,6 +44,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   volume: 1,
   preferAudioOnly: true,
   autoplayRelated: true,
+  autoDownload: true,
+  aiEnabled: true,
 };
 
 /**

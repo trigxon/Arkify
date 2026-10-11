@@ -16,9 +16,11 @@ import {
   Trash2,
   Check,
   Download,
+  Image as ImageIcon,
 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { ShareSheet, ShareRequest } from '../share/ShareSheet';
 import { Track } from '../../core/types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { DownloadService } from '../../services/DownloadService';
@@ -63,6 +65,8 @@ export const TrackActionsSheet: React.FC<Props> = ({
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [sleepPickerOpen, setSleepPickerOpen] = useState(false);
+  /** Self-contained share-card sheet — works from any screen that mounts this. */
+  const [shareCard, setShareCard] = useState<ShareRequest | null>(null);
   /** Ticks the "active timer" row's label while a timer runs. */
   const [remainingMs, setRemainingMs] = useState<number | null>(SleepTimer.remainingMs);
 
@@ -97,7 +101,8 @@ export const TrackActionsSheet: React.FC<Props> = ({
   const sleepActive = remainingMs !== null;
 
   return (
-    /* No title bar: the reference's action sheet opens straight into its rows. */
+    <>
+    {/* No title bar: the reference's action sheet opens straight into its rows. */}
     <BottomSheet visible={track !== null} onClose={close}>
       {sleepPickerOpen ? (
         <>
@@ -237,6 +242,22 @@ export const TrackActionsSheet: React.FC<Props> = ({
                   close();
                 }}
               />
+              <SheetRow
+                Icon={ImageIcon}
+                label="Share as card"
+                accent
+                onPress={() => {
+                  setShareCard({
+                    kind: 'track',
+                    title: track.title,
+                    artist: track.artist.name,
+                    artworkUri: track.albumImageUrl,
+                    contextLabel: 'Shared from Arkify',
+                    message: `${track.title} — ${track.artist.name}`,
+                  });
+                  close();
+                }}
+              />
               {onViewAlbum && track.album && (
                 <SheetRow
                   Icon={Disc3}
@@ -286,6 +307,10 @@ export const TrackActionsSheet: React.FC<Props> = ({
         />
       )}
     </BottomSheet>
+
+    {/* Rendered outside the action sheet so both can animate independently. */}
+    <ShareSheet request={shareCard} onClose={() => setShareCard(null)} />
+    </>
   );
 };
 

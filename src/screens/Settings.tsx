@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
   Linking,
@@ -8,17 +8,21 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
   ExternalLink,
   Headphones,
   Heart,
   Music2,
   PenLine,
+  SlidersHorizontal,
   User,
 } from 'lucide-react-native';
 import Constants from 'expo-constants';
@@ -27,6 +31,11 @@ import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Gender } from '../services/LibraryService';
 import { useLibrary } from '../hooks/useLibrary';
 import { PlaybackSourceSheet } from '../components/player/PlaybackSourceSheet';
+import { EqualizerSheet } from '../components/audio/EqualizerSheet';
+import { AudioFX } from '../services/AudioFX';
+import { getGeminiKey, setGeminiKey, isGeminiConfigured } from '../ai/gemini';
+import { tasteProfile } from '../ai/TasteProfile';
+import { engagement } from '../engagement/Streaks';
 
 const GENDERS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -50,12 +59,31 @@ const NEWPIPE_URL = 'https://github.com/TeamNewPipe/NewPipeExtractor';
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { profile, saveProfile, history, playlists, liked } = useLibrary();
+  const { profile, saveProfile, history, playlists, liked, settings, updateSettings } = useLibrary();
 
   const [name, setName] = useState(profile.name);
   const [showSource, setShowSource] = useState(false);
+  const [showEQ, setShowEQ] = useState(false);
   const [licenceExpanded, setLicenceExpanded] = useState(false);
   const nameInputRef = useRef<TextInput>(null);
+
+  // AI section state.
+  const [geminiKey, setGeminiKeyValue] = useState('');
+  const [geminiOn, setGeminiOn] = useState(false);
+  const [fxState, setFxState] = useState(AudioFX.getState());
+
+  useEffect(() => {
+    void getGeminiKey().then((k) => setGeminiKeyValue(k));
+    void isGeminiConfigured().then(setGeminiOn);
+    void AudioFX.load().then(() => setFxState(AudioFX.getState()));
+    return AudioFX.subscribe(() => setFxState(AudioFX.getState()));
+  }, []);
+
+  const saveKey = useCallback(async () => {
+    await setGeminiKey(geminiKey.trim());
+    setGeminiOn(await isGeminiConfigured());
+    Keyboard.dismiss();
+  }, [geminiKey]);
 
   const version =
     Constants.expoConfig?.version ?? Constants.manifest2?.extra?.expoClient?.version ?? '1.0.0';
@@ -183,6 +211,146 @@ export default function SettingsScreen() {
           <Stat Icon={Headphones} value={history.length} label="Listen" />
         </View>
 
+        {/* ---- AI ---- */}
+        <Text style={styles.sectionLabel}>AI</Text>
+        <View style={styles.card}>
+          <View style={styles.aiHeader}>
+            <View style={styles.aiIcon}>
+              <Bot color={COLORS.accent.primary} size={18} />
+            </View>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.settingTitle}>Gemini-powered mixes</Text>
+              <Text style={styles.settingBody}>
+                {geminiOn
+                  ? 'Connected — "Ask AI" plans playlists with Gemini.'
+                  : 'Optional. On-device recommendations always run, no key needed.'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.keyRow}>
+            <TextInput
+              style={styles.keyInput}
+              value={geminiKey}
+              onChangeText={setGeminiKeyValue}
+              onBlur={() => void saveKey()}
+              onSubmitEditing={() => void saveKey()}
+              placeholder="Paste Gemini API key (optional)"
+              placeholderTextColor={COLORS.text.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              returnKeyType="done"
+              accessibilityLabel="Gemini API key"
+            />
+          </View>
+          <Text style={styles.keyHint}>
+            Stored only on this device. Get one free at aistudio.google.com/apikey.
+          </Text>
+        </View>
+
+        {/* ---- Personalisation reset ---- */}
+        <TouchableOpacity
+          style={[styles.card, styles.dangerCard]}
+          activeOpacity={0.8}
+          onPress={() =>
+            Alert.alert(
+              'Reset personalisation',
+              'Your taste profile, streaks, XP and badges will be cleared. Likes, playlists and history stay.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Reset',
+                  style: 'destructive',
+                  onPress: () => {
+                    void tasteProfile.reset();
+                    void engagement.reset();
+                  },
+                },
+              ]
+            )
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Reset personalisation"
+        >
+          <View style={styles.row}>
+            <Text style={styles.dangerText}>Reset personalisation</Text>
+            <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
+          </View>
+        </TouchableOpacity>
+
+        {/* ---- Sound ---- */}
+        <Text style={styles.sectionLabel}>SOUND</Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() => setShowEQ(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Equalizer and audio effects"
+          >
+            <View style={styles.rowWithIcon}>
+              <SlidersHorizontal color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
+              <Text style={styles.rowLink}>Equalizer & effects</Text>
+            </View>
+            <View style={styles.rowWithIcon}>
+              <Text style={styles.rowMeta}>
+                {fxState.enabled ? 'EQ on' : 'EQ off'}
+                {fxState.bass > 0 ? ` · Bass ${Math.round((fxState.bass / 1000) * 100)}%` : ''}
+              </Text>
+              <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
+            </View>
+          </TouchableOpacity>
+          <Divider />
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Crossfade</Text>
+            <Text style={styles.rowValue}>{fxState.crossfade > 0 ? `${fxState.crossfade}s` : 'Off'}</Text>
+          </View>
+          <Divider />
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>High-quality streams</Text>
+            <TouchableOpacity
+              style={[styles.toggle, settings.preferAudioOnly ? styles.toggleOn : null]}
+              onPress={() => updateSettings({ preferAudioOnly: !settings.preferAudioOnly })}
+              accessibilityRole="switch"
+              accessibilityState={{ selected: settings.preferAudioOnly }}
+              accessibilityLabel="Prefer audio only"
+            >
+              <View style={[styles.toggleKnob, settings.preferAudioOnly && styles.toggleKnobOn]} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ---- Downloads ---- */}
+        <Text style={styles.sectionLabel}>OFFLINE</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={styles.rowWithIcon}>
+              <Download color={COLORS.text.secondary} size={SIZES.icon.sm + 2} />
+              <Text style={styles.rowLabel}>Smart offline</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.toggle, settings.autoDownload && styles.toggleOn]}
+              onPress={() => updateSettings({ autoDownload: !settings.autoDownload })}
+              accessibilityRole="switch"
+              accessibilityState={{ selected: settings.autoDownload }}
+              accessibilityLabel="Smart offline downloads"
+            >
+              <View style={[styles.toggleKnob, settings.autoDownload && styles.toggleKnobOn]} />
+            </TouchableOpacity>
+          </View>
+          <Divider />
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Downloads' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Manage downloads"
+          >
+            <Text style={styles.rowLink}>Manage downloads</Text>
+            <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
+          </TouchableOpacity>
+        </View>
+
         {/* ---- About ---- */}
         <Text style={styles.sectionLabel}>ABOUT</Text>
         <View style={styles.card}>
@@ -244,6 +412,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <PlaybackSourceSheet visible={showSource} onClose={() => setShowSource(false)} />
+      <EqualizerSheet visible={showEQ} onClose={() => setShowEQ(false)} />
     </View>
   );
 }
@@ -394,7 +563,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   pillTextActive: {
-    color: 'COLORS.text.dark',
+    color: COLORS.text.dark,
   },
   statsCard: {
     flexDirection: 'row',
@@ -476,5 +645,101 @@ const styles = StyleSheet.create({
     color: COLORS.text.muted,
     textAlign: 'center',
     marginTop: SIZES.xxl,
+  },
+
+  // AI + toggles
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.md,
+    marginBottom: SIZES.md,
+  },
+  aiIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: COLORS.accent.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingTextWrap: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.primary,
+  },
+  settingBody: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    lineHeight: 17,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+  keyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  keyInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.primary,
+  },
+  keyHint: {
+    fontFamily: FONTS.regular,
+    fontSize: 10,
+    color: COLORS.text.muted,
+    marginTop: 8,
+  },
+  dangerCard: {
+    marginTop: SIZES.sm,
+  },
+  dangerText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.body.fontSize,
+    color: COLORS.status.error,
+  },
+  rowWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rowMeta: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.muted,
+  },
+  toggle: {
+    width: 52,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    padding: 3,
+  },
+  toggleOn: {
+    backgroundColor: COLORS.accent.primary,
+    borderColor: COLORS.accent.primary,
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.text.secondary,
+  },
+  toggleKnobOn: {
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'flex-end',
   },
 });

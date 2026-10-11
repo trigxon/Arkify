@@ -1,6 +1,10 @@
 package expo.modules.arkifynative
 
+import android.media.AudioManager
+import android.media.audiofx.BassBoost
+import android.media.audiofx.Equalizer
 import android.os.Build
+import android.content.Context
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.schabi.newpipe.extractor.NewPipe
@@ -27,9 +31,10 @@ import java.io.IOException
 /**
  * Arkify's Android-only native surface.
  *
- * Only two things are exposed to JavaScript: a platform probe, and a single
- * stream-resolution call. The NewPipe Extractor API itself is deliberately NOT
- * bridged -- JS receives a small normalized record and nothing else.
+ * Exposed to JavaScript: a platform probe, a single stream-resolution call,
+ * and the audio effects surface (equalizer + bass boost). The NewPipe
+ * Extractor API itself is deliberately NOT bridged -- JS receives a small
+ * normalized record and nothing else.
  *
  * Every failure is returned as a structured `{ ok: false, reason, message }`
  * value rather than thrown, so a failed extraction can never take down the
@@ -43,10 +48,32 @@ class ArkifyNativeModule : Module() {
 
     @Volatile
     var initialized = false
+
+    /**
+     * Session 0 is the global output mix. Attaching effects there shapes the
+     * app's own playback without needing expo-audio's internal session id.
+     */
+    const val OUTPUT_SESSION = 0
   }
+
+  /** Lazily created effects. Created on first use, released with the module. */
+  private var equalizer: Equalizer? = null
+  private var bassBoost: BassBoost? = null
+  private val fxLock = Any()
 
   override fun definition() = ModuleDefinition {
     Name("ArkifyNative")
+
+    OnDestroy {
+      synchronized(fxLock) {
+        runCatching { equalizer?.enabled = false }
+        runCatching { equalizer?.release() }
+        runCatching { bassBoost?.enabled = false }
+        runCatching { bassBoost?.release() }
+        equalizer = null
+        bassBoost = null
+      }
+    }
 
     Function("getPlatformInfo") {
       return@Function mapOf(
@@ -61,6 +88,86 @@ class ArkifyNativeModule : Module() {
     AsyncFunction("resolveYouTubeStream") { videoId: String ->
       resolveYouTubeStream(videoId)
     }
+
+    // ---- Audio effects (equalizer + bass boost) ---------------------------
+
+    Function("getAudioFxInfo") {
+      val eq = ensureEqualizer() ?: return@Function mapOf("supported" to false)
+      val bands = eq.numberOfBands.toInt()
+      val range = eq.bandLevelRange
+      return@Function mapOf(
+        "supported" to true,
+        "bandCount" to bands,
+        "minLevel" to range[0],
+        "maxLevel" to range[1],
+        "centerFreqs" to (0 until bands).map { eq.getCenterFreq(it.toShort()) },
+        "enabled" to eq.enabled
+      )
+    }
+
+    /**
+     * Apply a full equalizer shape in one call.
+     * `levels` are milli-Bel per band, within [minLevel, maxLevel].
+     */
+    Function("setEqualizerLevels") { levels: List<Double> ->
+      val eq = ensureEqualizer()
+        ?: return@Function mapOf("ok" to false, "message" to "Equalizer unavailable")
+      try {
+        val bandCount = eq.numberOfBands.toInt()
+        for (i in 0 until minOf(bandCount, levels.size)) {
+          eq.setBandLevel(i.toShort(), levels[i].toInt().toShort())
+        }
+        mapOf("ok" to true)
+      } catch (e: Exception) {
+        mapOf("ok" to false, "message" to (e.message ?: "setEqualizerLevels failed"))
+      }
+    }
+
+    Function("setEqualizerEnabled") { enabled: Boolean ->
+      val eq = ensureEqualizer()
+        ?: return@Function mapOf("ok" to false, "message" to "Equalizer unavailable")
+      try {
+        eq.enabled = enabled
+        mapOf("ok" to true)
+      } catch (e: Exception) {
+        mapOf("ok" to false, "message" to (e.message ?: "setEqualizerEnabled failed"))
+      }
+    }
+
+    /** strength: 0..1000 (maps to per-mille bass boost). */
+    Function("setBassBoost") { strength: Double ->
+      val boost = ensureBassBoost()
+        ?: return@Function mapOf("ok" to false, "message" to "BassBoost unavailable")
+      try {
+        boost.strength = strength.toInt().coerceIn(0, 1000).toShort()
+        boost.enabled = strength > 0
+        mapOf("ok" to true)
+      } catch (e: Exception) {
+        mapOf("ok" to false, "message" to (e.message ?: "setBassBoost failed"))
+      }
+    }
+  }
+
+  private fun ensureEqualizer(): Equalizer? = synchronized(fxLock) {
+    if (equalizer == null) {
+      equalizer = try {
+        Equalizer(0, OUTPUT_SESSION)
+      } catch {
+        null // device refuses global-session effects
+      }
+    }
+    equalizer
+  }
+
+  private fun ensureBassBoost(): BassBoost? = synchronized(fxLock) {
+    if (bassBoost == null) {
+      bassBoost = try {
+        BassBoost(0, OUTPUT_SESSION)
+      } catch {
+        null
+      }
+    }
+    bassBoost
   }
 
   private fun ensureInitialized() {

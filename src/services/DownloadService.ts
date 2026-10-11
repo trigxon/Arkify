@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Share } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { Track } from '../core/types';
 import { DOWNLOADS_STORAGE_KEY, ensureMigrated } from '../core/storage';
 import { MusicService } from './MusicService';
@@ -69,6 +70,24 @@ async function saveIndex(list: DownloadedMeta[]): Promise<void> {
 
 class DownloadServiceImpl {
   private index: DownloadedMeta[] | null = null;
+  /** Track ids currently downloading (dedup + UI progress binding). */
+  private active = new Map<string, number>();
+  /** Change listeners — the library/download screens subscribe for progress. */
+  private listeners = new Set<() => void>();
+
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  private notify(): void {
+    for (const fn of this.listeners) fn();
+  }
+
+  /** Live progress of an active download, or undefined. */
+  progressFor(trackId: string): number | undefined {
+    return this.active.get(trackId);
+  }
 
   async init(): Promise<void> {
     this.index = await loadIndex();
@@ -204,6 +223,110 @@ class DownloadServiceImpl {
     await saveIndex(this.index!);
     onProgress?.(1);
     return result.uri;
+  }
+
+  /**
+   * Download several tracks with bounded concurrency. Reports overall and
+   * per-track progress; one failure never aborts the batch.
+   */
+  async downloadBatch(
+    tracks: Track[],
+    options: { concurrency?: number; onTrackDone?: (trackId: string, ok: boolean) => void } = {}
+  ): Promise<{ ok: number; failed: number }> {
+    const concurrency = Math.max(1, options.concurrency ?? 2);
+    let cursor = 0;
+    let ok = 0;
+    let failed = 0;
+
+    const worker = async () => {
+      while (cursor < tracks.length) {
+        const track = tracks[cursor++];
+        if (this.isDownloaded(track.id)) {
+          ok += 1;
+          options.onTrackDone?.(track.id, true);
+          continue;
+        }
+        try {
+          this.active.set(track.id, 0.02);
+          this.notify();
+          await this.download(track, (p) => {
+            this.active.set(track.id, p);
+            this.notify();
+          });
+          ok += 1;
+          options.onTrackDone?.(track.id, true);
+        } catch {
+          failed += 1;
+          options.onTrackDone?.(track.id, false);
+        } finally {
+          this.active.delete(track.id);
+          this.notify();
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    return { ok, failed };
+  }
+
+  /**
+   * Smart auto-download: when enabled in settings and the device is on an
+   * unmetered network, quietly fetch the most recent liked songs that are
+   * not yet on disk. Bounded so the first run cannot hammer storage.
+   */
+  async smartAutoDownload(maxNew = 10): Promise<number> {
+    if (Platform.OS === 'web') return 0;
+
+    try {
+      const net = await NetInfo.fetch();
+      if (!net.isConnected || net.type !== 'wifi') return 0;
+    } catch {
+      return 0;
+    }
+
+    // Read the liked list straight from storage to avoid a hook dependency.
+    try {
+      await ensureMigrated();
+      const raw = await AsyncStorage.getItem('arkify:v1:liked');
+      if (!raw) return 0;
+      const liked = JSON.parse(raw) as Track[];
+      const missing = liked.filter((t) => !this.isDownloaded(t.id)).slice(0, maxNew);
+      if (!missing.length) return 0;
+
+      const { ok } = await this.downloadBatch(missing, { concurrency: 2 });
+      return ok;
+    } catch {
+      return 0;
+    }
+  }
+
+  /** Aggregate storage facts for the manager UI. Never throws. */
+  async storageSummary(): Promise<{ usedBytes: number; freeBytes: number | null; count: number }> {
+    if (this.index === null) await this.init();
+    const usedBytes = (this.index ?? []).reduce((sum, e) => sum + (e.size || 0), 0);
+
+    let freeBytes: number | null = null;
+    if (Platform.OS !== 'web') {
+      try {
+        freeBytes = await FileSystem.getFreeDiskStorageAsync();
+      } catch {
+        freeBytes = null;
+      }
+    }
+
+    return { usedBytes, freeBytes, count: this.index?.length ?? 0 };
+  }
+
+  async removeAll(): Promise<void> {
+    if (this.index === null) await this.init();
+    for (const entry of this.index ?? []) {
+      try {
+        await FileSystem.deleteAsync(entry.fileUri, { idempotent: true });
+      } catch {}
+    }
+    this.index = [];
+    await saveIndex([]);
+    this.notify();
   }
 
   async remove(trackId: string): Promise<void> {

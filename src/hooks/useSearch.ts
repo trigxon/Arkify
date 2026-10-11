@@ -3,6 +3,7 @@ import { messageFor } from '../core/errors';
 import { EMPTY_SEARCH_RESULTS, SearchFilter, SearchResults } from '../core/types';
 import { LibraryService } from '../services/LibraryService';
 import { MusicService } from '../services/MusicService';
+import { tasteProfile } from '../ai/TasteProfile';
 
 const DEBOUNCE_MS = 350;
 
@@ -75,6 +76,8 @@ export function useSearch(): UseSearch {
       setResults(found);
       setIsSearching(false);
       LibraryService.recordSearch(trimmed);
+      // What the user looks for is a taste signal too ("lofi focus beats").
+      void tasteProfile.recordFlavourSignal(trimmed, 0.6);
     } catch (e) {
       if (id !== requestId.current || controller.signal.aborted) return;
 

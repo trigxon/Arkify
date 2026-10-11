@@ -8,7 +8,7 @@ import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
 import { EmptyState } from '../components/common/UI';
-import { History } from 'lucide-react-native';
+import { History, ChevronLeft } from 'lucide-react-native';
 import { Track } from '../core/types';
 import { HistoryEntry } from '../services/LibraryService';
 import { usePlayer } from '../hooks/usePlayer';
@@ -109,6 +109,16 @@ export default function HistoryScreen() {
       <AmbientGlow />
 
       <View style={[styles.header, { paddingTop: insets.top + SIZES.lg }]}>
+        {/* Now a stack screen (reached from You), so it carries a back affordance. */}
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <ChevronLeft color={COLORS.text.primary} size={SIZES.icon.md} />
+        </TouchableOpacity>
         <Text style={styles.title}>History</Text>
         {history.length > 0 && (
           <TouchableOpacity
@@ -187,6 +197,16 @@ const styles = StyleSheet.create({
     fontSize: TYPE.title1.fontSize,
     lineHeight: TYPE.title1.lineHeight,
     color: COLORS.text.primary,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   clear: {
     fontFamily: FONTS.medium,

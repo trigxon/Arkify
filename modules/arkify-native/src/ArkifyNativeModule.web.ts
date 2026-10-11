@@ -1,6 +1,6 @@
 import { registerWebModule, NativeModule } from 'expo';
 
-import { NativeStreamResult, PlatformInfo } from './ArkifyNative.types';
+import { AudioFxInfo, NativeStreamResult, PlatformInfo } from './ArkifyNative.types';
 
 class ArkifyNativeModule extends NativeModule<{}> {
   getPlatformInfo(): PlatformInfo {
@@ -14,6 +14,22 @@ class ArkifyNativeModule extends NativeModule<{}> {
       reason: 'module_unavailable',
       message: 'Native stream resolution is not available on web',
     };
+  }
+
+  getAudioFxInfo(): AudioFxInfo {
+    return { supported: false };
+  }
+
+  setEqualizerLevels(): { ok: boolean } {
+    return { ok: false };
+  }
+
+  setEqualizerEnabled(): { ok: boolean } {
+    return { ok: false };
+  }
+
+  setBassBoost(): { ok: boolean } {
+    return { ok: false };
   }
 }
 

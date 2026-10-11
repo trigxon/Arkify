@@ -11,6 +11,12 @@ import ProfileSetupScreen from '../screens/ProfileSetup';
 import PlaylistDetailScreen from '../screens/PlaylistDetail';
 import SettingsScreen from '../screens/Settings';
 import NowPlayingScreen from '../screens/NowPlaying';
+import StatsScreen from '../screens/Stats';
+import WrappedScreen from '../screens/Wrapped';
+import AIPlaylistScreen from '../screens/AIPlaylist';
+import MoodRadiosScreen from '../screens/MoodRadios';
+import DownloadsScreen from '../screens/Downloads';
+import HistoryScreen from '../screens/History';
 
 type RootStackParamList = {
   Launch: undefined;
@@ -19,6 +25,12 @@ type RootStackParamList = {
   Playlist: { playlistId: string };
   Settings: undefined;
   NowPlaying: undefined;
+  Stats: undefined;
+  Wrapped: undefined;
+  AIPlaylist: undefined;
+  MoodRadios: { moodId?: string } | undefined;
+  Downloads: undefined;
+  History: undefined;
 };
 
 const Stack = createNativeStackNavigator();
@@ -79,11 +91,17 @@ export const RootNavigator = () => {
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="Playlist" component={PlaylistDetailScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="History" component={HistoryScreen} />
         <Stack.Screen
           name="NowPlaying"
           component={NowPlayingScreen}
           options={{ presentation: 'fullScreenModal' }}
         />
+        <Stack.Screen name="Stats" component={StatsScreen} />
+        <Stack.Screen name="Wrapped" component={WrappedScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="AIPlaylist" component={AIPlaylistScreen} options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="MoodRadios" component={MoodRadiosScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="Downloads" component={DownloadsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

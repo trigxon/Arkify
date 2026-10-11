@@ -58,3 +58,19 @@ export type NativeStreamFailure = {
  * of these, so an extraction failure cannot take down the RN runtime.
  */
 export type NativeStreamResult = NativeStreamSuccess | NativeStreamFailure;
+
+/** Device equalizer capabilities, from `ArkifyNative.getAudioFxInfo()`. */
+export type AudioFxInfo = {
+  supported: boolean;
+  /** Number of equalizer bands (typically 5). */
+  bandCount?: number;
+  /** Level range in milli-Bel (typically -1500..1500). */
+  minLevel?: number;
+  maxLevel?: number;
+  /** Band centre frequencies in milli-Hz. */
+  centerFreqs?: number[];
+  enabled?: boolean;
+};
+
+/** Result of applying an equalizer/bass change. */
+export type AudioFxResult = { ok: boolean; message?: string };

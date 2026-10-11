@@ -10,6 +10,7 @@ import React, {
 import { messageFor } from '../core/errors';
 import { Playlist, Track } from '../core/types';
 import { endpointSource } from '../providers/stream/StreamResolver';
+import { engagement } from '../engagement/Streaks';
 import {
   AppSettings,
   HistoryEntry,
@@ -139,7 +140,10 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const toggleLike = useCallback(
     (track: Track) => {
+      const nowLiked = !LibraryService.isLiked(track.id);
       LibraryService.toggleLike(track);
+      // A like is one of the strongest taste + engagement signals there is.
+      if (nowLiked) engagement.onLike();
       sync();
     },
     [sync]

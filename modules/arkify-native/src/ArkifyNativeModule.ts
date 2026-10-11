@@ -1,10 +1,14 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 
-import { NativeStreamResult, PlatformInfo } from './ArkifyNative.types';
+import { AudioFxInfo, NativeStreamResult, PlatformInfo } from './ArkifyNative.types';
 
 declare class ArkifyNativeModule extends NativeModule<{}> {
   getPlatformInfo(): PlatformInfo;
   resolveYouTubeStream(videoId: string): Promise<NativeStreamResult>;
+  getAudioFxInfo(): AudioFxInfo;
+  setEqualizerLevels(levels: number[]): { ok: boolean; message?: string };
+  setEqualizerEnabled(enabled: boolean): { ok: boolean; message?: string };
+  setBassBoost(strength: number): { ok: boolean; message?: string };
 }
 
 /**

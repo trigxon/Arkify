@@ -1,92 +1,129 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
-  View,
-  ScrollView,
   TouchableOpacity,
+  View,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, SlidersHorizontal, Play, Heart, Compass, Moon, Target, User, ChevronRight } from 'lucide-react-native';
-import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
+import { useNavigation } from '@react-navigation/native';
+import {
+  Search,
+  Play,
+  Heart,
+  Compass,
+  Moon,
+  Target,
+  User,
+  Flame,
+  Sparkles,
+  Dumbbell,
+  Headphones,
+  PartyPopper,
+  Sunrise,
+  CloudRain,
+  Car,
+  Radio,
+  ChevronRight,
+  Repeat2,
+  Bot,
+} from 'lucide-react-native';
+import { COLORS, SIZES, FONTS, TYPE, SHADOWS, MOOD_PALETTE, MoodId } from '../constants/theme';
 import { Artwork } from '../components/common/Artwork';
 import { SectionHeader, SkeletonList, ErrorState } from '../components/common/UI';
 import { ScreenHeader } from '../components/common/ScreenHeader';
 import { TrackRow } from '../components/lists/TrackRow';
 import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
+import { GlassView, SpringPressable, FadeInUp, PulsingGlow } from '../components/common/Glass';
 import { Track } from '../core/types';
-import { FEATURED_QUERY, randomQueryFor } from '../data/catalog';
 import { usePlayer } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
+import { useEngagement } from '../hooks/useEngagement';
 import { MusicService } from '../services/MusicService';
+import { recommendationEngine } from '../ai/RecommendationEngine';
+import { tasteProfile } from '../ai/TasteProfile';
+import { MOODS } from '../ai/moods';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
-import { useNavigation } from '@react-navigation/native';
+
+const MOOD_ICONS: Record<MoodId, typeof Dumbbell> = {
+  workout: Dumbbell,
+  focus: Target,
+  chill: Moon,
+  latenight: Sunrise,
+  party: PartyPopper,
+  emotional: CloudRain,
+  commute: Car,
+  romance: Heart,
+};
 
 /**
- * Home categories are real browse shortcuts: each runs its query on the
- * Search screen instead of flipping local state that changes nothing.
+ * Home — the daily front door.
+ *
+ * Above the fold: greeting with the streak flame, the cinematic featured
+ * card, and "Made for you" — the AI's three flagship surfaces (Discovery
+ * Mix, On Repeat, Ask AI). Below: mood radios and continue listening.
  */
-const CATEGORIES: { label: string; query: string }[] = [
-  { label: 'Music', query: 'top music hits' },
-  { label: 'Podcasts', query: 'podcast episodes' },
-  { label: 'Radio', query: 'radio live mix' },
-];
-
-/** Each quick action maps to a real query, except Liked which uses the library. */
-const ACTIONS = [
-  { id: 'liked', label: 'Liked', Icon: Heart, query: null },
-  { id: 'discover', label: 'Discover', Icon: Compass, query: 'discover new music' },
-  { id: 'chill', label: 'Chill', Icon: Moon, query: 'chill relaxing songs' },
-  { id: 'focus', label: 'Focus', Icon: Target, query: 'focus instrumental concentration' },
-] as const;
-
-const greetingFor = (hour: number) =>
-  hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { playTrack, currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
   const { recentlyPlayed, liked, profile } = useLibrary();
+  const { streak, streakActive } = useEngagement();
 
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [featured, setFeatured] = useState<Track[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
-
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Made-for-you state.
+  const [discover, setDiscover] = useState<Track[]>([]);
+  const [onRepeat, setOnRepeat] = useState<Track[]>([]);
+  const [mixLoading, setMixLoading] = useState(true);
+  const [suggestedMood, setSuggestedMood] = useState<{ id: MoodId; reason: string } | null>(null);
+  const [coldStart, setColdStart] = useState(true);
+
   const hasRecents = recentlyPlayed.length > 0;
 
-  /**
-   * Load (or reload) the home feed: the featured card's live pick.
-   *
-   * Used by the mount effect and by pull-to-refresh, so a failed first load
-   * has a real recovery path instead of a "pull to retry" hint nothing wired
-   * up.
-   */
   const loadHome = useCallback(async (): Promise<void> => {
     try {
-      const results = await MusicService.search(FEATURED_QUERY, { limit: 10 });
-      setFeatured(results.tracks);
-      setLoadError(false);
+      // Featured card + made-for-you load together; each is independently
+      // replaceable so one failure never blanks the page.
+      const [featuredRes, discoverRes, mood] = await Promise.all([
+        MusicService.search('calm ambient evening', { limit: 10 }).catch(() => null),
+        recommendationEngine.generateDiscoveryMix().catch(() => []),
+        recommendationEngine.suggestedMood().catch(() => null),
+      ]);
+
+      if (featuredRes) setFeatured(featuredRes.tracks);
+      setDiscover(discoverRes);
+      setSuggestedMood(mood);
+      setLoadError(!featuredRes);
     } catch {
       setLoadError(true);
     } finally {
       setFeaturedLoading(false);
+      setMixLoading(false);
     }
   }, []);
 
-  // Prefetch the featured pick in the background. Cached, so this costs
-  // nothing on later launches.
+  // On Repeat is derived from history; refresh it whenever the screen mounts.
   useEffect(() => {
     void loadHome();
+    void tasteProfile.load().then(() => {
+      setColdStart(tasteProfile.isColdStart);
+      return recommendationEngine
+        .generateRepeatFavorites()
+        .then(setOnRepeat)
+        .catch(() => undefined);
+    });
   }, [loadHome]);
 
   const onRefresh = useCallback(async () => {
@@ -96,36 +133,24 @@ export default function HomeScreen() {
   }, [loadHome]);
 
   const runAction = useCallback(
-    async (action: (typeof ACTIONS)[number]) => {
-      // A fresh query each tap, so Discover/Chill/Focus do not replay the
-      // same results every time.
-      const query = randomQueryFor(action.id) ?? action.query;
-
-      if (query === null) {
-        // Liked: play straight from the local library, no network needed.
-        if (liked.length) playTrack(liked[0], { tracks: liked, label: 'Liked Songs' });
+    async (id: string, label: string, pool: Track[] | null, query: string | null) => {
+      if (pool) {
+        if (pool.length) playTrack(pool[0], { tracks: pool, label });
         return;
       }
+      if (!query) return;
 
-      setPendingAction(action.id);
+      setPendingAction(id);
       try {
         const results = await MusicService.search(query, { limit: 25 });
-        if (results.tracks.length) {
-          // Shuffle so even a repeated query starts somewhere else.
-          const shuffled = [...results.tracks];
-          for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-          }
-          playTrack(shuffled[0], { tracks: shuffled, label: action.label });
-        }
+        if (results.tracks.length) playTrack(results.tracks[0], { tracks: results.tracks, label });
       } catch {
         // Silent: the tile simply stops spinning.
       } finally {
         setPendingAction(null);
       }
     },
-    [liked, playTrack]
+    [playTrack]
   );
 
   const playFeatured = useCallback(() => {
@@ -133,51 +158,59 @@ export default function HomeScreen() {
     playTrack(featured[0], { tracks: featured, label: 'Made for you' });
   }, [featured, playTrack]);
 
-  /**
-   * "Continue listening" only ever shows what the user actually played, per
-   * the reference — its empty card is the honest state for a fresh install.
-   */
-  const recentTracks = recentlyPlayed.slice(0, 3);
-
-  // One stable callback for the whole list instead of a closure per row.
-  const handleTrackPress = useCallback(
-    (track: Track) => {
-      playTrack(track, { tracks: recentTracks, label: 'Recently Played' });
+  const openMoodRadio = useCallback(
+    (moodId: MoodId) => {
+      (navigation.navigate as (name: string, params?: object) => void)('MoodRadios', { moodId });
     },
-    [playTrack, recentTracks]
+    [navigation]
   );
 
-  /** Track whose "add to playlist" sheet is open. */
+  const recentTracks = recentlyPlayed.slice(0, 3);
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
 
   const featuredTrack = featured[0];
-  const firstName = profile.name?.trim() || 'Arkify';
+  const firstName = profile.name?.trim() || 'there';
+  const greeting = greetingFor(new Date().getHours());
 
   return (
     <View style={styles.container}>
-      {/* Ambient light behind the whole page, per the reference. */}
       <AmbientGlow />
 
-      {/* Pinned: greeting + search stay put while the rest of the page scrolls. */}
+      {/* Pinned: greeting + search */}
       <View style={[styles.stickyHeader, { paddingTop: insets.top + SIZES.md }]}>
         <ScreenHeader
+          kicker={greeting}
           title={firstName}
-          kicker={greetingFor(new Date().getHours())}
           right={
-            <TouchableOpacity
-              style={styles.avatar}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Settings' as never)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="Open settings"
-            >
-              {profile.name?.trim() ? (
-                <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
-              ) : (
-                <User color={COLORS.accent.primary} size={SIZES.icon.lg - 2} />
-              )}
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              {streakActive && streak > 0 ? (
+                <FadeInUp index={0}>
+                  <SpringPressable
+                    style={styles.streakChip}
+                    pressScale={0.94}
+                    onPress={() => navigation.navigate('Stats' as never)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${streak} day streak`}
+                  >
+                    <Flame color="#FF8A3D" size={15} fill="rgba(255,138,61,0.3)" />
+                    <Text style={styles.streakCount}>{streak}</Text>
+                  </SpringPressable>
+                </FadeInUp>
+              ) : null}
+              <SpringPressable
+                style={styles.avatar}
+                pressScale={0.9}
+                onPress={() => navigation.navigate('Settings' as never)}
+                accessibilityRole="button"
+                accessibilityLabel="Open settings"
+              >
+                {profile.name?.trim() ? (
+                  <Text style={styles.avatarInitial}>{profile.name.trim()[0].toUpperCase()}</Text>
+                ) : (
+                  <User color={COLORS.accent.primary} size={SIZES.icon.lg - 2} />
+                )}
+              </SpringPressable>
+            </View>
           }
         />
 
@@ -189,16 +222,12 @@ export default function HomeScreen() {
           accessibilityLabel="Search songs, artists and albums"
         >
           <Search color={COLORS.text.secondary} size={SIZES.icon.md - 2} strokeWidth={2.2} />
-          <Text style={styles.searchText}>Songs, artists, albums...</Text>
-          <SlidersHorizontal color={COLORS.text.secondary} size={SIZES.icon.sm + 2} strokeWidth={2} />
+          <Text style={styles.searchText}>Songs, artists, moods, vibes...</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: SIZES.bottomInset }
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: SIZES.bottomInset }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -209,75 +238,54 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* Browse shortcuts — real queries on the Search screen. First chip
-            (Music) reads active, per the reference. */}
-        <View style={styles.pillsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {CATEGORIES.map((cat, i) => (
-              <TouchableOpacity
-                key={cat.label}
-                style={[styles.chip, i === 0 && styles.chipActive]}
-                activeOpacity={0.75}
-                onPress={() => {
-                  (navigation.navigate as (name: string, params?: object) => void)('SearchTab', {
-                    browseQuery: cat.query,
-                  });
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Browse ${cat.label}`}
-                accessibilityState={{ selected: i === 0 }}
-              >
-                <Text style={[styles.chipText, i === 0 && styles.chipTextActive]}>{cat.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Featured: cinematic artwork-led card. The track's art colours the
-            room; text sits on a dark gradient; one teal play FAB. */}
+        {/* Featured — cinematic, liquid-glowing */}
         {featuredLoading ? (
           <View style={[styles.featuredCard, styles.featuredSkeleton]}>
             <SkeletonList rows={1} />
           </View>
         ) : featuredTrack ? (
-          <TouchableOpacity
-            style={[styles.featuredCard, SHADOWS.ambient]}
-            activeOpacity={0.85}
-            onPress={playFeatured}
-            accessibilityRole="button"
-            accessibilityLabel={`Play featured: ${featuredTrack.title} by ${featuredTrack.artist.name}`}
-          >
-            {featuredTrack.albumImageUrl ? (
-              <Image
-                source={{ uri: featuredTrack.albumImageUrl }}
+          <FadeInUp index={1}>
+            <SpringPressable
+              style={[styles.featuredCard, SHADOWS.ambient]}
+              pressScale={0.985}
+              onPress={playFeatured}
+              accessibilityRole="button"
+              accessibilityLabel={`Play featured: ${featuredTrack.title} by ${featuredTrack.artist.name}`}
+            >
+              {featuredTrack.albumImageUrl ? (
+                <Image
+                  source={{ uri: featuredTrack.albumImageUrl }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                />
+              ) : null}
+              <LinearGradient
+                colors={['rgba(12, 15, 15, 0.42)', 'rgba(12, 15, 15, 0.84)', 'rgba(10, 13, 13, 0.95)']}
+                locations={[0, 0.55, 1]}
                 style={StyleSheet.absoluteFill}
-                resizeMode="cover"
               />
-            ) : null}
-            {/* Stronger scrim than before so busy cover art recedes behind
-                the card's own type, per the reference's cinematic treatment. */}
-            <LinearGradient
-              colors={['rgba(12, 15, 15, 0.48)', 'rgba(12, 15, 15, 0.84)', 'rgba(10, 13, 13, 0.95)']}
-              locations={[0, 0.55, 1]}
-              style={StyleSheet.absoluteFill}
-            />
-            <LinearGradient
-              colors={['rgba(53, 214, 198, 0.14)', 'rgba(53, 214, 198, 0)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
+              <LinearGradient
+                colors={['rgba(53, 214, 198, 0.16)', 'rgba(53, 214, 198, 0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
 
-            <View style={styles.featuredOverlay}>
-              <View style={styles.featuredText}>
-                <Text style={styles.featuredTitle}>Let the music{'\n'}find you</Text>
-                <Text style={styles.featuredSub}>Discover · Listen · Feel</Text>
+              <View style={styles.featuredOverlay}>
+                <View style={styles.featuredText}>
+                  <View style={styles.featuredKicker}>
+                    <Sparkles color={COLORS.accent.primary} size={12} />
+                    <Text style={styles.featuredKickerText}>FEATURED</Text>
+                  </View>
+                  <Text style={styles.featuredTitle}>Let the music{'\n'}find you</Text>
+                  <Text style={styles.featuredSub}>Discover · Listen · Feel</Text>
+                </View>
+                <View style={styles.featuredPlayBtn}>
+                  <Play color={COLORS.accent.primary} size={SIZES.icon.md} fill={COLORS.accent.primary} />
+                </View>
               </View>
-              <View style={styles.featuredPlayBtn}>
-                <Play color={COLORS.accent.primary} size={SIZES.icon.md} fill={COLORS.accent.primary} />
-              </View>
-            </View>
-          </TouchableOpacity>
+            </SpringPressable>
+          </FadeInUp>
         ) : loadError ? (
           <ErrorState
             message="Couldn't load suggestions."
@@ -286,21 +294,140 @@ export default function HomeScreen() {
           />
         ) : null}
 
-        {/* Quick access */}
-        <SectionHeader title="Quick access" />
-        <View style={styles.actionsRow}>
-          {ACTIONS.map((action) => (
-            <QuickAccessTile
-              key={action.id}
-              Icon={action.Icon}
-              label={action.label}
-              accent={action.id === 'liked'}
-              loading={pendingAction === action.id}
-              onPress={() => runAction(action)}
+        {/* ---------------- Made for you (AI) ---------------- */}
+        <SectionHeader
+          title="Made for you"
+          actionLabel="Ask AI"
+          onAction={() => navigation.navigate('AIPlaylist' as never)}
+        />
+
+        <View style={styles.mixRow}>
+          <FadeInUp index={2} style={styles.mixCardWrap}>
+            <MixCard
+              title="Discovery Mix"
+              subtitle={coldStart ? 'Trending picks to start' : 'Fresh music, your taste'}
+              gradient={['#35D6C6', '#5B8DEF']}
+              Icon={Compass}
+              loading={mixLoading && !discover.length}
+              tracks={discover}
+              onPress={() =>
+                runAction('discover', 'Discovery Mix', discover, null)
+              }
             />
-          ))}
+          </FadeInUp>
+
+          <FadeInUp index={3} style={styles.mixCardWrap}>
+            <MixCard
+              title="On Repeat"
+              subtitle={coldStart ? 'Plays will land here' : 'The songs you loop'}
+              gradient={['#FF8A5C', '#FF4E8E']}
+              Icon={Repeat2}
+              loading={false}
+              tracks={onRepeat.length ? onRepeat : recentlyPlayed.slice(0, 20)}
+              onPress={() =>
+                runAction('repeat', 'On Repeat', onRepeat.length ? onRepeat : recentlyPlayed.slice(0, 20), null)
+              }
+            />
+          </FadeInUp>
         </View>
 
+        {/* Ask AI card */}
+        <FadeInUp index={4}>
+          <SpringPressable
+            style={styles.askAICard}
+            pressScale={0.98}
+            glow
+            onPress={() => navigation.navigate('AIPlaylist' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Ask AI for a playlist"
+          >
+            <PulsingGlow size={130} color="rgba(53, 214, 198, 0.16)" style={styles.askAIGlow} />
+            <View style={styles.askAIIcon}>
+              <Bot color={COLORS.accent.primary} size={26} />
+            </View>
+            <View style={styles.askAIText}>
+              <Text style={styles.askAITitle}>Ask AI for anything</Text>
+              <Text style={styles.askAISub} numberOfLines={1}>
+                "gym energy" · "3am heartbreak" · "study flow"
+              </Text>
+            </View>
+            <ChevronRight color={COLORS.text.muted} size={SIZES.icon.md} />
+          </SpringPressable>
+        </FadeInUp>
+
+        {/* ---------------- Mood radios ---------------- */}
+        <SectionHeader
+          title="Made for this moment"
+          actionLabel={suggestedMood ? undefined : 'All radios'}
+          onAction={suggestedMood ? undefined : () => navigation.navigate('MoodRadios' as never)}
+        />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.moodScroll}
+        >
+          {MOODS.slice(0, 6).map((mood, i) => {
+            const palette = MOOD_PALETTE[mood.id];
+            const Icon = MOOD_ICONS[mood.id];
+            const isSuggested = suggestedMood?.id === mood.id;
+
+            return (
+              <FadeInUp key={mood.id} index={5 + i}>
+                <SpringPressable
+                  style={[styles.moodCard, { width: isSuggested ? 172 : 148 }]}
+                  pressScale={0.95}
+                  onPress={() => openMoodRadio(mood.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Start ${mood.name} radio`}
+                >
+                  <LinearGradient
+                    colors={palette.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']}
+                    start={{ x: 0.5, y: 0.2 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {isSuggested ? (
+                    <View style={styles.moodNowChip}>
+                      <Text style={styles.moodNowText}>NOW</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.moodCardTop}>
+                    <Icon color="#FFFFFF" size={22} />
+                  </View>
+                  <View>
+                    <Text style={styles.moodCardName}>{mood.name}</Text>
+                    <Text style={styles.moodCardTag} numberOfLines={1}>
+                      {isSuggested ? suggestedMood!.reason : mood.tagline}
+                    </Text>
+                  </View>
+                </SpringPressable>
+              </FadeInUp>
+            );
+          })}
+
+          {/* See-all card */}
+          <FadeInUp index={11}>
+            <SpringPressable
+              style={[styles.moodCard, styles.moodMoreCard]}
+              pressScale={0.95}
+              onPress={() => navigation.navigate('MoodRadios' as never)}
+              accessibilityRole="button"
+              accessibilityLabel="All mood radios"
+            >
+              <Headphones color={COLORS.text.secondary} size={20} />
+              <Text style={styles.moodMoreText}>All{'\n'}radios</Text>
+            </SpringPressable>
+          </FadeInUp>
+        </ScrollView>
+
+        {/* ---------------- Continue listening ---------------- */}
         <SectionHeader
           title="Continue listening"
           actionLabel="Your library"
@@ -308,17 +435,17 @@ export default function HomeScreen() {
         />
 
         {hasRecents ? (
-          recentTracks.map((track) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              onPress={handleTrackPress}
-              onMorePress={setAddingTrack}
-              isPlaying={currentTrack?.id === track.id && isPlaying}
-            />
+          recentTracks.map((track, i) => (
+            <FadeInUp key={track.id} index={12 + i} preset="fast">
+              <TrackRow
+                track={track}
+                onPress={(t) => playTrack(t, { tracks: recentTracks, label: 'Recently Played' })}
+                onMorePress={setAddingTrack}
+                isPlaying={currentTrack?.id === track.id && isPlaying}
+              />
+            </FadeInUp>
           ))
         ) : (
-          /* The reference's welcoming empty state. */
           <View style={styles.emptyRow}>
             <View style={styles.emptyIconWrap}>
               <User color={COLORS.text.secondary} size={SIZES.icon.md} />
@@ -350,49 +477,63 @@ export default function HomeScreen() {
   );
 }
 
-/**
- * Quick-access tile: icon + label on a dark tile. Liked gets the accent
- * treatment (teal heart), matching the reference's emphasis.
- */
-const QuickAccessTile: React.FC<{
-  Icon: typeof Heart;
-  label: string;
-  accent?: boolean;
-  loading?: boolean;
+// ---------------------------------------------------------------------------
+
+/** Compact "mix" card — Discovery / On Repeat. */
+const MixCard: React.FC<{
+  title: string;
+  subtitle: string;
+  gradient: readonly [string, string];
+  Icon: typeof Compass;
+  loading: boolean;
+  tracks: Track[];
   onPress: () => void;
-}> = ({ Icon, label, accent = false, loading = false, onPress }) => (
-  <TouchableOpacity
-    style={[styles.actionTile, accent && styles.actionTileAccent]}
-    activeOpacity={0.75}
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityLabel={label}
-    accessibilityState={{ busy: loading }}
-  >
-    {/* Top-lit surface, so the tiles read as raised rather than flat. */}
+}> = ({ title, subtitle, gradient, Icon, loading, tracks, onPress }) => (
+  <SpringPressable style={styles.mixCard} pressScale={0.96} onPress={onPress}
+    accessibilityRole="button" accessibilityLabel={`${title}: play`}>
     <LinearGradient
-      colors={['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0)']}
-      start={{ x: 0.5, y: 0 }}
+      colors={gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+    <LinearGradient
+      colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)']}
+      start={{ x: 0.5, y: 0.25 }}
       end={{ x: 0.5, y: 1 }}
       style={StyleSheet.absoluteFill}
     />
-    <View style={styles.actionTileIcon}>
-      {loading ? (
-        <ActivityIndicator size="small" color={COLORS.accent.primary} />
-      ) : (
-        <Icon
-          color={accent ? COLORS.accent.primary : COLORS.text.primary}
-          size={SIZES.icon.md - 2}
-          strokeWidth={2}
-          fill={accent ? COLORS.accent.primary : 'transparent'}
-        />
-      )}
+
+    {loading ? (
+      <ActivityIndicator color="#FFFFFF" size="small" style={styles.mixIcon} />
+    ) : (
+      <View style={styles.mixIcon}>
+        <Icon color="#FFFFFF" size={20} />
+      </View>
+    )}
+
+    {/* Artwork strip from the mix */}
+    {tracks.length ? (
+      <View style={styles.mixArtRow}>
+        {tracks.slice(0, 3).map((t) => (
+          <Artwork key={t.id} uri={t.albumImageUrl} size={26} radius={6} style={styles.mixArt} />
+        ))}
+      </View>
+    ) : null}
+
+    <View style={styles.mixFooter}>
+      <Text style={styles.mixTitle}>{title}</Text>
+      <Text style={styles.mixSub} numberOfLines={1}>{subtitle}</Text>
     </View>
-    <Text style={styles.actionTileLabel} numberOfLines={1}>
-      {label}
-    </Text>
-  </TouchableOpacity>
+  </SpringPressable>
 );
+
+/** Shared tokens for this screen (hoisted so styles can reference them). */
+const GLASS_RADIUS = 20;
+const GLASS_BG = 'rgba(18, 24, 24, 0.55)';
+
+const greetingFor = (hour: number) =>
+  hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
 
 const styles = StyleSheet.create({
   container: {
@@ -409,7 +550,27 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     zIndex: 20,
   },
-  /** Thin accent ring on a near-transparent fill, per the reference. */
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  streakChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 138, 61, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 138, 61, 0.35)',
+  },
+  streakCount: {
+    fontFamily: FONTS.bold,
+    fontSize: TYPE.callout.fontSize,
+    color: '#FF8A3D',
+  },
   avatar: {
     width: 46,
     height: 46,
@@ -444,40 +605,14 @@ const styles = StyleSheet.create({
     color: COLORS.text.muted,
     marginLeft: SIZES.sm,
   },
-  pillsContainer: {
-    marginBottom: SIZES.md,
-  },
-  chip: {
-    paddingHorizontal: SIZES.md + 2,
-    paddingVertical: 8,
-    borderRadius: SIZES.radius.pill,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    marginRight: SIZES.sm,
-    minHeight: SIZES.touchTarget - 8,
-    justifyContent: 'center',
-  },
-  chipActive: {
-    backgroundColor: COLORS.accent.primary,
-    borderColor: COLORS.accent.primary,
-  },
-  chipText: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.subheadline.fontSize,
-    color: COLORS.text.primary,
-  },
-  chipTextActive: {
-    color: COLORS.text.dark,
-    fontFamily: FONTS.semibold,
-  },
 
+  // Featured
   featuredCard: {
-    height: 164,
+    height: 168,
     borderRadius: SIZES.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.hairline,
-    marginBottom: SIZES.lg,
+    marginBottom: SIZES.xl,
     overflow: 'hidden',
     backgroundColor: COLORS.surface,
   },
@@ -499,6 +634,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: SIZES.md,
   },
+  featuredKicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+  },
+  featuredKickerText: {
+    fontFamily: FONTS.bold,
+    fontSize: TYPE.micro.fontSize,
+    color: COLORS.accent.primary,
+    letterSpacing: 2.5,
+  },
   featuredTitle: {
     fontFamily: FONTS.bold,
     fontSize: TYPE.title2.fontSize,
@@ -511,7 +658,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: SIZES.sm,
   },
-  /** Outlined accent play FAB, per the reference (ring + accent glyph). */
   featuredPlayBtn: {
     width: 46,
     height: 46,
@@ -528,39 +674,158 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
-  actionsRow: {
+  // Made for you
+  mixRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.xl,
+    gap: SIZES.md,
+    marginBottom: SIZES.md,
   },
-  actionTile: {
+  mixCardWrap: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: SIZES.radius.md,
-    backgroundColor: COLORS.surface,
+  },
+  mixCard: {
+    height: 148,
+    borderRadius: GLASS_RADIUS,
     borderWidth: 1,
-    borderColor: COLORS.hairline,
-    marginHorizontal: 4,
+    borderColor: 'rgba(255,255,255,0.10)',
     overflow: 'hidden',
+    padding: SIZES.md,
+    justifyContent: 'space-between',
+    ...SHADOWS.ambient,
   },
-  /** Liked leads with the accent treatment, per the reference. */
-  actionTileAccent: {
-    borderColor: COLORS.accent.border,
-    backgroundColor: COLORS.surfaceElevated,
-  },
-  actionTileIcon: {
-    height: 26,
+  mixIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SIZES.sm + 2,
   },
-  actionTileLabel: {
-    fontFamily: FONTS.medium,
+  mixArtRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  mixArt: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  mixFooter: {},
+  mixTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: TYPE.headline.fontSize,
+    color: '#FFFFFF',
+  },
+  mixSub: {
+    fontFamily: FONTS.regular,
     fontSize: TYPE.footnote.fontSize,
-    color: COLORS.text.primary,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 1,
   },
 
+  // Ask AI
+  askAICard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.md,
+    borderRadius: GLASS_RADIUS,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    padding: SIZES.md,
+    marginBottom: SIZES.xl,
+    overflow: 'hidden',
+  },
+  askAIGlow: {
+    position: 'absolute',
+    left: -20,
+    top: -30,
+  },
+  askAIIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: COLORS.accent.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  askAIText: {
+    flex: 1,
+  },
+  askAITitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.headline.fontSize,
+    color: COLORS.text.primary,
+  },
+  askAISub: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+
+  // Mood radios
+  moodScroll: {
+    paddingRight: SIZES.gutter,
+    marginBottom: SIZES.xl,
+    marginLeft: -SIZES.gutter,
+    paddingLeft: SIZES.gutter,
+  },
+  moodCard: {
+    height: 132,
+    borderRadius: GLASS_RADIUS,
+    overflow: 'hidden',
+    marginRight: SIZES.md,
+    padding: SIZES.md + 2,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    ...SHADOWS.ambient,
+  },
+  moodNowChip: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  moodNowText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
+  },
+  moodCardTop: {
+    alignItems: 'flex-start',
+  },
+  moodCardName: {
+    fontFamily: FONTS.bold,
+    fontSize: TYPE.headline.fontSize,
+    color: '#FFFFFF',
+  },
+  moodCardTag: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.micro.fontSize,
+    color: 'rgba(255,255,255,0.78)',
+    marginTop: 1,
+  },
+  moodMoreCard: {
+    backgroundColor: COLORS.surface,
+    alignItems: 'flex-start',
+  },
+  moodMoreText: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.primary,
+    lineHeight: 19,
+  },
+
+  // Empty continue row
   emptyRow: {
     flexDirection: 'row',
     alignItems: 'center',

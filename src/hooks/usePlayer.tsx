@@ -16,6 +16,8 @@ import { playbackEngine, IDLE_STATUS, PlaybackStatus } from '../playback/Playbac
 import { Queue, QueueSnapshot, EMPTY_QUEUE } from '../playback/queue';
 import { preloader } from '../playback/preload';
 import { endpointSource } from '../providers/stream/StreamResolver';
+import { recommendationEngine } from '../ai/RecommendationEngine';
+import { tasteProfile } from '../ai/TasteProfile';
 import { LibraryService } from '../services/LibraryService';
 import { MusicService } from '../services/MusicService';
 
@@ -272,13 +274,13 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!settings.autoplayRelated || !last) return;
 
     try {
-      const related = await MusicService.getRelated(last);
-      const fresh = related.filter(
-        (t) => !queueRef.current.items.some((q) => q.id === t.id)
-      );
-      if (!fresh.length) return;
+      // The recommender blends provider "related" tracks with the listener's
+      // taste model, so the queue keeps rolling with tracks that actually fit.
+      const excludeIds = new Set(queueRef.current.items.map((q) => q.id));
+      const best = await recommendationEngine.nextBestTrack(last, excludeIds);
+      if (!best) return;
 
-      queueRef.current.add(fresh.slice(0, 20));
+      queueRef.current.add(best);
       const nextTrack = queueRef.current.next(false);
       bumpQueue();
       persistQueue();
@@ -430,7 +432,18 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     else playbackEngine.play();
   }, [bumpQueue, currentTrack, loadCurrent, status.isPlaying]);
 
+  /**
+   * Manual skip: tell the taste model this artist lost interest, so radios
+   * and autoplay adapt. Only counts early in the track — skipping at 80% is
+   * finishing, not rejecting.
+   */
   const next = useCallback(() => {
+    const playing = queueRef.current.current;
+    if (playing && statusRef.current.duration > 0) {
+      const ratio = statusRef.current.position / statusRef.current.duration;
+      if (ratio < 0.35) void tasteProfile.recordSkip(playing);
+    }
+
     const nextTrack = queueRef.current.next(false);
     bumpQueue();
     persistQueue();

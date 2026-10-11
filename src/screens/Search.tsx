@@ -10,7 +10,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search as SearchIcon, X, SearchX, WifiOff, Mic } from 'lucide-react-native';
+import { Search as SearchIcon, X, SearchX, WifiOff, Mic, Bot, ChevronRight } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
@@ -20,6 +20,7 @@ import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
 import { CategoryTile } from '../components/common/Cards';
 import { SectionHeader, EmptyState, ErrorState, SkeletonList } from '../components/common/UI';
+import { SpringPressable, GlassView, FadeInUp } from '../components/common/Glass';
 import { BROWSE_CATEGORIES, BROWSE_VISIBLE_COUNT } from '../data/catalog';
 import { SearchFilter, Track } from '../core/types';
 import { useSearch } from '../hooks/useSearch';
@@ -273,6 +274,27 @@ export default function SearchScreen() {
           )}
         </View>
 
+        {/* Ask AI — a playlist from a prompt, right from Search. */}
+        <FadeInUp index={0} preset="fast">
+          <SpringPressable
+            style={styles.askAICard}
+            pressScale={0.97}
+            glow
+            onPress={() => navigation.navigate('AIPlaylist' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Ask AI for a playlist"
+          >
+            <View style={styles.askAIIcon}>
+              <Bot color={COLORS.accent.primary} size={18} />
+            </View>
+            <View style={styles.askAITextWrap}>
+              <Text style={styles.askAITitle}>Make a playlist with AI</Text>
+              <Text style={styles.askAISub}>Describe any vibe — get 30 tracks</Text>
+            </View>
+            <ChevronRight color={COLORS.text.muted} size={16} />
+          </SpringPressable>
+        </FadeInUp>
+
         <View style={styles.filtersContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {FILTERS.map((f) => (
@@ -441,6 +463,44 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SIZES.gutter,
+  },
+  // Ask AI entry card
+  askAICard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.md,
+    borderRadius: 18,
+    backgroundColor: 'rgba(18, 24, 24, 0.55)',
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    paddingVertical: 12,
+    paddingHorizontal: SIZES.md + 2,
+    marginTop: SIZES.md,
+    marginBottom: SIZES.sm,
+  },
+  askAIIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: COLORS.accent.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  askAITextWrap: {
+    flex: 1,
+  },
+  askAITitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.primary,
+  },
+  askAISub: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.secondary,
+    marginTop: 1,
   },
   headerTitle: {
     fontFamily: FONTS.bold,

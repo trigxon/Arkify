@@ -196,3 +196,119 @@ export const MOTION = {
   slow: 320,
   easing: 'native' as const,
 } as const;
+
+// ---------------------------------------------------------------------------
+// LIQUID GLASS — translucent material system (iOS-style depth)
+//
+// Surfaces are layered, not flat: a translucent fill sits over a tinted
+// scrim, carries a hairline border that is brighter along the top edge
+// (the specular highlight), and casts a soft ambient glow. The helpers in
+// components/common/Glass.tsx assemble these tokens into real materials.
+// ---------------------------------------------------------------------------
+
+export const GLASS = {
+  /** Translucent fills, darkest → lightest. Chosen so text keeps AA contrast. */
+  fill: {
+    ultraThin: 'rgba(18, 24, 24, 0.42)',
+    thin: 'rgba(16, 21, 21, 0.58)',
+    regular: 'rgba(14, 18, 18, 0.72)',
+    thick: 'rgba(12, 15, 15, 0.86)',
+  },
+  /** Edge treatment. The top edge reads brighter — light from above. */
+  border: {
+    subtle: 'rgba(255, 255, 255, 0.07)',
+    hairline: 'rgba(255, 255, 255, 0.10)',
+    luminous: 'rgba(255, 255, 255, 0.16)',
+    accent: 'rgba(53, 214, 198, 0.28)',
+  },
+  /** The specular streak drawn along the top edge of a glass panel. */
+  highlight: {
+    strong: 'rgba(255, 255, 255, 0.22)',
+    soft: 'rgba(255, 255, 255, 0.10)',
+    faint: 'rgba(255, 255, 255, 0.05)',
+  },
+  /** Inner ambient tints used by glowing variants. */
+  tint: {
+    accentSoft: 'rgba(53, 214, 198, 0.10)',
+    accentGlow: 'rgba(53, 214, 198, 0.20)',
+    dangerSoft: 'rgba(239, 68, 68, 0.12)',
+  },
+  /** Blur radii per material weight (used where BlurView is available). */
+  blur: {
+    thin: 24,
+    regular: 40,
+    thick: 64,
+  },
+  radius: {
+    card: 20,
+    sheet: 28,
+    tile: 16,
+  },
+} as const;
+
+/**
+ * Brand gradient pairs. Two-stop diagonal washes used on hero cards,
+ * AI surfaces and share cards. Pairs keep the Nocturne cyan identity
+ * while letting each feature own a hue.
+ */
+export const GRADIENTS = {
+  brand: ['#35D6C6', '#5B8DEF'] as const,
+  aurora: ['#57E8D6', '#9B8CF0'] as const,
+  sunset: ['#FF8A5C', '#FF4E8E'] as const,
+  midnight: ['#4C5BD4', '#7B4CD4'] as const,
+  gold: ['#FFC24D', '#FF8A3D'] as const,
+  mint: ['#5AD1A8', '#35D6C6'] as const,
+  rose: ['#FF6B9E', '#C155D9'] as const,
+} as const;
+
+/**
+ * Spring presets (react-native-reanimated `withSpring` configs).
+ * Materials feel liquid when motion is perceptibly under- or over-damped.
+ */
+export const SPRINGS = {
+  /** Buttons, chips — quick press-in. */
+  press: { damping: 18, stiffness: 380, mass: 0.7 },
+  /** Release bounce. */
+  release: { damping: 14, stiffness: 300, mass: 0.8 },
+  /** Section entrances, gentle slides. */
+  gentle: { damping: 22, stiffness: 200, mass: 0.9 },
+  /** Big choreography: sheet morphs, artwork transitions. */
+  lively: { damping: 16, stiffness: 260, mass: 1 },
+  /** Karaoke line snap. */
+  snap: { damping: 20, stiffness: 320, mass: 0.6 },
+} as const;
+
+/**
+ * Stagger-in presets for list/section entrances (duration ms + translate).
+ * Applied by <FadeInUp> wrappers in the Glass kit.
+ */
+export const ENTRANCE = {
+  fast: { duration: 260, translateY: 14 },
+  base: { duration: 340, translateY: 20 },
+  slow: { duration: 460, translateY: 26 },
+} as const;
+
+/**
+ * Mood identities — one gradient, one glow hue and one surface tint each.
+ * Shared by Mood Radios, the AI engine's mood detection and Wrapped.
+ */
+export type MoodId =
+  | 'workout'
+  | 'focus'
+  | 'chill'
+  | 'latenight'
+  | 'party'
+  | 'emotional'
+  | 'commute'
+  | 'romance';
+
+export const MOOD_PALETTE: Record<MoodId, { gradient: readonly [string, string]; glow: string; tint: string }> = {
+  workout: { gradient: ['#FF6B5A', '#FF8A3D'], glow: 'rgba(255, 107, 90, 0.35)', tint: 'rgba(255, 107, 90, 0.12)' },
+  focus: { gradient: ['#4C5BD4', '#38BDF8'], glow: 'rgba(76, 91, 212, 0.35)', tint: 'rgba(76, 91, 212, 0.12)' },
+  chill: { gradient: ['#35D6C6', '#5AD1A8'], glow: 'rgba(53, 214, 198, 0.30)', tint: 'rgba(53, 214, 198, 0.10)' },
+  latenight: { gradient: ['#9B8CF0', '#5B8DEF'], glow: 'rgba(155, 140, 240, 0.35)', tint: 'rgba(155, 140, 240, 0.12)' },
+  party: { gradient: ['#FF4E8E', '#FFC24D'], glow: 'rgba(255, 78, 142, 0.35)', tint: 'rgba(255, 78, 142, 0.12)' },
+  emotional: { gradient: ['#7FB2FF', '#C155D9'], glow: 'rgba(127, 178, 255, 0.30)', tint: 'rgba(127, 178, 255, 0.10)' },
+  commute: { gradient: ['#57E8D6', '#4C5BD4'], glow: 'rgba(87, 232, 214, 0.30)', tint: 'rgba(87, 232, 214, 0.10)' },
+  romance: { gradient: ['#FF6B9E', '#FF8A5C'], glow: 'rgba(255, 107, 158, 0.30)', tint: 'rgba(255, 107, 158, 0.10)' },
+};
