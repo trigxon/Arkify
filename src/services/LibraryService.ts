@@ -281,6 +281,26 @@ class LibraryServiceImpl {
     });
   }
 
+  /**
+   * Move a track within a playlist's stored (custom) order.
+   *
+   * Indices address the playlist's own track array — the caller is
+   * responsible for only invoking this from an unfiltered, unsorted view,
+   * which the playlist screen enforces by disabling reorder there.
+   */
+  reorderPlaylistTracks(playlistId: string, from: number, to: number): void {
+    const playlist = this.getPlaylist(playlistId);
+    if (!playlist || from === to) return;
+    if (from < 0 || from >= playlist.tracks.length) return;
+
+    const tracks = [...playlist.tracks];
+    const clampedTo = Math.max(0, Math.min(to, tracks.length - 1));
+    const [moved] = tracks.splice(from, 1);
+    tracks.splice(clampedTo, 0, moved);
+
+    this.updatePlaylist(playlistId, { tracks });
+  }
+
   private persistPlaylists(): void {
     writeJsonDebounced(STORAGE_KEYS.playlists, this.playlists, 400);
   }

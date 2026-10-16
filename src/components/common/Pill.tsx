@@ -7,16 +7,19 @@ interface PillProps {
   isActive?: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
+  /** Compact variant for secondary chip rows (e.g. sort controls). */
+  small?: boolean;
 }
 
 /** Filter chip: quiet when idle, accent-understated when selected. */
-export const Pill: React.FC<PillProps> = ({ label, isActive, onPress, style }) => {
+export const Pill: React.FC<PillProps> = ({ label, isActive, onPress, style, small = false }) => {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
       style={[
         styles.container,
+        small && styles.containerSmall,
         isActive ? styles.activeContainer : styles.inactiveContainer,
         style,
       ]}
@@ -26,6 +29,7 @@ export const Pill: React.FC<PillProps> = ({ label, isActive, onPress, style }) =
     >
       <Text style={[
         styles.label,
+        small && styles.labelSmall,
         isActive ? styles.activeLabel : styles.inactiveLabel
       ]}>
         {label}
@@ -64,5 +68,14 @@ const styles = StyleSheet.create({
   inactiveLabel: {
     // Reference chips read bright on the dark surface, not greyed out.
     color: COLORS.text.soft,
+  },
+  containerSmall: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    minHeight: 30,
+    marginRight: SIZES.xs + 2,
+  },
+  labelSmall: {
+    fontSize: 12,
   },
 });

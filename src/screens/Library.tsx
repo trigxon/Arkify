@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, X, Trash2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2, Share } from 'lucide-react-native';
+import { Plus, X, Trash2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2, Share, Search, ArrowDownUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
@@ -38,6 +38,21 @@ type LibraryStackParams = {
 
 const FILTERS = ['Playlists', 'Artists', 'Albums', 'Downloaded'];
 
+type PlaylistSortKey = 'updated' | 'added' | 'az' | 'za';
+
+const PLAYLIST_SORTS: { key: PlaylistSortKey; label: string }[] = [
+  { key: 'updated', label: 'Recent' },
+  { key: 'added', label: 'Added' },
+  { key: 'az', label: 'A–Z' },
+  { key: 'za', label: 'Z–A' },
+];
+
+const matches = (q: string, ...fields: (string | undefined)[]) => {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  return fields.some((f) => (f ?? '').toLowerCase().includes(needle));
+};
+
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<LibraryStackParams>>();
@@ -61,6 +76,10 @@ export default function LibraryScreen() {
   const [importUrl, setImportUrl] = useState('');
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [downloadedTracks, setDownloadedTracks] = useState<Track[]>([]);
+  /** Search-within-library: filters every tab's content in place. */
+  const [libQuery, setLibQuery] = useState('');
+  /** Sort for the Playlists tab (Liked Songs always leads). */
+  const [playlistSort, setPlaylistSort] = useState<PlaylistSortKey>('updated');
   /** Track whose full action menu (•••) is open. */
   const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
   /** Playlists have their own page, so a tap navigates rather than expanding. */
@@ -72,15 +91,22 @@ export default function LibraryScreen() {
     [navigation, touchPlaylist]
   );
 
-  // "Liked Songs" always leads, then the user's own and imported playlists.
-  const allPlaylists = useMemo<Playlist[]>(
-    () => [
-      likedPlaylist,
-      // Most recently opened or changed first, so recents read as playlists.
-      ...[...playlists].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)),
-    ],
-    [likedPlaylist, playlists]
-  );
+  // "Liked Songs" always leads, then the user's own and imported playlists —
+  // filtered by the library search, ordered by the chosen sort.
+  const allPlaylists = useMemo<Playlist[]>(() => {
+    const own = playlists.filter((p) => matches(libQuery, p.name, p.creator));
+
+    const sorted: Playlist[] = [...own];
+    if (playlistSort === 'added') sorted.sort((a, b) => b.createdAt - a.createdAt);
+    else if (playlistSort === 'az') sorted.sort((a, b) => a.name.localeCompare(b.name));
+    else if (playlistSort === 'za') sorted.sort((a, b) => b.name.localeCompare(a.name));
+    else sorted.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+
+    const likedLeads = matches(libQuery, likedPlaylist.name)
+      ? [likedPlaylist]
+      : [];
+    return [...likedLeads, ...sorted];
+  }, [likedPlaylist, playlists, libQuery, playlistSort]);
 
   /** Artists and albums are derived from what is actually in the library. */
   const derived = useMemo(() => {
@@ -90,11 +116,12 @@ export default function LibraryScreen() {
     const albums = new Map<string, { name: string; artist: string; image: string; count: number }>();
 
     for (const t of tracks) {
+      if (!matches(libQuery, t.artist.name)) continue;
       const a = artists.get(t.artist.name);
       if (a) a.count++;
       else artists.set(t.artist.name, { name: t.artist.name, image: t.albumImageUrl, count: 1 });
 
-      if (t.album) {
+      if (t.album && matches(libQuery, t.album, t.artist.name)) {
         const al = albums.get(t.album);
         if (al) al.count++;
         else
@@ -111,7 +138,12 @@ export default function LibraryScreen() {
       artists: [...artists.values()].sort((x, y) => y.count - x.count),
       albums: [...albums.values()].sort((x, y) => y.count - x.count),
     };
-  }, [liked, playlists, recentlyPlayed]);
+  }, [liked, playlists, recentlyPlayed, libQuery]);
+
+  const visibleDownloads = useMemo(
+    () => downloadedTracks.filter((t) => matches(libQuery, t.title, t.artist?.name)),
+    [downloadedTracks, libQuery]
+  );
 
   const onPlayPlaylist = (playlist: Playlist) => {
     if (!playlist.tracks.length) return;
@@ -276,9 +308,56 @@ export default function LibraryScreen() {
           </ScrollView>
         </View>
 
+        {/* Search within the library — filters the active tab in place. */}
+        <View style={styles.libSearchField}>
+          <Search color={COLORS.text.muted} size={SIZES.icon.sm + 1} />
+          <TextInput
+            style={styles.libSearchInput}
+            value={libQuery}
+            onChangeText={setLibQuery}
+            placeholder={`Search in ${activeFilter.toLowerCase()}`}
+            placeholderTextColor={COLORS.text.muted}
+            returnKeyType="search"
+            accessibilityLabel="Search within library"
+          />
+          {libQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setLibQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear library search"
+            >
+              <X color={COLORS.text.muted} size={SIZES.icon.sm} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Sort chips for the Playlists tab. Liked Songs always leads. */}
+        {activeFilter === 'Playlists' && (
+          <View style={styles.sortRow}>
+            {PLAYLIST_SORTS.map(({ key, label }) => (
+              <Pill
+                key={key}
+                label={label}
+                isActive={playlistSort === key}
+                onPress={() => setPlaylistSort(key)}
+                small
+              />
+            ))}
+          </View>
+        )}
+
         <View style={styles.listContainer}>
           {activeFilter === 'Playlists' && (
             <>
+              {allPlaylists.length === 0 && libQuery.trim() ? (
+                <EmptyState
+                  Icon={Search}
+                  title="No matches in your library"
+                  hint={`No playlist matches “${libQuery.trim()}”.`}
+                />
+              ) : (
+              <>
               {allPlaylists.map((playlist) =>
                 // Liked Songs leads with the teal card treatment from the
                 // reference; user playlists keep the standard artwork row.
@@ -361,7 +440,7 @@ export default function LibraryScreen() {
 
               {/* The reference keeps this composition under the Liked Songs
                   card until the user owns a playlist. */}
-              {playlists.length === 0 && (
+              {playlists.length === 0 && !libQuery.trim() && (
               <View style={styles.createEmptyWrap}>
                 {/* The reference's create-first-playlist composition: stacked
                     glass cards with a floating note glyph, headline, support
@@ -390,6 +469,8 @@ export default function LibraryScreen() {
                   <Text style={styles.createButtonText}>Create Playlist</Text>
                 </TouchableOpacity>
               </View>
+              )}
+              </>
               )}
             </>
           )}
@@ -460,9 +541,9 @@ export default function LibraryScreen() {
             ))}
 
           {activeFilter === 'Downloaded' && (
-            downloadedTracks.length ? (
+            visibleDownloads.length ? (
               <View>
-                {downloadedTracks.map((track) => (
+                {visibleDownloads.map((track) => (
                   <View key={track.id} style={styles.downloadedRow}>
                     <View style={{ flex: 1 }}>
                       <TrackRow
@@ -496,6 +577,12 @@ export default function LibraryScreen() {
                   Tap a track to play offline — zero network latency. Downloads survive app restarts.
                 </Text>
               </View>
+            ) : libQuery.trim() ? (
+              <EmptyState
+                Icon={Search}
+                title="No matches in your downloads"
+                hint={`No downloaded track matches “${libQuery.trim()}”.`}
+              />
             ) : (
               <EmptyState
                 Icon={DownloadCloud}
@@ -629,6 +716,30 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     marginBottom: SIZES.lg,
+  },
+  libSearchField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.sm,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    borderRadius: SIZES.radius.pill,
+    paddingHorizontal: SIZES.md,
+    minHeight: SIZES.touchTarget - 8,
+    marginBottom: SIZES.sm,
+  },
+  libSearchInput: {
+    flex: 1,
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.primary,
+    paddingVertical: 0,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: SIZES.sm,
   },
   listContainer: {
     flex: 1,

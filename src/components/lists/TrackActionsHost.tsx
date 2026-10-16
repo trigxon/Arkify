@@ -17,7 +17,9 @@ import { usePlayer } from '../../hooks/usePlayer';
 export const TrackActionsHost: React.FC<{
   track: Track | null;
   onClose: () => void;
-}> = ({ track, onClose }) => {
+  /** Playlist the menu was opened from — enables "Remove from this playlist". */
+  contextPlaylistId?: string;
+}> = ({ track, onClose, contextPlaylistId }) => {
   const navigation = useNavigation();
   const { playNext, addToQueue, playRadio } = usePlayer();
 
@@ -36,6 +38,7 @@ export const TrackActionsHost: React.FC<{
     <TrackActionsSheet
       track={track}
       onClose={onClose}
+      contextPlaylistId={contextPlaylistId}
       onPlayNext={playNext}
       onAddToQueue={addToQueue}
       onGoToRadio={(t) => void playRadio(t)}

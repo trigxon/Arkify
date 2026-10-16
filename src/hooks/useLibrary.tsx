@@ -37,8 +37,11 @@ type LibraryContextType = {
   createPlaylist: (name: string, tracks?: Track[]) => Playlist;
   deletePlaylist: (id: string) => void;
   renamePlaylist: (id: string, name: string) => void;
+  setPlaylistDescription: (id: string, description: string) => void;
   addToPlaylist: (playlistId: string, tracks: Track | Track[]) => void;
   removeFromPlaylist: (playlistId: string, trackId: string) => void;
+  /** Move a track within a playlist's custom order (drag-to-reorder). */
+  reorderPlaylist: (playlistId: string, from: number, to: number) => void;
 
   /** Import a public playlist/album by URL or id. Resolves to the new playlist. */
   importPlaylist: (url: string) => Promise<Playlist>;
@@ -174,6 +177,14 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
     [sync]
   );
 
+  const setPlaylistDescription = useCallback(
+    (id: string, description: string) => {
+      LibraryService.updatePlaylist(id, { description });
+      sync();
+    },
+    [sync]
+  );
+
   const addToPlaylist = useCallback(
     (playlistId: string, tracks: Track | Track[]) => {
       LibraryService.addToPlaylist(playlistId, tracks);
@@ -185,6 +196,14 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
   const removeFromPlaylist = useCallback(
     (playlistId: string, trackId: string) => {
       LibraryService.removeFromPlaylist(playlistId, trackId);
+      sync();
+    },
+    [sync]
+  );
+
+  const reorderPlaylist = useCallback(
+    (playlistId: string, from: number, to: number) => {
+      LibraryService.reorderPlaylistTracks(playlistId, from, to);
       sync();
     },
     [sync]
@@ -275,8 +294,10 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
       createPlaylist,
       deletePlaylist,
       renamePlaylist,
+      setPlaylistDescription,
       addToPlaylist,
       removeFromPlaylist,
+      reorderPlaylist,
       importPlaylist,
       importing,
       importError,
@@ -301,8 +322,10 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
       createPlaylist,
       deletePlaylist,
       renamePlaylist,
+      setPlaylistDescription,
       addToPlaylist,
       removeFromPlaylist,
+      reorderPlaylist,
       importPlaylist,
       importing,
       importError,

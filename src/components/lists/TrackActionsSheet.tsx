@@ -56,6 +56,12 @@ type Props = {
   onSleepTimer?: (minutes: number | null) => void;
   /** Opens straight into the sleep-timer picker (player's timer shortcut). */
   initial?: 'actions' | 'sleep';
+  /**
+   * When the menu was opened from inside a specific playlist, that playlist's
+   * id — enables a context-aware "Remove from this playlist" row that only
+   * touches that playlist (not the whole library).
+   */
+  contextPlaylistId?: string;
   /** Engine volume 0..1. Provided only by the player's menu. */
   volume?: number;
   /** Live volume setter (backs onto PlaybackEngine.setVolume + persistence). */
@@ -82,6 +88,7 @@ export const TrackActionsSheet: React.FC<Props> = ({
   initial = 'actions',
   volume,
   onVolumeChange,
+  contextPlaylistId,
 }) => {
   const { playlists, addToPlaylist, removeFromPlaylist, createPlaylist, isLiked, toggleLike } =
     useLibrary();
@@ -146,6 +153,36 @@ export const TrackActionsSheet: React.FC<Props> = ({
     Alert.alert('Remove from library?', message, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: () => removeFromLibrary(t) },
+    ]);
+  };
+
+  /** Context-aware removal: only from the playlist the menu was opened in. */
+  const inContextPlaylist =
+    !!track && !!contextPlaylistId && contextPlaylistId !== 'liked'
+      ? playlists.some((p) => p.id === contextPlaylistId && p.tracks.some((t) => t.id === track.id))
+      : false;
+
+  const confirmRemoveFromPlaylist = (t: Track) => {
+    if (!contextPlaylistId) return;
+    const message = `Remove “${t.title}” from this playlist?`;
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(message)) {
+        removeFromPlaylist(contextPlaylistId, t.id);
+        close();
+      }
+      return;
+    }
+    Alert.alert('Remove from playlist?', message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          removeFromPlaylist(contextPlaylistId, t.id);
+          close();
+        },
+      },
     ]);
   };
 
@@ -376,6 +413,17 @@ export const TrackActionsSheet: React.FC<Props> = ({
             </>
           )}
         </>
+      )}
+
+      {/* Context-aware removal first: scoped to the playlist the menu was
+          opened from — milder than the library-wide removal below it. */}
+      {!creating && !sleepPickerOpen && inContextPlaylist && (
+        <SheetRow
+          Icon={ListEnd}
+          label="Remove from this playlist"
+          destructive
+          onPress={() => confirmRemoveFromPlaylist(track)}
+        />
       )}
 
       {/* Destructive action stays last, per the reference. */}

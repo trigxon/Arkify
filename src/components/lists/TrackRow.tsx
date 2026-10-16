@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextStyle,
+  GestureResponderEvent,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { MoreVertical } from 'lucide-react-native';
@@ -22,6 +23,8 @@ interface TrackRowProps {
   /** Shown while the row's target is being expanded or resolved. */
   isLoading?: boolean;
   onMorePress?: (track: Track) => void;
+  /** Optional long-press — used by reorderable lists to arm a drag. */
+  onLongPress?: (track: Track, e?: GestureResponderEvent) => void;
 }
 
 const TrackRowComponent: React.FC<TrackRowProps> = ({
@@ -30,6 +33,7 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
   isPlaying,
   isLoading,
   onMorePress,
+  onLongPress,
 }) => {
   const handlePress = useCallback(() => {
     if (Haptics && typeof Haptics.impactAsync === 'function') {
@@ -53,6 +57,8 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
         style={styles.mainPressArea}
         activeOpacity={0.7}
         onPress={handlePress}
+        onLongPress={onLongPress ? (e) => onLongPress(track, e) : undefined}
+        delayLongPress={onLongPress ? 350 : undefined}
         onPressIn={() => {
           scale.value = withSpring(0.982, SPRINGS.press);
         }}
