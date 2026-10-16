@@ -141,14 +141,23 @@ export class Queue {
     const incoming = Array.isArray(tracks) ? tracks : [tracks];
     if (!incoming.length) return;
 
+    // Re-queuing the track that is playing right now would mean tearing it
+    // out from under the playhead or duplicating it in the raw list (which a
+    // restore would resurrect). Neither is better than simply ignoring it:
+    // it is already playing.
+    const currentId =
+      this.position >= 0 ? this.tracks[this.order[this.position]]?.id : null;
+    const fresh = incoming.filter((t) => t.id !== currentId);
+    if (!fresh.length) return;
+
     // Remove any existing copies so "play next" actually moves them.
-    for (const t of incoming) this.remove(t.id, { keepCurrent: true });
+    for (const t of fresh) this.remove(t.id, { keepCurrent: true });
 
     const firstNew = this.tracks.length;
-    this.tracks.push(...incoming);
+    this.tracks.push(...fresh);
 
     const insertAt = this.position + 1;
-    const newOrder = incoming.map((_, i) => firstNew + i);
+    const newOrder = fresh.map((_, i) => firstNew + i);
     this.order.splice(insertAt, 0, ...newOrder);
 
     if (this.position < 0 && this.order.length) this.position = 0;

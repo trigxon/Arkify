@@ -40,7 +40,7 @@ import { Artwork } from '../components/common/Artwork';
 import { SectionHeader, SkeletonList, ErrorState } from '../components/common/UI';
 import { ScreenHeader, MenuButton } from '../components/common/ScreenHeader';
 import { TrackRow } from '../components/lists/TrackRow';
-import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
+import { TrackActionsHost } from '../components/lists/TrackActionsHost';
 import { GlassView, SpringPressable, FadeInUp, PulsingGlow } from '../components/common/Glass';
 import { Track } from '../core/types';
 import { usePlayer } from '../hooks/usePlayer';
@@ -663,7 +663,7 @@ export default function HomeScreen() {
 
       <StatusBarScrim />
 
-      <AddToPlaylistSheet track={addingTrack} onClose={() => setAddingTrack(null)} />
+      <TrackActionsHost track={addingTrack} onClose={() => setAddingTrack(null)} />
 
       {currentTrack && (
         <MiniPlayer

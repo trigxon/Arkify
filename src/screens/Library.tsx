@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
+import { TrackActionsHost } from '../components/lists/TrackActionsHost';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
@@ -60,6 +61,8 @@ export default function LibraryScreen() {
   const [importUrl, setImportUrl] = useState('');
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [downloadedTracks, setDownloadedTracks] = useState<Track[]>([]);
+  /** Track whose full action menu (•••) is open. */
+  const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
   /** Playlists have their own page, so a tap navigates rather than expanding. */
   const openPlaylist = useCallback(
     (playlist: Playlist) => {
@@ -465,6 +468,7 @@ export default function LibraryScreen() {
                       <TrackRow
                         track={track}
                         onPress={(t) => playTrack(t, { tracks: downloadedTracks, label: 'Downloaded' })}
+                        onMorePress={setActionsTrack}
                         isPlaying={currentTrack?.id === track.id && isPlaying}
                       />
                     </View>
@@ -504,6 +508,8 @@ export default function LibraryScreen() {
       </ScrollView>
 
       <StatusBarScrim />
+
+      <TrackActionsHost track={actionsTrack} onClose={() => setActionsTrack(null)} />
 
       {currentTrack && (
         <MiniPlayer

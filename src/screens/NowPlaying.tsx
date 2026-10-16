@@ -219,6 +219,9 @@ export default function NowPlayingScreen() {
     removeFromQueue,
     reorderUpcomingInQueue,
     clearQueue,
+    playNext,
+    addToQueue,
+    playRadio,
   } = usePlayer();
 
   const { isLiked, toggleLike } = useLibrary();
@@ -761,6 +764,9 @@ export default function NowPlayingScreen() {
         track={actionsTrack}
         initial={actionsInitial}
         onClose={() => setActionsTrack(null)}
+        onPlayNext={playNext}
+        onAddToQueue={addToQueue}
+        onGoToRadio={(t) => void playRadio(t)}
         onGoToArtist={(t) => goToString(t.artist.name)}
         onViewAlbum={(t) => goToString([t.album, t.artist?.name].filter(Boolean).join(" "))}
         onSleepTimer={handleSleepTimer}

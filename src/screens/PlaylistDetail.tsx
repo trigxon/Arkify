@@ -1,17 +1,21 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Play, Shuffle, ListPlus, ListMusic } from 'lucide-react-native';
+import { ChevronLeft, Play, Shuffle, ListPlus, ListMusic, MoreVertical, Pencil, Trash2 } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
-import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
+import { TrackActionsHost } from '../components/lists/TrackActionsHost';
+import { BottomSheet } from '../components/common/BottomSheet';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { BackButton, FadeInUp } from '../components/common/Glass';
 import { Artwork } from '../components/common/Artwork';
@@ -36,7 +40,7 @@ export default function PlaylistDetailScreen() {
   const route = useRoute<PlaylistRoute>();
   const playlistId = route.params?.playlistId ?? '';
 
-  const { playlists, likedPlaylist } = useLibrary();
+  const { playlists, likedPlaylist, renamePlaylist, deletePlaylist } = useLibrary();
   const {
     playTrack,
     addToQueue,
@@ -50,6 +54,10 @@ export default function PlaylistDetailScreen() {
 
   /** Track whose "add to playlist" sheet is open. */
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
+  /** Playlist ••• menu: rename / delete. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameText, setRenameText] = useState('');
 
   const playlist = useMemo(
     () => (playlistId === 'liked' ? likedPlaylist : playlists.find((p) => p.id === playlistId)),
@@ -57,6 +65,44 @@ export default function PlaylistDetailScreen() {
   );
 
   const tracks = playlist?.tracks ?? [];
+
+  // ---- playlist menu (rename / delete) -----------------------------------
+
+  const openMenu = useCallback(() => {
+    setRenameText(playlist?.name ?? '');
+    setRenaming(false);
+    setMenuOpen(true);
+  }, [playlist?.name]);
+
+  const commitRename = useCallback(() => {
+    const name = renameText.trim();
+    if (name && playlist && playlist.id !== 'liked') renamePlaylist(playlist.id, name);
+    setMenuOpen(false);
+  }, [renameText, playlist, renamePlaylist]);
+
+  const confirmDelete = useCallback(() => {
+    if (!playlist || playlist.id === 'liked') return;
+    const message = `“${playlist.name}” will be removed. Your liked songs and downloads stay.`;
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(message)) {
+        deletePlaylist(playlist.id);
+        navigation.goBack();
+      }
+      return;
+    }
+    Alert.alert('Delete playlist?', message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          deletePlaylist(playlist.id);
+          navigation.goBack();
+        },
+      },
+    ]);
+  }, [playlist, deletePlaylist, navigation]);
 
   const playFromStart = useCallback(() => {
     if (!tracks.length || !playlist) return;
@@ -160,6 +206,20 @@ export default function PlaylistDetailScreen() {
         >
           <ListPlus color={COLORS.text.primary} size={SIZES.icon.sm + 2} />
         </TouchableOpacity>
+
+        {/* Spotify-style playlist menu: rename / delete. Liked Songs is
+            synthetic — it has no name to change and cannot be deleted. */}
+        {playlist.id !== 'liked' && (
+          <TouchableOpacity
+            style={styles.iconAction}
+            activeOpacity={0.85}
+            onPress={openMenu}
+            accessibilityRole="button"
+            accessibilityLabel="Playlist options"
+          >
+            <MoreVertical color={COLORS.text.primary} size={SIZES.icon.sm + 2} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
     </FadeInUp>
@@ -205,7 +265,45 @@ export default function PlaylistDetailScreen() {
         <ChevronLeft color={COLORS.text.primary} size={SIZES.icon.xl} />
       </TouchableOpacity>
 
-      <AddToPlaylistSheet track={addingTrack} onClose={() => setAddingTrack(null)} />
+      {/* Playlist ••• menu: rename / delete, glass sheet. */}
+      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
+        {renaming ? (
+          <>
+            <Text style={pdStyles.menuHint}>Rename playlist</Text>
+            <View style={pdStyles.renameRow}>
+              <TextInput
+                style={pdStyles.renameInput}
+                value={renameText}
+                onChangeText={setRenameText}
+                placeholder="Playlist name"
+                placeholderTextColor={COLORS.text.muted}
+                autoFocus
+                returnKeyType="done"
+                maxLength={60}
+                accessibilityLabel="Playlist name"
+                onSubmitEditing={commitRename}
+              />
+              <TouchableOpacity
+                style={[pdStyles.renameBtn, !renameText.trim() && pdStyles.disabled]}
+                disabled={!renameText.trim()}
+                onPress={commitRename}
+                accessibilityRole="button"
+                accessibilityLabel="Save playlist name"
+              >
+                <Text style={pdStyles.renameBtnText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+            <MenuRow Icon={Pencil} label="Back" onPress={() => setRenaming(false)} />
+          </>
+        ) : (
+          <>
+            <MenuRow Icon={Pencil} label="Rename playlist" onPress={() => setRenaming(true)} />
+            <MenuRow Icon={Trash2} label="Delete playlist" destructive onPress={confirmDelete} />
+          </>
+        )}
+      </BottomSheet>
+
+      <TrackActionsHost track={addingTrack} onClose={() => setAddingTrack(null)} />
 
       {currentTrack && (
         <MiniPlayer
@@ -322,5 +420,97 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     marginHorizontal: SIZES.md,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Playlist ••• menu pieces
+// ---------------------------------------------------------------------------
+
+const MenuRow: React.FC<{
+  Icon: typeof Pencil;
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+}> = ({ Icon, label, onPress, destructive = false }) => (
+  <TouchableOpacity
+    style={pdStyles.menuRow}
+    activeOpacity={0.7}
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+  >
+    <View style={pdStyles.menuIcon}>
+      <Icon
+        color={destructive ? COLORS.status.error : COLORS.text.primary}
+        size={SIZES.icon.md - 2}
+        strokeWidth={1.9}
+      />
+    </View>
+    <Text style={[pdStyles.menuLabel, destructive && { color: COLORS.status.error }]}>
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
+
+const pdStyles = StyleSheet.create({
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.lg,
+    paddingVertical: SIZES.sm + 4,
+    minHeight: SIZES.touchTarget + 8,
+  },
+  menuIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuLabel: {
+    flex: 1,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.body.fontSize,
+    color: COLORS.text.primary,
+  },
+  menuHint: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.secondary,
+    marginBottom: SIZES.md,
+  },
+  renameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.sm,
+    marginBottom: SIZES.md,
+  },
+  renameInput: {
+    flex: 1,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.body.fontSize,
+    color: COLORS.text.primary,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    borderRadius: SIZES.radius.sm,
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.sm + 4,
+  },
+  renameBtn: {
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.sm + 4,
+    borderRadius: SIZES.radius.sm,
+    backgroundColor: COLORS.accent.primary,
+    minHeight: SIZES.touchTarget - 4,
+    justifyContent: 'center',
+  },
+  renameBtnText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.dark,
+  },
+  disabled: {
+    opacity: 0.4,
   },
 });

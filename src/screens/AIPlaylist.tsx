@@ -22,6 +22,7 @@ import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { SpringPressable, FadeInUp, GlassView, PulsingGlow } from '../components/common/Glass';
 import { ErrorState } from '../components/common/UI';
 import { TrackRow } from '../components/lists/TrackRow';
+import { TrackActionsHost } from '../components/lists/TrackActionsHost';
 import { Track } from '../core/types';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
@@ -71,6 +72,7 @@ export default function AIPlaylistScreen() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
   const [planTitle, setPlanTitle] = useState('');
   const [planSource, setPlanSource] = useState<'gemini' | 'on-device' | null>(null);
   const [geminiReady, setGeminiReady] = useState(false);
@@ -312,12 +314,15 @@ export default function AIPlaylistScreen() {
                 <TrackRow
                   track={track}
                   onPress={(t) => playTrack(t, { tracks, label: mixLabel })}
+                  onMorePress={setActionsTrack}
                 />
               </FadeInUp>
             ))}
           </>
         ) : null}
       </ScrollView>
+
+      <TrackActionsHost track={actionsTrack} onClose={() => setActionsTrack(null)} />
 
       {currentTrack ? (
         <MiniPlayer

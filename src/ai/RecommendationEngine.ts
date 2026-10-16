@@ -261,6 +261,63 @@ export class RecommendationEngine {
     return null;
   }
 
+  /**
+   * Song radio: build a station around one seed track, Spotify-style.
+   *
+   * Provider related-tracks are the strongest signal; artist-world and the
+   * listener's own flavour vocabulary round the station out so it never runs
+   * dry after ten songs. The pool is taste-ranked and arranged like the AI
+   * playlists: strong openers, gentle rotation after. The seed is always
+   * track one.
+   */
+  async radioFromSeed(
+    seed: Track,
+    size = 25,
+    signal?: AbortSignal
+  ): Promise<Track[]> {
+    await tasteProfile.load();
+
+    const picked: Track[] = [];
+    const seen = new Set<string>([seed.id]);
+
+    const absorb = (list: Track[]) => {
+      for (const t of list) {
+        if (picked.length >= size) return;
+        if (seen.has(t.id) || t.duration > 15 * 60) continue;
+        if (!t.albumImageUrl) continue; // no art = poor radio experience
+        if (t.isVideo && /video|visualizer/i.test(t.title)) continue;
+        seen.add(t.id);
+        picked.push(t);
+      }
+    };
+
+    // 1. The provider's own related-tracks, when it has them.
+    try {
+      absorb(await MusicService.getRelated(seed, signal));
+    } catch {
+      // Related is optional; the searches below cover for it.
+    }
+
+    // 2. The artist's world plus the listener's flavour vocabulary.
+    const snapshot = tasteProfile.snapshot();
+    const seeds = [
+      `${seed.artist.name} songs`,
+      `${seed.artist.name} mix`,
+      ...snapshot.topFlavours.slice(0, 2).map((f) => `${f.flavour} mix`),
+    ];
+
+    try {
+      absorb(await this.gatherPool(seeds, signal));
+    } catch {
+      // A thin radio beats no radio.
+    }
+
+    // 3. Taste-rank and arrange for listening. The seed never scores itself
+    //    out of slot one — it is prepended after the cut.
+    const ranked = this.rankPool(picked, undefined, 0.6, new Set([seed.id]));
+    return [seed, ...this.arrange(ranked, size)];
+  }
+
   /** The mood the clock + history suggest right now (Home chip). */
   async suggestedMood(): Promise<{ id: MoodId; reason: string }> {
     await tasteProfile.load();

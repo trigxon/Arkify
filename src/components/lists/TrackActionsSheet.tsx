@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import {
   ListPlus,
+  ListStart,
+  ListEnd,
+  Radio,
   Heart,
   User,
   Share,
@@ -32,6 +35,12 @@ type Props = {
   /** The track the actions apply to. Null closes the sheet. */
   track: Track | null;
   onClose: () => void;
+  /** Queues the track directly after whatever is playing. */
+  onPlayNext?: (track: Track) => void;
+  /** Appends the track to the end of the queue. */
+  onAddToQueue?: (track: Track) => void;
+  /** Builds and starts a taste-ranked station around the track. */
+  onGoToRadio?: (track: Track) => void;
   /** Navigates to the artist's songs via a real search. */
   onGoToArtist?: (track: Track) => void;
   /** Opens the album's page via a real search. */
@@ -56,6 +65,9 @@ const SLEEP_OPTIONS = [15, 30, 45, 60] as const;
 export const TrackActionsSheet: React.FC<Props> = ({
   track,
   onClose,
+  onPlayNext,
+  onAddToQueue,
+  onGoToRadio,
   onGoToArtist,
   onViewAlbum,
   onSleepTimer,
@@ -257,6 +269,38 @@ export const TrackActionsSheet: React.FC<Props> = ({
                 onPress={() => toggleLike(track)}
                 trailing={liked ? <Check color={COLORS.accent.primary} size={16} /> : undefined}
               />
+              {/* The Spotify signature trio: queue control + station. */}
+              {onPlayNext && (
+                <SheetRow
+                  Icon={ListStart}
+                  label="Play next"
+                  onPress={() => {
+                    onPlayNext(track);
+                    close();
+                  }}
+                />
+              )}
+              {onAddToQueue && (
+                <SheetRow
+                  Icon={ListEnd}
+                  label="Add to queue"
+                  onPress={() => {
+                    onAddToQueue(track);
+                    close();
+                  }}
+                />
+              )}
+              {onGoToRadio && (
+                <SheetRow
+                  Icon={Radio}
+                  label="Go to song radio"
+                  accent
+                  onPress={() => {
+                    onGoToRadio(track);
+                    close();
+                  }}
+                />
+              )}
               {onGoToArtist && (
                 <SheetRow
                   Icon={User}

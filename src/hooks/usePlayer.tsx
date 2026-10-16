@@ -66,6 +66,14 @@ type PlayerContextType = {
   repeat: RepeatMode;
   cycleRepeat: () => void;
 
+  /**
+   * Song radio: queues the seed followed by a taste-ranked station built
+   * around it. True while the station is being assembled (the seed starts
+   * playing the moment it is ready, so the wait is never silent).
+   */
+  playRadio: (seed: Track) => Promise<void>;
+  isBuildingRadio: boolean;
+
   isReady: boolean;
   canPlayCurrent: boolean;
 };
@@ -535,6 +543,37 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const clearError = useCallback(() => setError(null), []);
 
+  // ---- song radio ---------------------------------------------------------
+
+  const [isBuildingRadio, setIsBuildingRadio] = useState(false);
+
+  /**
+   * Spotify-style "Go to song radio": the seed starts playing immediately so
+   * the tap is never silent, then the taste-ranked station replaces the queue
+   * around it (seed stays track one; the engine is left alone, so playback is
+   * not interrupted). If the station build fails the seed keeps rolling.
+   */
+  const playRadio = useCallback(
+    async (seed: Track) => {
+      playTrack(seed, { label: `${seed.title} Radio` });
+
+      setIsBuildingRadio(true);
+      try {
+        const station = await recommendationEngine.radioFromSeed(seed);
+        if (station.length > 1) {
+          queueRef.current.setTracks(station, 0, `${seed.title} Radio`);
+          bumpQueue();
+          persistQueue();
+        }
+      } catch {
+        // The seed alone is a valid station.
+      } finally {
+        setIsBuildingRadio(false);
+      }
+    },
+    [playTrack, bumpQueue, persistQueue]
+  );
+
   // ---- queue operations -------------------------------------------------
 
   const addToQueue = useCallback(
@@ -697,6 +736,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       repeat: queueSnapshot.repeat,
       cycleRepeat,
 
+      playRadio,
+      isBuildingRadio,
+
       isReady,
       canPlayCurrent: currentTrack ? MusicService.canPlay(currentTrack) : false,
     }),
@@ -728,6 +770,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       jumpTo,
       toggleShuffle,
       cycleRepeat,
+      playRadio,
+      isBuildingRadio,
       isReady,
     ]
   );

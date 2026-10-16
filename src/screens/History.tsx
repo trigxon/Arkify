@@ -3,7 +3,7 @@ import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
-import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
+import { TrackActionsHost } from '../components/lists/TrackActionsHost';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { BackButton } from '../components/common/Glass';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
@@ -156,7 +156,7 @@ export default function HistoryScreen() {
 
       <StatusBarScrim />
 
-      <AddToPlaylistSheet track={addingTrack} onClose={() => setAddingTrack(null)} />
+      <TrackActionsHost track={addingTrack} onClose={() => setAddingTrack(null)} />
 
       {currentTrack && (
         <MiniPlayer

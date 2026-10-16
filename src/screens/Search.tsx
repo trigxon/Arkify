@@ -11,11 +11,12 @@ import {
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search as SearchIcon, X, SearchX, WifiOff, Mic, Bot, ChevronRight } from 'lucide-react-native';
+import { Search as SearchIcon, X, SearchX, WifiOff, Mic, Bot, ChevronRight, History as HistoryIcon } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, GLASS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
 import { TrackRow } from '../components/lists/TrackRow';
-import { AddToPlaylistSheet } from '../components/lists/AddToPlaylistSheet';
+import { TrackActionsHost } from '../components/lists/TrackActionsHost';
+import { LibraryService } from '../services/LibraryService';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
@@ -217,6 +218,23 @@ export default function SearchScreen() {
 
   /** Track whose "add to playlist" sheet is open. */
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
+  /** Persisted recent searches, surfaced when the field is empty. */
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // Refresh recents whenever the field empties out (back from a search).
+  useEffect(() => {
+    if (isBrowsing) setRecentSearches(LibraryService.getSearchHistory());
+  }, [isBrowsing]);
+
+  const removeRecent = useCallback((q: string) => {
+    LibraryService.removeSearchHistoryEntry(q);
+    setRecentSearches(LibraryService.getSearchHistory());
+  }, []);
+
+  const clearRecent = useCallback(() => {
+    LibraryService.clearSearchHistory();
+    setRecentSearches([]);
+  }, []);
 
   // A category tap on Home lands here with a query to run immediately.
   useEffect(() => {
@@ -316,6 +334,50 @@ export default function SearchScreen() {
             <ChevronRight color={COLORS.text.muted} size={16} />
           </SpringPressable>
         </FadeInUp>
+
+        {/* Recent searches — Spotify-style recents, per-chip removable. */}
+        {isBrowsing && recentSearches.length > 0 ? (
+          <View style={styles.recentBlock}>
+            <View style={styles.recentHeader}>
+              <Text style={styles.recentTitle}>Recent searches</Text>
+              <TouchableOpacity
+                onPress={clearRecent}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Clear recent searches"
+              >
+                <Text style={styles.recentClear}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.recentWrap}>
+              {recentSearches.map((q) => (
+                <View key={q} style={styles.recentChip}>
+                  <TouchableOpacity
+                    style={styles.recentChipPress}
+                    activeOpacity={0.7}
+                    onPress={() => searchNow(q)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Search for ${q}`}
+                  >
+                    <HistoryIcon color={COLORS.text.muted} size={12} />
+                    <Text style={styles.recentChipText} numberOfLines={1}>
+                      {q}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.recentChipX}
+                    onPress={() => removeRecent(q)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${q} from recent searches`}
+                  >
+                    <X color={COLORS.text.muted} size={12} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.filtersContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -476,7 +538,7 @@ export default function SearchScreen() {
 
       <StatusBarScrim />
 
-      <AddToPlaylistSheet track={addingTrack} onClose={() => setAddingTrack(null)} />
+      <TrackActionsHost track={addingTrack} onClose={() => setAddingTrack(null)} />
 
       {currentTrack && (
         <MiniPlayer
@@ -604,5 +666,57 @@ const styles = StyleSheet.create({
   },
   stateCard: {
     marginBottom: SIZES.lg,
+  },
+  recentBlock: {
+    marginTop: SIZES.md,
+  },
+  recentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SIZES.sm,
+  },
+  recentTitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.title3.fontSize,
+    color: COLORS.text.primary,
+  },
+  recentClear: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.accent.primary,
+  },
+  recentWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SIZES.sm,
+  },
+  recentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    borderRadius: SIZES.radius.pill,
+    paddingLeft: SIZES.md,
+    paddingRight: SIZES.xs,
+    paddingVertical: SIZES.xs + 2,
+    maxWidth: '100%',
+  },
+  recentChipPress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SIZES.xs + 2,
+    flexShrink: 1,
+  },
+  recentChipText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.soft,
+    flexShrink: 1,
+  },
+  recentChipX: {
+    padding: SIZES.xs,
+    marginLeft: 2,
   },
 });

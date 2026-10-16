@@ -323,6 +323,13 @@ class LibraryServiceImpl {
     writeJsonDebounced(STORAGE_KEYS.searchHistory, this.searchHistory, 1000);
   }
 
+  /** Drop one entry from the recent-searches list (per-chip ✕). */
+  removeSearchHistoryEntry(query: string): void {
+    const q = query.trim();
+    this.searchHistory = this.searchHistory.filter((s) => s !== q);
+    void writeJson(STORAGE_KEYS.searchHistory, this.searchHistory);
+  }
+
   clearSearchHistory(): void {
     this.searchHistory = [];
     void writeJson(STORAGE_KEYS.searchHistory, []);
