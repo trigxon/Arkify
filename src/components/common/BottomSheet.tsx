@@ -8,6 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { X } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 
@@ -64,6 +65,24 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             },
           ]}
         >
+          {/* Liquid glass material: light from above, lens-dark below. */}
+          <LinearGradient
+            colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
+            locations={[0, 0.10, 0.30]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.16)']}
+            locations={[0.72, 1]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+
           {showGrabber ? <View style={styles.grabber} /> : null}
 
           {title ? (
@@ -123,19 +142,25 @@ const styles = StyleSheet.create({
     paddingBottom: SIZES.sm,
   },
   sheet: {
-    backgroundColor: COLORS.surfaceElevated,
+    backgroundColor: 'rgba(9, 21, 23, 0.96)',
     borderRadius: SIZES.radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(59, 240, 223, 0.20)',
+    borderColor: 'rgba(59, 240, 223, 0.26)',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 18,
     paddingTop: SIZES.sm + 2,
     paddingHorizontal: SIZES.gutter,
   },
   grabber: {
     alignSelf: 'center',
-    width: 38,
+    width: 42,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: 'rgba(210, 255, 250, 0.34)',
     marginBottom: SIZES.md,
   },
   header: {

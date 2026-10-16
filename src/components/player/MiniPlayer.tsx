@@ -104,14 +104,24 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 
   return (
     <View style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}>
+      {/* Aqua ambience bleeding from under the slab — matches the tab bar. */}
+      <View pointerEvents="none" style={styles.underGlow} />
       {/* Liquid glass slab: real blur on native, layered translucency on web. */}
       <View style={[styles.container, SHADOWS.glass]}>
         {Platform.OS !== 'web' ? (
-          <BlurView intensity={42} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
         ) : null}
         <LinearGradient
-          colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.16, 0.5]}
+          colors={['rgba(255,255,255,0.20)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.18, 0.52]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']}
+          locations={[0.62, 1]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -196,11 +206,25 @@ const styles = StyleSheet.create({
     right: SIZES.sm,
     zIndex: 100,
   },
+  underGlow: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: -8,
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: 'rgba(59, 240, 223, 0.16)',
+    shadowColor: '#3BF0DF',
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+  },
   container: {
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'web' ? COLORS.surfaceRaised : 'rgba(7, 18, 20, 0.78)',
-    borderColor: COLORS.glassBorder,
+    backgroundColor:
+      Platform.OS === 'web' ? 'rgba(8, 20, 22, 0.78)' : 'rgba(7, 18, 20, 0.74)',
+    borderColor: 'rgba(59, 240, 223, 0.26)',
     borderWidth: 1,
   },
   content: {
@@ -261,6 +285,10 @@ const styles = StyleSheet.create({
   playRingPlaying: {
     borderColor: COLORS.accent.primary,
     backgroundColor: COLORS.accent.soft,
+    shadowColor: '#3BF0DF',
+    shadowOpacity: 0.65,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
   },
   progressTrack: {
     height: 3,
@@ -272,5 +300,9 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     backgroundColor: COLORS.accent.primary,
+    shadowColor: '#3BF0DF',
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
 });

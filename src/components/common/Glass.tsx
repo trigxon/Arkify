@@ -32,7 +32,9 @@ import { COLORS, GLASS, SPRINGS, ENTRANCE, TYPE, FONTS, SIZES } from '../../cons
 //   1. optional platform blur (native only — web keeps the translucent fill)
 //   2. a translucent fill so contrast is guaranteed on any backdrop
 //   3. a vertical sheen: brighter along the top edge, like light from above
-//   4. a hairline border; `luminous` variants read as a wet glass rim
+//   4. a depth falloff: the lower glass thickens and darkens like a real
+//      lens, so panels read as volumetric slabs instead of flat overlays
+//   5. a hairline border; `luminous` variants read as a wet glass rim
 // ---------------------------------------------------------------------------
 
 export type GlassWeight = 'ultraThin' | 'thin' | 'regular' | 'thick';
@@ -90,19 +92,30 @@ export const GlassView: React.FC<GlassViewProps> = ({
       ) : null}
 
       {specular ? (
-        <LinearGradient
-          colors={[GLASS.highlight.soft, GLASS.highlight.faint, 'rgba(255,255,255,0)']}
-          locations={[0, 0.14, 0.4]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          pointerEvents="none"
-          style={StyleSheet.absoluteFill}
-        />
+        <>
+          <LinearGradient
+            colors={[GLASS.highlight.strong, GLASS.highlight.faint, 'rgba(255,255,255,0)']}
+            locations={[0, 0.16, 0.44]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Lens depth: the lower half thickens, grounding the material. */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.26)']}
+            locations={[0.5, 0.76, 1]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+        </>
       ) : null}
 
       {accent ? (
         <LinearGradient
-          colors={[GLASS.tint.accentSoft, 'rgba(53,214,198,0)']}
+          colors={[GLASS.tint.accentSoft, 'rgba(59, 240, 223, 0)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           pointerEvents="none"

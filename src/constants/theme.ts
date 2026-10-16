@@ -94,9 +94,9 @@ export const COLORS = {
   },
 
   atmosphere: {
-    soft: 'rgba(59, 240, 223, 0.08)',
-    medium: 'rgba(59, 240, 223, 0.16)',
-    glow: 'rgba(59, 240, 223, 0.30)',
+    soft: 'rgba(59, 240, 223, 0.10)',
+    medium: 'rgba(59, 240, 223, 0.20)',
+    glow: 'rgba(59, 240, 223, 0.36)',
   },
 } as const;
 
@@ -220,30 +220,32 @@ export const MOTION = {
 // ---------------------------------------------------------------------------
 
 export const GLASS = {
-  /** Translucent teal-flooded fills, darkest → lightest. AA contrast kept. */
+  /** Translucent teal-flooded fills, darkest → lightest. Kept airy — glass
+   *  has to let the atmosphere behind it breathe. AA contrast holds because
+   *  the canvas beneath is near-black. */
   fill: {
-    ultraThin: 'rgba(10, 23, 25, 0.44)',
-    thin: 'rgba(8, 20, 22, 0.60)',
-    regular: 'rgba(7, 17, 19, 0.74)',
-    thick: 'rgba(5, 13, 15, 0.88)',
+    ultraThin: 'rgba(10, 23, 25, 0.36)',
+    thin: 'rgba(8, 20, 22, 0.52)',
+    regular: 'rgba(7, 17, 19, 0.68)',
+    thick: 'rgba(5, 13, 15, 0.86)',
   },
   /** Edge treatment. Aqua light reads along every edge — light from above. */
   border: {
-    subtle: 'rgba(59, 240, 223, 0.10)',
-    hairline: 'rgba(59, 240, 223, 0.16)',
-    luminous: 'rgba(59, 240, 223, 0.30)',
-    accent: 'rgba(59, 240, 223, 0.42)',
+    subtle: 'rgba(59, 240, 223, 0.12)',
+    hairline: 'rgba(59, 240, 223, 0.18)',
+    luminous: 'rgba(59, 240, 223, 0.34)',
+    accent: 'rgba(59, 240, 223, 0.48)',
   },
   /** The specular streak drawn along the top edge of a glass panel. */
   highlight: {
-    strong: 'rgba(200, 255, 250, 0.24)',
-    soft: 'rgba(200, 255, 250, 0.11)',
-    faint: 'rgba(200, 255, 250, 0.05)',
+    strong: 'rgba(210, 255, 250, 0.30)',
+    soft: 'rgba(210, 255, 250, 0.15)',
+    faint: 'rgba(210, 255, 250, 0.06)',
   },
   /** Inner ambient tints used by glowing variants. */
   tint: {
-    accentSoft: 'rgba(59, 240, 223, 0.12)',
-    accentGlow: 'rgba(59, 240, 223, 0.24)',
+    accentSoft: 'rgba(59, 240, 223, 0.14)',
+    accentGlow: 'rgba(59, 240, 223, 0.26)',
     dangerSoft: 'rgba(239, 68, 68, 0.12)',
   },
   /** Blur radii per material weight (used where BlurView is available). */

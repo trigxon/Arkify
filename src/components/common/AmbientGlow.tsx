@@ -14,14 +14,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 export const AmbientGlow: React.FC = () => (
   <View pointerEvents="none" style={StyleSheet.absoluteFill}>
     <LinearGradient
-      colors={['rgba(59, 240, 223, 0.10)', 'rgba(59, 240, 223, 0.03)', 'rgba(4, 10, 11, 0)']}
+      colors={['rgba(59, 240, 223, 0.13)', 'rgba(59, 240, 223, 0.04)', 'rgba(4, 10, 11, 0)']}
       locations={[0, 0.45, 1]}
       start={{ x: 0.1, y: 0 }}
       end={{ x: 0.9, y: 0.85 }}
       style={styles.top}
     />
     <LinearGradient
-      colors={['rgba(59, 240, 223, 0.07)', 'rgba(4, 10, 11, 0)']}
+      colors={['rgba(59, 240, 223, 0.10)', 'rgba(4, 10, 11, 0)']}
       start={{ x: 0.5, y: 1 }}
       end={{ x: 0.5, y: 0 }}
       style={styles.bottom}

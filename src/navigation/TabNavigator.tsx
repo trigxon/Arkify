@@ -1,7 +1,13 @@
-import React, { useEffect } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  LayoutChangeEvent,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -10,6 +16,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { Home, Search, Library, User } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, SPRINGS } from '../constants/theme';
@@ -31,37 +38,56 @@ const BAR_HEIGHT = 62;
 const BAR_INNER_PAD = 10;
 
 /**
- * iOS-style floating tab bar.
+ * iOS-style floating tab bar — the liquid glass slab.
  *
- * One glass slab hovers over the content with a liquid accent pill that
- * *slides* between tabs on a spring (never jumps), icons pop as they take
- * focus, and every switch ticks a selection haptic. This is the custom
- * `tabBar` of the bottom-tab navigator, so gestures/props stay stock.
+ * · The bar measures ITSELF with onLayout. (The old version trusted the
+ *   window width, which on web is the whole browser viewport while the app
+ *   renders inside a ~420pt phone frame — so the four tab slots overflowed
+ *   and every tab after Home was clipped out of existence.)
+ * · One liquid pill slides between slots on an under-damped spring, stretches
+ *   while it travels (squish) and settles back — the iOS segmented-control
+ *   feel. It carries its own specular sheen and aqua bloom.
+ * · Every switch ticks a selection haptic; focused glyphs pop and glow.
  */
 const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
-  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const tabCount = state.routes.length;
-  const tabW = (width - BAR_MARGIN_H * 2 - BAR_INNER_PAD * 2) / tabCount;
+  // Real measured width of the bar (works inside any frame, any rotation).
+  const [barW, setBarW] = useState(0);
+  const onBarLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    setBarW((prev) => (Math.abs(prev - w) > 0.5 ? w : prev));
+  }, []);
 
-  // The liquid pill: one shared value, interpolated per slot, spring-driven.
-  const pillX = useSharedValue(state.index * tabW);
-  // Liquid squish: the pill stretches wide on switch, then springs back —
-  // the same fluid overshoot iOS uses on segmented controls.
+  const tabCount = state.routes.length;
+  const tabW = barW > 0 ? (barW - BAR_INNER_PAD * 2) / tabCount : 0;
+
+  // The liquid pill: one shared value per property, spring-driven.
+  const pillX = useSharedValue(0);
   const squish = useSharedValue(1);
+  const pillOpacity = useSharedValue(0);
+
   useEffect(() => {
+    if (tabW <= 0) return;
+    if (pillOpacity.value === 0) {
+      // First layout: land directly on the active slot — no fly-in.
+      pillX.value = state.index * tabW;
+      pillOpacity.value = withTiming(1, { duration: 200 });
+      return;
+    }
+    // Liquid travel: stretch while moving, spring back on arrival.
     pillX.value = withSpring(state.index * tabW, {
-      damping: 20,
-      stiffness: 320,
-      mass: 0.9,
+      damping: 17,
+      stiffness: 280,
+      mass: 1,
     });
-    squish.value = 1.09;
+    squish.value = 1.16;
     squish.value = withSpring(1, SPRINGS.release);
-  }, [state.index, tabW, pillX, squish]);
+  }, [state.index, tabW, pillX, squish, pillOpacity]);
 
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: pillX.value }, { scaleX: squish.value }],
+    opacity: pillOpacity.value,
   }));
 
   const pressTab = (routeName: string, routeKey: string, isFocused: boolean) => {
@@ -88,18 +114,30 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
       pointerEvents="box-none"
       style={[styles.barFloat, { marginHorizontal: BAR_MARGIN_H, marginBottom: BAR_MARGIN_B + Math.max(insets.bottom - 8, 0) }]}
     >
-      <View style={[styles.bar, { height: BAR_HEIGHT }]}>
+      {/* Aqua ambience bleeding out from under the slab — the "wet" read. */}
+      <View pointerEvents="none" style={styles.underGlow} />
+
+      <View style={[styles.bar, { height: BAR_HEIGHT }]} onLayout={onBarLayout}>
         {/* Material: real blur on native, layered translucency everywhere. */}
         {Platform.OS !== 'web' ? (
-          <BlurView intensity={52} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={56} tint="dark" style={StyleSheet.absoluteFill} />
         ) : null}
         <LinearGradient
-          colors={['rgba(16, 21, 21, 0.78)', 'rgba(4, 10, 11, 0.94)']}
+          colors={['rgba(14, 26, 27, 0.72)', 'rgba(4, 10, 11, 0.92)']}
           style={StyleSheet.absoluteFill}
         />
+        {/* Light from above: the specular wash across the top edge. */}
         <LinearGradient
-          colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.12, 0.42]}
+          colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.14, 0.44]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Depth: the lower glass thickens and darkens, like a real lens. */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.10)', 'rgba(0,0,0,0.34)']}
+          locations={[0.52, 0.76, 1]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -112,11 +150,28 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
           pointerEvents="none"
           style={[
             styles.pill,
-            { width: tabW, left: BAR_INNER_PAD },
+            { width: tabW > 0 ? tabW : 1, left: BAR_INNER_PAD },
             pillStyle,
           ]}
         >
-          <View style={styles.pillInner} />
+          <View style={styles.pillLens}>
+            {/* Aqua body tint, brighter at the top like lit fluid. */}
+            <LinearGradient
+              colors={['rgba(59, 240, 223, 0.30)', 'rgba(59, 240, 223, 0.08)', 'rgba(59, 240, 223, 0.16)']}
+              locations={[0, 0.55, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* travelling specular streak */}
+            <LinearGradient
+              colors={['rgba(220, 255, 251, 0.34)', 'rgba(220, 255, 251, 0.04)', 'rgba(220, 255, 251, 0)']}
+              locations={[0, 0.22, 0.55]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
         </Animated.View>
 
         {/* Tabs */}
@@ -136,12 +191,14 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
                 onPress={() => pressTab(route.name, route.key, focused)}
                 onLongPress={() => longPressTab(route.key)}
               >
-                <Icon
-                  color={focused ? COLORS.accent.primary : COLORS.text.muted}
-                  size={SIZES.icon.md}
-                  strokeWidth={focused ? 2.4 : 1.8}
-                  fill={focused ? 'rgba(53,214,198,0.16)' : 'transparent'}
-                />
+                <View style={focused ? styles.glyphGlow : null}>
+                  <Icon
+                    color={focused ? COLORS.accent.bright : COLORS.text.muted}
+                    size={SIZES.icon.md}
+                    strokeWidth={focused ? 2.4 : 1.8}
+                    fill={focused ? COLORS.accent.soft : 'transparent'}
+                  />
+                </View>
               </AnimatedTab>
             );
           })}
@@ -185,7 +242,7 @@ const AnimatedTab: React.FC<{
   }));
 
   return (
-    <Animated.View style={[styles.tabSlot, { width }]}>
+    <Animated.View style={[styles.tabSlot, width > 0 ? { width } : null]}>
       <AnimatedPressable
         onPress={onPress}
         onLongPress={onLongPress}
@@ -249,12 +306,25 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
+  underGlow: {
+    position: 'absolute',
+    left: 26,
+    right: 26,
+    bottom: -7,
+    height: 30,
+    borderRadius: 999,
+    backgroundColor: 'rgba(59, 240, 223, 0.20)',
+    shadowColor: '#3BF0DF',
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 0 },
+  },
   bar: {
     borderRadius: 31,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    backgroundColor: 'rgba(14, 18, 18, 0.86)',
+    borderColor: 'rgba(159, 244, 235, 0.16)',
+    backgroundColor: 'rgba(12, 22, 24, 0.84)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.5,
@@ -269,23 +339,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 31,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(59, 240, 223, 0.10)',
   },
   pill: {
     position: 'absolute',
     top: (BAR_HEIGHT - 48) / 2,
     height: 48,
   },
-  pillInner: {
+  pillLens: {
     flex: 1,
     marginHorizontal: 4,
-    borderRadius: 24,
-    backgroundColor: 'rgba(59, 240, 223, 0.13)',
+    borderRadius: 23,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(59, 240, 223, 0.30)',
-    shadowColor: COLORS.accent.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
+    borderColor: 'rgba(59, 240, 223, 0.38)',
+    backgroundColor: 'rgba(59, 240, 223, 0.10)',
+    shadowColor: '#3BF0DF',
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
   },
   tabRow: {
@@ -304,6 +375,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
+  glyphGlow: {
+    shadowColor: '#3BF0DF',
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
   tabGlyph: {
     height: 24,
     alignItems: 'center',
@@ -317,5 +394,7 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: COLORS.accent.primary,
+    textShadowColor: 'rgba(59, 240, 223, 0.55)',
+    textShadowRadius: 8,
   },
 });
