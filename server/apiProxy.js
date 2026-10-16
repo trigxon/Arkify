@@ -10,6 +10,7 @@
  *   GET  /api/lyrics                 → synced lyrics (lrclib + fallbacks)
  *   GET  /api/stream/resolve?id=     → resolve a YouTube audio stream URL
  *   GET  /api/stream/audio?id=       → proxy the audio bytes (HTTP Range)
+ *   GET  /api/artwork?url=           → CORS-safe image proxy (palette engine)
  *
  * Everything is best-effort: a failed upstream call returns a JSON error and
  * the client keeps working with cached data or its fallback paths (the web
@@ -271,6 +272,76 @@ function isSafeUpstream(url) {
   }
 }
 
+// Artwork hosts the client may legitimately need pixel access to. Closed
+// allowlist: this endpoint must never become an open relay.
+const ARTWORK_HOSTS = [
+  /(^|\.)ytimg\.com$/,
+  /(^|\.)ggpht\.com$/,
+  /(^|\.)googleusercontent\.com$/,
+  /(^|\.)youtube\.com$/,
+];
+
+function isSafeArtwork(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return false;
+    return ARTWORK_HOSTS.some((re) => re.test(u.hostname));
+  } catch {
+    return false;
+  }
+}
+
+const BROWSER_UA_IMAGE =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
+/**
+ * GET /api/artwork?url=<https image url>
+ * Streams a remote image same-origin so the browser's canvas can read pixels
+ * without tainting. Only allowlisted image hosts, only images, hard size cap.
+ */
+async function handleArtwork(req, res, parsedUrl) {
+  const url = parsedUrl.searchParams.get('url');
+  if (!url) return sendJson(res, 400, { error: 'Missing url' });
+  if (!isSafeArtwork(url)) return sendJson(res, 403, { error: 'Host not allowed' });
+
+  try {
+    const upstream = await fetch(url, {
+      headers: { 'User-Agent': BROWSER_UA_IMAGE, Accept: 'image/*' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    const type = upstream.headers.get('content-type') || '';
+    if (!upstream.ok || !type.startsWith('image/')) {
+      return sendJson(res, 502, { error: 'Not an image' });
+    }
+    const len = Number(upstream.headers.get('content-length') || 0);
+    if (len > 3 * 1024 * 1024) {
+      return sendJson(res, 502, { error: 'Image too large' });
+    }
+
+    res.writeHead(200, {
+      'Content-Type': type,
+      // Artwork URLs are content-addressed by video id; a day of caching is
+      // safe and keeps palette extraction nearly free on repeat plays.
+      'Cache-Control': 'public, max-age=86400',
+      'Access-Control-Allow-Origin': '*',
+    });
+    if (!upstream.body) {
+      res.end();
+      return true;
+    }
+    Readable.fromWeb(upstream.body).on('error', () => res.end()).pipe(res);
+  } catch (e) {
+    if (!res.headersSent) {
+      return sendJson(res, 502, { error: 'Artwork fetch failed', detail: String((e && e.message) || e) });
+    }
+    res.end();
+  }
+  return true;
+}
+
 async function handleStreamAudio(req, res, parsedUrl) {
   const id = parsedUrl.searchParams.get('id');
   if (!id) return sendJson(res, 400, { error: 'Missing id' });
@@ -372,6 +443,9 @@ async function handleApiRequest(req, res) {
     }
     if (path === '/api/stream/audio') {
       return await handleStreamAudio(req, res, parsedUrl);
+    }
+    if (path === '/api/artwork') {
+      return await handleArtwork(req, res, parsedUrl);
     }
     return sendJson(res, 404, { error: 'Unknown API route' });
   } catch (err) {

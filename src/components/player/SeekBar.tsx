@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, StyleSheet, Text, View } from 'react-native';
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { COLORS, SIZES, FONTS } from '../../constants/theme';
 import { useProgress } from '../../hooks/usePlayer';
 
@@ -23,6 +24,8 @@ const TICK_MS = 300;
 type SeekBarProps = {
   /** Commits a final position, in seconds. */
   onSeek: (seconds: number) => void;
+  /** Artwork-reactive accent (crossfaded on the UI thread). */
+  accentColor?: string;
 };
 
 /**
@@ -41,8 +44,17 @@ type SeekBarProps = {
  * This component is also the only thing in the player subscribed to position,
  * so the rest of Now Playing no longer re-renders on every tick.
  */
-export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
+export const SeekBar: React.FC<SeekBarProps> = ({ onSeek, accentColor = COLORS.accent.primary }) => {
   const { position, duration } = useProgress();
+
+  // The artwork palette crossfades the fill + thumb ring over 480 ms on the
+  // UI thread — a track change never snaps the scrubber into a new colour.
+  const accentShared = useSharedValue(accentColor);
+  useEffect(() => {
+    accentShared.value = withTiming(accentColor, { duration: 480 });
+  }, [accentColor, accentShared]);
+  const fillStyle = useAnimatedStyle(() => ({ backgroundColor: accentShared.value }));
+  const dotRingStyle = useAnimatedStyle(() => ({ borderColor: accentShared.value }));
 
   const [barWidth, setBarWidth] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -185,10 +197,17 @@ export const SeekBar: React.FC<SeekBarProps> = ({ onSeek }) => {
         onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
         {...panResponder.panHandlers}
       >
-        <Animated.View style={[styles.barFill, { width: trackSpan.width }]} />
+        <Animated.View style={[styles.barFill, { width: trackSpan.width }]}>
+          {/* Inner layer carries the palette colour (reanimated) while the
+              outer layer carries geometry (RN Animated) — one library per
+              node, so the styles never fight. */}
+          <Reanimated.View style={[styles.barFillInner, fillStyle]} />
+        </Animated.View>
         <Animated.View
           style={[styles.dot, { left: trackSpan.left }, isSeeking && styles.dotActive]}
-        />
+        >
+          <Reanimated.View style={[styles.dotInner, dotRingStyle]} />
+        </Animated.View>
       </View>
 
       <View style={styles.timeRow}>
@@ -213,6 +232,12 @@ const styles = StyleSheet.create({
   },
   barFill: {
     height: '100%',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  barFillInner: {
+    height: '100%',
+    width: '100%',
     backgroundColor: COLORS.accent.primary,
     borderRadius: 2,
   },
@@ -223,9 +248,20 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     backgroundColor: '#FFFFFF',
+    borderWidth: 0,
+    marginLeft: -7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dotInner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 999,
     borderWidth: 2,
     borderColor: COLORS.accent.ring,
-    marginLeft: -7,
   },
   /** Slight grow while dragging, so the thumb reads as grabbed. */
   dotActive: {

@@ -6,6 +6,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { PlayerProvider } from './src/hooks/usePlayer';
 import { LibraryProvider } from './src/hooks/useLibrary';
 import { AppearanceProvider } from './src/hooks/useAppearance';
+import { PaletteProvider } from './src/hooks/usePalette';
 import { COLORS } from './src/constants/theme';
 import { DownloadService } from './src/services/DownloadService';
 import { AudioFX } from './src/services/AudioFX';
@@ -64,12 +65,14 @@ export default function App() {
       <LibraryProvider>
         <AppearanceProvider>
           <PlayerProvider>
-            <View style={styles.webWrapper}>
-              <View style={styles.appContainer}>
-                <RootNavigator />
-                <StatusBar style="light" />
+            <PaletteProvider>
+              <View style={styles.webWrapper}>
+                <View style={styles.appContainer}>
+                  <RootNavigator />
+                  <StatusBar style="light" />
+                </View>
               </View>
-            </View>
+            </PaletteProvider>
           </PlayerProvider>
         </AppearanceProvider>
       </LibraryProvider>

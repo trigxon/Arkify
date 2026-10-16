@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  PanResponder,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,12 +12,26 @@ import {
   View,
   useWindowDimensions,
   Animated,
+  type ViewStyle,
 } from 'react-native';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  withTiming,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withDelay,
+  cancelAnimation,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ChevronDown,
   EllipsisVertical,
   Heart,
+  Maximize2,
+  Minimize2,
   MoreHorizontal,
   Play,
   Pause,
@@ -32,7 +48,7 @@ import {
   Mic2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, SHADOWS, SPRINGS } from '../constants/theme';
 import { SeekBar } from '../components/player/SeekBar';
 import { QueueSheet } from '../components/player/QueueSheet';
 import { TrackActionsSheet } from '../components/lists/TrackActionsSheet';
@@ -45,6 +61,9 @@ import { SleepTimer } from '../services/SleepTimerService';
 import { Track } from '../core/types';
 import { usePlayer, useProgress } from '../hooks/usePlayer';
 import { useLibrary } from '../hooks/useLibrary';
+import { usePalette } from '../hooks/usePalette';
+import { useAppearance } from '../hooks/useAppearance';
+import { hapticLight } from '../utils/haptics';
 import { useNavigation } from '@react-navigation/native';
 
 /** Tactile press: quick scale-down, spring back. Short and interruptible. */
@@ -233,6 +252,8 @@ export default function NowPlayingScreen() {
   // Timer shortcuts land straight in the sleep picker, not the generic menu.
   const [actionsInitial, setActionsInitial] = useState<'actions' | 'sleep'>('actions');
   const [shareRequest, setShareRequest] = useState<ShareRequest | null>(null);
+  /** Immersive listening: dims the room, enlarges the art, keeps controls. */
+  const [immersive, setImmersive] = useState(false);
 
   // Responsive artwork sizing so all controls stay comfortably on-screen
   const isCompact = height < 740;
@@ -290,6 +311,211 @@ export default function NowPlayingScreen() {
 
   const play = usePressScale();
 
+  // ---------------------------------------------------------------------------
+  // Artwork-reactive ambience + cinematic motion (all reanimated, UI thread).
+  //
+  // Honesty rules encoded here:
+  //   · Palette crossfades run 480 ms — inside the 350–600 ms band — so a
+  //     track change NEVER flashes the interface into a new color scheme.
+  //   · The ambient pulse is driven ONLY by real playback state (isPlaying);
+  //     it is a breathing glow, not a faked spectrum. (Audio-reactive FFT is
+  //     technically unavailable: IFrame audio is cross-origin and expo-audio
+  //     exposes no analyser tap — so none is pretended.)
+  //   · Reduced motion collapses every effect here to an instant state set.
+  // ---------------------------------------------------------------------------
+  const { palette } = usePalette();
+  const { motionReduced } = useAppearance();
+  const accent = palette?.accent ?? COLORS.accent.primary;
+  const accentSoft = palette?.accentSoft ?? COLORS.accent.soft;
+  const accentGlow = palette?.accentGlow ?? COLORS.accent.glow;
+  const ambientWash = palette?.ambient ?? COLORS.atmosphere.soft;
+
+  const accentShared = useSharedValue(accent);
+  const ringBgShared = useSharedValue(accentSoft);
+  const glowShared = useSharedValue(accentGlow);
+  const washShared = useSharedValue(ambientWash);
+  const chromeOpacity = useSharedValue(1);
+  const bottomOpacity = useSharedValue(1);
+  const immersiveGlow = useSharedValue(0);
+  const artworkScale = useSharedValue(1);
+  const entranceOpacity = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+  const dragY = useSharedValue(0);
+  const scrollY = useSharedValue(0);
+  const colorFade = motionReduced ? 0 : 480;
+
+  useEffect(() => {
+    accentShared.value = withTiming(accent, { duration: colorFade });
+    ringBgShared.value = withTiming(accentSoft, { duration: colorFade });
+    glowShared.value = withTiming(accentGlow, { duration: colorFade });
+    washShared.value = withTiming(ambientWash, { duration: colorFade });
+  }, [accent, accentSoft, accentGlow, ambientWash, colorFade, accentShared, ringBgShared, glowShared, washShared]);
+
+  // Immersive mode: the room dims, the art leans forward, ambience deepens.
+  useEffect(() => {
+    chromeOpacity.value = withTiming(immersive ? 0.35 : 1, { duration: motionReduced ? 0 : 320 });
+    bottomOpacity.value = withTiming(immersive ? 0.6 : 1, { duration: motionReduced ? 0 : 320 });
+    immersiveGlow.value = withTiming(immersive ? 0.9 : 0, { duration: motionReduced ? 0 : 320 });
+    artworkScale.value = motionReduced
+      ? immersive ? 1.06 : 1
+      : withSpring(immersive ? 1.06 : 1, SPRINGS.lively);
+  }, [immersive, motionReduced, chromeOpacity, bottomOpacity, immersiveGlow, artworkScale]);
+
+  // Entrance choreography — once per mount, before immersive can fight it.
+  const didEnter = useRef(false);
+  useEffect(() => {
+    if (didEnter.current) return;
+    didEnter.current = true;
+    if (motionReduced) return;
+    entranceOpacity.value = 0;
+    artworkScale.value = 0.92;
+    entranceOpacity.value = withTiming(1, { duration: 300 });
+    artworkScale.value = withSpring(1, SPRINGS.lively);
+  }, [motionReduced, entranceOpacity, artworkScale]);
+
+  // Ambient pulse — breathing glow around the play ring while ACTUALLY playing.
+  useEffect(() => {
+    if (isPlaying && !motionReduced && !immersive) {
+      pulseScale.value = 1;
+      pulseOpacity.value = 0;
+      pulseScale.value = withDelay(
+        250,
+        withRepeat(
+          withSequence(withTiming(1.36, { duration: 900 }), withTiming(1, { duration: 40 })),
+          -1,
+          false
+        )
+      );
+      pulseOpacity.value = withDelay(
+        250,
+        withRepeat(
+          withSequence(withTiming(0.5, { duration: 900 }), withTiming(0, { duration: 900 })),
+          -1,
+          false
+        )
+      );
+    } else {
+      cancelAnimation(pulseScale);
+      cancelAnimation(pulseOpacity);
+      pulseOpacity.value = withTiming(0, { duration: 200 });
+      pulseScale.value = 1;
+    }
+  }, [isPlaying, motionReduced, immersive, pulseOpacity, pulseScale]);
+
+  // Artwork parallax: the hero drifts at 8% of scroll speed and its glow
+  // recedes as it leaves — depth without any extra blur cost.
+  const scrollHandler = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const parallaxStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: scrollY.value * 0.08 }, { scale: artworkScale.value }],
+    opacity: entranceOpacity.value,
+  }));
+  const glowStyle = useAnimatedStyle(() => {
+    const base = Math.max(0, 1 - Math.min(scrollY.value / 320, 0.6));
+    const boost = immersiveGlow.value > 0.5 ? 1.4 : 1;
+    return {
+      backgroundColor: glowShared.value,
+      opacity: Math.min(1, base * boost),
+    };
+  });
+
+  // Drag-down-to-dismiss on the header — the inverse of the mini-player's
+  // swipe-up. Direct tracking; commit past 110 pt, spring back otherwise.
+  const navigationRef = useRef(navigation);
+  const motionRef = useRef(motionReduced);
+  useEffect(() => {
+    motionRef.current = motionReduced;
+  }, [motionReduced]);
+  const headerPan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) =>
+          !motionRef.current && g.dy > 12 && Math.abs(g.dy) > Math.abs(g.dx) * 1.1,
+        onPanResponderMove: (_, g) => {
+          dragY.value = Math.max(g.dy, 0);
+        },
+        onPanResponderRelease: (_, g) => {
+          if (g.dy > 110) {
+            dragY.value = withTiming(260, { duration: 150 });
+            navigationRef.current.goBack();
+          } else {
+            dragY.value = withSpring(0, SPRINGS.release);
+          }
+        },
+        onPanResponderTerminate: () => {
+          dragY.value = withSpring(0, SPRINGS.release);
+        },
+      }),
+    [dragY]
+  );
+  const dragStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: dragY.value * 0.9 }],
+    opacity: 1 - Math.min(dragY.value / 320, 0.7),
+  }));
+
+  // Web drag-to-dismiss: document-level pointer tracking keyed to the header
+  // (testID closest-match). The PanResponder above stays authoritative on
+  // native; on web RNW's pan claim is unreliable and text selection wins —
+  // this path is deterministic. Listeners live for the screen's lifetime and
+  // only act while a press STARTED inside the header.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    let active = false;
+    let startY = 0;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || typeof t.closest !== 'function' || !t.closest('[data-testid="np-header"]')) return;
+      active = true;
+      startY = e.clientY;
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!active || motionRef.current) return;
+      const dy = e.clientY - startY;
+      if (dy > 0) dragY.value = dy;
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!active) return;
+      active = false;
+      const dy = e.clientY - startY;
+      if (dy > 110) {
+        dragY.value = withTiming(260, { duration: 150 });
+        navigationRef.current.goBack();
+      } else if (dragY.value > 0) {
+        dragY.value = withSpring(0, SPRINGS.release);
+      }
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const chromeStyle = useAnimatedStyle(() => ({ opacity: chromeOpacity.value }));
+  const bottomChromeStyle = useAnimatedStyle(() => ({ opacity: bottomOpacity.value }));
+  const washStyle = useAnimatedStyle(() => ({ backgroundColor: washShared.value }));
+  const immersiveWashStyle = useAnimatedStyle(() => ({
+    backgroundColor: washShared.value,
+    opacity: immersiveGlow.value,
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    borderColor: accentShared.value,
+    backgroundColor: ringBgShared.value,
+  }));
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: pulseOpacity.value,
+    transform: [{ scale: pulseScale.value }],
+    backgroundColor: accentShared.value,
+  }));
+
   if (!currentTrack) return null;
 
   const liked = isLiked(currentTrack.id);
@@ -321,9 +547,13 @@ export default function NowPlayingScreen() {
         locations={[0, 0.72]}
         style={StyleSheet.absoluteFill}
       />
+      {/* Artwork-reactive ambience: a breathing wash above the blurred art,
+          plus an immersive layer that deepens the room in immersive mode. */}
+      <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, washStyle]} />
+      <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, immersiveWashStyle]} />
 
-      <ScrollView
-        style={styles.scroll}
+      <Reanimated.ScrollView
+        style={[styles.scroll, dragStyle]}
         contentContainerStyle={[
           styles.content,
           {
@@ -331,11 +561,18 @@ export default function NowPlayingScreen() {
             paddingBottom: insets.bottom + (isCompact ? SIZES.xs : SIZES.md),
           },
         ]}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Header: collapse · Playing from · actions */}
-        <View style={styles.header}>
+        {/* Header: collapse · Playing from · actions. Dragging it down dismisses
+            the player (the same direct-manipulation language as the mini bar). */}
+        <Reanimated.View
+          style={[styles.header, chromeStyle, styles.noSelect]}
+          testID="np-header"
+          {...headerPan.panHandlers}
+        >
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.headerIcon}
@@ -391,15 +628,16 @@ export default function NowPlayingScreen() {
               </TouchableOpacity>
             </>
           )}
-        </View>
+        </Reanimated.View>
 
         {view === 'player' ? (
           <>
-            {/* Artwork hero */}
-            <View style={[styles.artworkGlowWrap, isCompact && { marginTop: 4 }]}>
-              <View
+            {/* Artwork hero — parallax drift, entrance spring, palette glow */}
+            <Reanimated.View style={[styles.artworkGlowWrap, isCompact && { marginTop: 4 }, parallaxStyle]}>
+              <Reanimated.View
                 style={[
                   styles.artworkGlow,
+                  glowStyle,
                   {
                     width: artworkSize + 36,
                     height: artworkSize + 36,
@@ -407,7 +645,7 @@ export default function NowPlayingScreen() {
                   },
                 ]}
               />
-              <View
+              <Reanimated.View
                 style={[
                   styles.artworkContainer,
                   { width: artworkSize, height: artworkSize },
@@ -419,8 +657,8 @@ export default function NowPlayingScreen() {
                   size={artworkSize}
                   radius={SIZES.radius.xl}
                 />
-              </View>
-            </View>
+              </Reanimated.View>
+            </Reanimated.View>
 
             {/* Track Info */}
             <View
@@ -441,8 +679,8 @@ export default function NowPlayingScreen() {
                 accessibilityState={{ selected: liked }}
               >
                 <Heart
-                  color={liked ? COLORS.accent.primary : COLORS.text.primary}
-                  fill={liked ? COLORS.accent.primary : 'transparent'}
+                  color={liked ? accent : COLORS.text.primary}
+                  fill={liked ? accent : 'transparent'}
                   size={SIZES.icon.lg + 2}
                 />
               </TouchableOpacity>
@@ -451,7 +689,7 @@ export default function NowPlayingScreen() {
             {/* Progress. SeekBar owns its own measurement, gesture handling and
                 position subscription, so this screen no longer re-renders on every
                 playback tick. */}
-            <SeekBar onSeek={seekTo} />
+            <SeekBar onSeek={seekTo} accentColor={accent} />
 
             {/* Error state -- never leaves the player stuck */}
             {error && (
@@ -481,7 +719,7 @@ export default function NowPlayingScreen() {
                 accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle off'}
                 accessibilityState={{ selected: shuffle }}
               >
-                <Shuffle color={shuffle ? COLORS.accent.primary : COLORS.text.secondary} size={SIZES.icon.md + 2} />
+                <Shuffle color={shuffle ? accent : COLORS.text.secondary} size={SIZES.icon.md + 2} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={previous}
@@ -492,7 +730,9 @@ export default function NowPlayingScreen() {
                 <SkipBack color={COLORS.text.primary} size={SIZES.icon.xl} />
               </TouchableOpacity>
               <Animated.View style={[play.animatedStyle, styles.playButtonWrap]}>
-                <View style={styles.playRing}>
+                {/* Breathing glow driven by real playback state (see pulse effect). */}
+                <Reanimated.View pointerEvents="none" style={[styles.pulseRing, pulseStyle]} />
+                <Reanimated.View style={[styles.playRing, ringStyle, { shadowColor: accent }]}>
                   <TouchableOpacity
                     style={styles.playButton}
                     onPress={togglePlayPause}
@@ -503,22 +743,22 @@ export default function NowPlayingScreen() {
                     accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
                   >
                     {busy ? (
-                      <ActivityIndicator color={COLORS.accent.primary} />
+                      <ActivityIndicator color={accent} />
                     ) : isPlaying ? (
                       <Pause
-                        color={COLORS.accent.primary}
+                        color={accent}
                         size={SIZES.icon.play}
-                        fill={COLORS.accent.primary}
+                        fill={accent}
                       />
                     ) : (
                       <Play
-                        color={COLORS.accent.primary}
+                        color={accent}
                         size={SIZES.icon.play}
-                        fill={COLORS.accent.primary}
+                        fill={accent}
                       />
                     )}
                   </TouchableOpacity>
-                </View>
+                </Reanimated.View>
               </Animated.View>
               <TouchableOpacity
                 onPress={next}
@@ -536,18 +776,18 @@ export default function NowPlayingScreen() {
                 accessibilityState={{ selected: repeat !== 'off' }}
               >
                 {repeat === 'one' ? (
-                  <Repeat1 color={COLORS.accent.primary} size={SIZES.icon.md + 2} />
+                  <Repeat1 color={accent} size={SIZES.icon.md + 2} />
                 ) : (
                   <Repeat
-                    color={repeat === 'all' ? COLORS.accent.primary : COLORS.text.secondary}
+                    color={repeat === 'all' ? accent : COLORS.text.secondary}
                     size={SIZES.icon.md + 2}
                   />
                 )}
               </TouchableOpacity>
             </View>
 
-            {/* Bottom row, per the reference: timer · Lyrics pill · queue. */}
-            <View style={styles.bottomActions}>
+            {/* Bottom row, per the reference: timer · Lyrics pill · immersive · queue. */}
+            <Reanimated.View style={[styles.bottomActions, bottomChromeStyle]}>
               <TouchableOpacity
                 style={styles.bottomIcon}
                 onPress={() => {
@@ -561,13 +801,37 @@ export default function NowPlayingScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.lyricsPill}
+                style={[
+                  styles.lyricsPill,
+                  {
+                    borderColor: palette?.accentBorder ?? 'rgba(59, 240, 223, 0.35)',
+                    backgroundColor: accentSoft,
+                  },
+                ]}
                 onPress={() => setView('lyrics')}
                 accessibilityRole="button"
                 accessibilityLabel="Open lyrics"
               >
-                <Sparkles color={COLORS.accent.primary} size={SIZES.icon.sm + 2} />
-                <Text style={styles.lyricsPillText}>Lyrics</Text>
+                <Sparkles color={accent} size={SIZES.icon.sm + 2} />
+                <Text style={[styles.lyricsPillText, { color: accent }]}>Lyrics</Text>
+              </TouchableOpacity>
+
+              {/* Immersive listening — dims the room, enlarges the art. */}
+              <TouchableOpacity
+                style={styles.bottomIcon}
+                onPress={() => {
+                  hapticLight();
+                  setImmersive((v) => !v);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={immersive ? 'Exit immersive mode' : 'Enter immersive mode'}
+                accessibilityState={{ selected: immersive }}
+              >
+                {immersive ? (
+                  <Minimize2 color={accent} size={SIZES.icon.md} />
+                ) : (
+                  <Maximize2 color={COLORS.text.primary} size={SIZES.icon.md} />
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -578,7 +842,7 @@ export default function NowPlayingScreen() {
               >
                 <ListMusic color={COLORS.text.primary} size={SIZES.icon.md} />
               </TouchableOpacity>
-            </View>
+            </Reanimated.View>
           </>
         ) : (
           <>
@@ -649,7 +913,7 @@ export default function NowPlayingScreen() {
 
             {/* Progress + controls stay available beneath the lyrics, per the
                 reference: lyrics never trap the player. */}
-            <SeekBar onSeek={seekTo} />
+            <SeekBar onSeek={seekTo} accentColor={accent} />
             {/* The full transport stays live under the lyrics, per the
                 reference — reading lyrics never strands playback. */}
             <View style={styles.controlsContainer}>
@@ -661,7 +925,7 @@ export default function NowPlayingScreen() {
                 accessibilityState={{ selected: shuffle }}
               >
                 <Shuffle
-                  color={shuffle ? COLORS.accent.primary : COLORS.text.secondary}
+                  color={shuffle ? accent : COLORS.text.secondary}
                   size={SIZES.icon.md + 2}
                 />
               </TouchableOpacity>
@@ -708,10 +972,10 @@ export default function NowPlayingScreen() {
                 accessibilityState={{ selected: repeat !== 'off' }}
               >
                 {repeat === 'one' ? (
-                  <Repeat1 color={COLORS.accent.primary} size={SIZES.icon.md + 2} />
+                  <Repeat1 color={accent} size={SIZES.icon.md + 2} />
                 ) : (
                   <Repeat
-                    color={repeat === 'all' ? COLORS.accent.primary : COLORS.text.secondary}
+                    color={repeat === 'all' ? accent : COLORS.text.secondary}
                     size={SIZES.icon.md + 2}
                   />
                 )}
@@ -743,7 +1007,7 @@ export default function NowPlayingScreen() {
             </View>
           </>
         )}
-      </ScrollView>
+      </Reanimated.ScrollView>
 
       {/* Queue sheet */}
       <QueueSheet
@@ -787,6 +1051,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  /** Headers never become text-selection sources during drag gestures. */
+  noSelect: {
+    userSelect: 'none',
+  } as unknown as ViewStyle,
   scroll: {
     flex: 1,
   },
@@ -878,6 +1146,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 18,
     elevation: 8,
+  },
+  /** Breathing halo behind the play ring — real playback state only. */
+  pulseRing: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   playButton: {
     width: 68,

@@ -128,4 +128,6 @@ export const STORAGE_KEYS = {
   searchHistory: 'search-history',
   cache: 'cache',
   history: 'history',
+  /** Artwork-derived palettes for the dynamic color engine. */
+  palettes: 'palettes',
 } as const;

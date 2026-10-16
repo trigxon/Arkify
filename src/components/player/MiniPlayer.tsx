@@ -1,16 +1,18 @@
-import React, { useEffect } from 'react';
-import { Platform, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { PanResponder, Platform, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { Heart, Play, Pause } from 'lucide-react-native';
 import { Track } from '../../core/types';
 import { useProgress } from '../../hooks/usePlayer';
 import { useLibrary } from '../../hooks/useLibrary';
+import { usePalette } from '../../hooks/usePalette';
+import { useAppearance } from '../../hooks/useAppearance';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS, SPRINGS } from '../../constants/theme';
 import { Artwork } from '../common/Artwork';
+import { hapticLight } from '../../utils/haptics';
 
 interface MiniPlayerProps {
   track: Track | null;
@@ -22,24 +24,27 @@ interface MiniPlayerProps {
 }
 
 /**
- * Only this subtree subscribes to playback position.
- *
- * useProgress fires ~4x a second. Reading it in MiniPlayer itself re-rendered
- * the artwork and both Text nodes on every tick; isolating it here keeps the
- * bar live while the rest of the bar stays still.
+ * Progress subtree: width from the real playback position, colour crossfaded
+ * to the artwork palette on the UI thread (no re-render per tick).
  */
-const MiniPlayerProgress: React.FC = React.memo(() => {
-  const { position, duration } = useProgress();
+const MiniPlayerProgress: React.FC<{ accentShared: SharedValue<string> }> = React.memo(
+  ({ accentShared }) => {
+    const { position, duration } = useProgress();
 
-  const progressPercent =
-    duration > 0 ? Math.min(100, Math.max(0, (position / duration) * 100)) : 0;
+    const progressPercent =
+      duration > 0 ? Math.min(100, Math.max(0, (position / duration) * 100)) : 0;
 
-  return (
-    <View style={styles.progressTrack} accessibilityElementsHidden>
-      <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-    </View>
-  );
-});
+    const fillStyle = useAnimatedStyle(() => ({
+      backgroundColor: accentShared.value,
+    }));
+
+    return (
+      <View style={styles.progressTrack} accessibilityElementsHidden>
+        <Animated.View style={[styles.progressFill, { width: `${progressPercent}%` }, fillStyle]} />
+      </View>
+    );
+  }
+);
 MiniPlayerProgress.displayName = 'MiniPlayerProgress';
 
 /**
@@ -65,9 +70,7 @@ const MiniPlayerLike: React.FC<{ track: Track }> = ({ track }) => {
     <TouchableOpacity
       style={styles.iconButton}
       onPress={() => {
-        if (Platform.OS !== 'web') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-        }
+        hapticLight();
         toggleLike(track);
       }}
       hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
@@ -100,12 +103,116 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   // Tab bar height matches TabNavigator: 62 content + real bottom inset (or 8 fallback).
   const resolvedTabBarHeight = tabBarHeight ?? 62 + Math.max(insets.bottom, 8);
 
+  // Artwork-reactive accent, crossfaded on the UI thread (480 ms — inside the
+  // directive's 350–600 ms band, and never an abrupt recolor).
+  const { palette } = usePalette();
+  const { motionReduced } = useAppearance();
+  const accent = palette?.accent ?? COLORS.accent.primary;
+  const accentSoft = palette?.accentSoft ?? COLORS.accent.soft;
+  const accentShared = useSharedValue<string>(accent);
+  const underGlowColor = useSharedValue<string>(COLORS.accent.soft);
+
+  useEffect(() => {
+    accentShared.value = withTiming(accent, { duration: motionReduced ? 0 : 480 });
+    underGlowColor.value = withTiming(palette?.ambient ?? COLORS.accent.soft, {
+      duration: motionReduced ? 0 : 480,
+    });
+  }, [accent, palette, motionReduced, accentShared, underGlowColor]);
+
+  const underGlowStyle = useAnimatedStyle(() => ({
+    backgroundColor: underGlowColor.value,
+  }));
+
+  // --- swipe-up to expand --------------------------------------------------
+  // Vertical upward drags lift the slab and open the full player; taps pass
+  // straight through to the touchables (the responder is claimed on movement
+  // only). Disabled under reduced motion — tap still opens the player.
+  const dragY = useSharedValue(0);
+  const onPressRef = useRef(onPress);
+  const motionRef = useRef(motionReduced);
+  useEffect(() => {
+    onPressRef.current = onPress;
+    motionRef.current = motionReduced;
+  }, [onPress, motionReduced]);
+
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) =>
+          !motionRef.current && g.dy < -14 && Math.abs(g.dy) > Math.abs(g.dx) * 1.15,
+        onPanResponderMove: (_, g) => {
+          dragY.value = Math.max(g.dy, -44);
+        },
+        onPanResponderRelease: (_, g) => {
+          if (g.dy < -34) {
+            dragY.value = withTiming(0, { duration: 110 });
+            onPressRef.current();
+          } else {
+            dragY.value = withSpring(0, SPRINGS.release);
+          }
+        },
+        onPanResponderTerminate: () => {
+          dragY.value = withSpring(0, SPRINGS.release);
+        },
+      }),
+    [dragY]
+  );
+
+  const dragStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: dragY.value * 0.55 }],
+    opacity: 1 - Math.min(0.32, Math.abs(dragY.value) / 120),
+  }));
+
+  // Web swipe-up: document-level pointer tracking scoped to the mini player.
+  // Native keeps the PanResponder; on web RNW's pan claim is unreliable.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    let active = false;
+    let startY = 0;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || typeof t.closest !== 'function' || !t.closest('[data-testid="mini-player"]')) return;
+      active = true;
+      startY = e.clientY;
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!active || motionRef.current) return;
+      const dy = e.clientY - startY;
+      if (dy < 0) dragY.value = Math.max(dy, -44);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!active) return;
+      active = false;
+      const dy = e.clientY - startY;
+      if (dy < -34) {
+        dragY.value = withTiming(0, { duration: 110 });
+        onPressRef.current();
+      } else if (dragY.value < 0) {
+        dragY.value = withSpring(0, SPRINGS.release);
+      }
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+  }, [dragY]);
+
   if (!track) return null;
 
   return (
-    <View style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }]}>
+    <Animated.View
+      style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }, dragStyle, styles.noSelect]}
+      testID="mini-player"
+      {...pan.panHandlers}
+    >
       {/* Aqua ambience bleeding from under the slab — matches the tab bar. */}
-      <View pointerEvents="none" style={styles.underGlow} />
+      <Animated.View pointerEvents="none" style={[styles.underGlow, underGlowStyle]} />
       {/* Liquid glass slab: real blur on native, layered translucency on web. */}
       <View style={[styles.container, SHADOWS.glass]}>
         {Platform.OS !== 'web' ? (
@@ -149,25 +256,49 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 
           <View style={styles.controls}>
             <MiniPlayerLike track={track} />
-            <MiniPlayerPlay isPlaying={isPlaying} isLoading={isLoading} onPlayPause={onPlayPause} />
+            <MiniPlayerPlay
+              isPlaying={isPlaying}
+              isLoading={isLoading}
+              onPlayPause={onPlayPause}
+              accent={accent}
+              accentSoft={accentSoft}
+            />
           </View>
         </View>
 
         {/* Progress: a hairline along the bottom edge of the bar. */}
-        <MiniPlayerProgress />
+        <MiniPlayerProgress accentShared={accentShared} />
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
-/** Play/pause with a spring press — the most-touched control in the app. */
+/** Play/pause with a spring press — the most-touched control in the app.
+ *  Its ring crossfades to the artwork palette while playing. */
 const MiniPlayerPlay: React.FC<{
   isPlaying: boolean;
   isLoading: boolean;
   onPlayPause: () => void;
-}> = ({ isPlaying, isLoading, onPlayPause }) => {
+  accent: string;
+  accentSoft: string;
+}> = ({ isPlaying, isLoading, onPlayPause, accent, accentSoft }) => {
   const scale = useSharedValue(1);
+  const ringBorder = useSharedValue<string>(COLORS.accent.primary);
+  const ringBg = useSharedValue<string>(COLORS.surfaceElevated);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const ringStyle = useAnimatedStyle(() => ({
+    borderColor: ringBorder.value,
+    backgroundColor: ringBg.value,
+  }));
+
+  useEffect(() => {
+    ringBorder.value = withTiming(isPlaying ? accent : 'rgba(59, 240, 223, 0.60)', {
+      duration: 480,
+    });
+    ringBg.value = withTiming(isPlaying ? accentSoft : COLORS.surfaceElevated, {
+      duration: 480,
+    });
+  }, [isPlaying, accent, accentSoft, ringBorder, ringBg]);
 
   return (
     <TouchableOpacity
@@ -184,15 +315,15 @@ const MiniPlayerPlay: React.FC<{
     >
       <Animated.View style={anim}>
         {isLoading ? (
-          <ActivityIndicator size="small" color={COLORS.accent.primary} />
+          <ActivityIndicator size="small" color={accent} />
         ) : (
-          <View style={[styles.playRing, isPlaying && styles.playRingPlaying]}>
+          <Animated.View style={[styles.playRing, ringStyle, isPlaying && styles.playRingPlaying]}>
             {isPlaying ? (
               <Pause color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
             ) : (
               <Play color={COLORS.text.primary} size={16} fill={COLORS.text.primary} />
             )}
-          </View>
+          </Animated.View>
         )}
       </Animated.View>
     </TouchableOpacity>
@@ -305,4 +436,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
   },
+  noSelect: {
+    userSelect: 'none',
+  } as unknown as ViewStyle,
 });

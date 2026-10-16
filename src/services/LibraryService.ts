@@ -43,6 +43,10 @@ export type AppSettings = {
   reduceMotion: 'system' | 'on' | 'off';
   /** How pronounced the Liquid Glass materials read, app-wide. */
   glassIntensity: 'subtle' | 'standard' | 'intense';
+  /** Accent/ambience derive from the current track's artwork. */
+  dynamicColors: boolean;
+  /** Restrained vibration on controls and gestures (Android). */
+  haptics: boolean;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -55,6 +59,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   aiEnabled: true,
   reduceMotion: 'system',
   glassIntensity: 'standard',
+  dynamicColors: true,
+  haptics: true,
 };
 
 /**

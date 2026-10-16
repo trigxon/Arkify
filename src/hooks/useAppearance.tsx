@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { AccessibilityInfo } from 'react-native';
 import { useLibrary } from './useLibrary';
+import { setHapticsEnabled } from '../utils/haptics';
 import {
   GlassIntensity,
   MotionPref,
@@ -74,6 +75,14 @@ export const AppearanceProvider: React.FC<{ children: ReactNode }> = ({ children
   }, []);
 
   const motionReduced = motionPref === 'on' || (motionPref === 'system' && systemReduced);
+
+  // The haptics gate is a module-level flag, not context — haptic calls come
+  // from gesture code that must not re-render. Keeping the sync here means
+  // Settings > Haptic feedback takes effect the instant it is toggled.
+  const hapticsEnabled = settings.haptics ?? true;
+  useEffect(() => {
+    setHapticsEnabled(hapticsEnabled);
+  }, [hapticsEnabled]);
 
   const value = useMemo<AppearanceContextType>(
     () => ({

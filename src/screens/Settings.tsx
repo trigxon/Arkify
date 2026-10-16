@@ -32,6 +32,7 @@ import { Gender } from '../services/LibraryService';
 import { useLibrary } from '../hooks/useLibrary';
 import { usePlayer } from '../hooks/usePlayer';
 import { useAppearance, GlassIntensity, MotionPref } from '../hooks/useAppearance';
+import { usePalette } from '../hooks/usePalette';
 import { PlaybackSourceSheet } from '../components/player/PlaybackSourceSheet';
 import { EqualizerSheet } from '../components/audio/EqualizerSheet';
 import { BackButton, IOSToggle, Segmented } from '../components/common/Glass';
@@ -79,6 +80,7 @@ export default function SettingsScreen() {
   const { profile, saveProfile, history, playlists, liked, settings, updateSettings } = useLibrary();
   const { currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
   const { motionPref, glassIntensity, setMotionPref, setGlassIntensity } = useAppearance();
+  const { setDynamicColors } = usePalette();
 
   const [name, setName] = useState(profile.name);
   const [showSource, setShowSource] = useState(false);
@@ -383,11 +385,39 @@ export default function SettingsScreen() {
             />
           </View>
           <Divider />
+          <View style={styles.displayBlock}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Dynamic artwork colors</Text>
+              <Text style={styles.rowCaption}>
+                Accent and ambience follow the current album art. Grayscale art keeps the aqua identity.
+              </Text>
+            </View>
+            <IOSToggle
+              value={settings.dynamicColors ?? true}
+              onValueChange={(v) => setDynamicColors(v)}
+              accessibilityLabel="Dynamic artwork colors"
+            />
+          </View>
+          <Divider />
+          <View style={styles.displayBlock}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Haptic feedback</Text>
+              <Text style={styles.rowCaption}>
+                Restrained vibration on controls and gestures. Android only.
+              </Text>
+            </View>
+            <IOSToggle
+              value={settings.haptics ?? true}
+              onValueChange={(v) => updateSettings({ haptics: v })}
+              accessibilityLabel="Haptic feedback"
+            />
+          </View>
+          <Divider />
           <TouchableOpacity
             style={styles.row}
             activeOpacity={0.7}
             onPress={() =>
-              Alert.alert('Reset appearance', 'Restore default motion and glass settings?', [
+              Alert.alert('Reset appearance', 'Restore default motion, glass and color settings?', [
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Reset',
@@ -395,6 +425,7 @@ export default function SettingsScreen() {
                   onPress: () => {
                     setMotionPref('system');
                     setGlassIntensity('standard');
+                    setDynamicColors(true);
                   },
                 },
               ])
