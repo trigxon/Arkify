@@ -57,7 +57,12 @@ const server = http.createServer(async (req, res) => {
       const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
       const content = fs.readFileSync(filePath);
-      res.writeHead(200, { 'Content-Type': contentType });
+      // index.html must always revalidate so deploys land instantly;
+      // content-hashed assets are immutable and cache forever.
+      const cacheControl = filePath.endsWith('index.html')
+        ? 'no-cache, no-store, must-revalidate'
+        : 'public, max-age=31536000, immutable';
+      res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': cacheControl });
       res.end(content);
       return;
     }
