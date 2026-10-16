@@ -33,6 +33,7 @@ import {
   ChevronRight,
   Repeat2,
   Bot,
+  Podcast,
 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS, MOOD_PALETTE, MoodId } from '../constants/theme';
 import { Artwork } from '../components/common/Artwork';
@@ -52,6 +53,13 @@ import { MOODS } from '../ai/moods';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
+
+/** Home filter chips, per the reference: Music default-selected. */
+const CHIP_DEFS = [
+  { id: 'music', label: 'Music' },
+  { id: 'podcasts', label: 'Podcasts' },
+  { id: 'radio', label: 'Radio' },
+] as const;
 
 const MOOD_ICONS: Record<MoodId, typeof Dumbbell> = {
   workout: Dumbbell,
@@ -200,6 +208,35 @@ export default function HomeScreen() {
   const recentTracks = recentlyPlayed.slice(0, 3);
   const [addingTrack, setAddingTrack] = useState<Track | null>(null);
 
+  // Filter chips (Music / Podcasts / Radio). Radio scrolls to the mood
+  // radios; Podcasts shows an honest "on the way" card; Music is the feed.
+  const [activeChip, setActiveChip] = useState<'music' | 'podcasts' | 'radio'>('music');
+  /** Y of the mood-radios section within the scroll content (layout-driven). */
+  const moodYRef = useRef(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const pressChip = useCallback(
+    (id: 'music' | 'podcasts' | 'radio') => {
+      setActiveChip(id);
+      if (id === 'music') scrollRef.current?.scrollTo({ y: 0, animated: true });
+      if (id === 'radio') {
+        // The section may have just remounted (Podcasts unmounts the feed),
+        // so wait one layout pass before reading its measured Y.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            scrollRef.current?.scrollTo({ y: Math.max(0, moodYRef.current - 12), animated: true })
+          )
+        );
+      }
+    },
+    []
+  );
+
+  const playLiked = useCallback(() => {
+    if (liked.length) playTrack(liked[0], { tracks: liked, label: 'Liked Songs' });
+    else (navigation.navigate as (name: string, params?: object) => void)('LibraryTab');
+  }, [liked, playTrack, navigation]);
+
   const featuredTrack = featured[0];
   const firstName = profile.name?.trim() || 'there';
   const greeting = greetingFor(new Date().getHours());
@@ -263,9 +300,32 @@ export default function HomeScreen() {
             style={{ marginLeft: 'auto' }}
           />
         </TouchableOpacity>
+
+        {/* Filter chips — Music selected by default, per the reference. */}
+        <View style={styles.chipRow}>
+          {CHIP_DEFS.map((chip) => {
+            const active = activeChip === chip.id;
+            return (
+              <SpringPressable
+                key={chip.id}
+                style={[styles.chip, active && styles.chipActive]}
+                pressScale={0.94}
+                onPress={() => pressChip(chip.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`${chip.label} filter`}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {chip.label}
+                </Text>
+              </SpringPressable>
+            );
+          })}
+        </View>
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: SIZES.bottomInset }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -277,6 +337,34 @@ export default function HomeScreen() {
           />
         }
       >
+        {activeChip === 'podcasts' ? (
+          /* Podcasts chip: an honest empty state — Arkify has no podcast
+             catalogue yet, so the chip says so instead of faking content. */
+          <FadeInUp index={1}>
+            <View style={styles.podcastsCard}>
+              <View style={styles.podcastsIconWrap}>
+                <Podcast color={COLORS.accent.primary} size={24} strokeWidth={1.9} />
+              </View>
+              <Text style={styles.podcastsTitle}>Podcasts are on the way</Text>
+              <Text style={styles.podcastsHint}>
+                Arkify is tuned for music right now. Arkify AI can soundtrack
+                anything in the meantime.
+              </Text>
+              <SpringPressable
+                style={styles.podcastsCta}
+                pressScale={0.95}
+                onPress={() =>
+                  (navigation.navigate as (name: string, params?: object) => void)('AIPlaylist')
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Try Arkify AI"
+              >
+                <Text style={styles.podcastsCtaText}>Try Arkify AI</Text>
+              </SpringPressable>
+            </View>
+          </FadeInUp>
+        ) : (
+          <>
         {/* Featured — cinematic, liquid-glowing */}
         {featuredLoading ? (
           <View style={[styles.featuredCard, styles.featuredSkeleton]}>
@@ -332,6 +420,74 @@ export default function HomeScreen() {
             style={styles.featuredError}
           />
         ) : null}
+
+        {/* ---------------- Quick access ---------------- */}
+        <SectionHeader title="Quick access" />
+        <View style={styles.quickRow}>
+          <FadeInUp index={1} style={styles.quickCell}>
+            <SpringPressable
+              style={styles.quickTile}
+              pressScale={0.93}
+              onPress={playLiked}
+              accessibilityRole="button"
+              accessibilityLabel="Play your liked songs"
+            >
+              <View style={styles.quickIconWrap}>
+                <Heart color={COLORS.accent.primary} size={20} strokeWidth={2} />
+              </View>
+              <Text style={styles.quickLabel}>Liked</Text>
+            </SpringPressable>
+          </FadeInUp>
+
+          <FadeInUp index={2} style={styles.quickCell}>
+            <SpringPressable
+              style={styles.quickTile}
+              pressScale={0.93}
+              onPress={() => runAction('discover', 'Discovery Mix', discover, null)}
+              accessibilityRole="button"
+              accessibilityLabel="Play your discovery mix"
+            >
+              <View style={styles.quickIconWrap}>
+                {pendingAction === 'discover' ? (
+                  <ActivityIndicator color={COLORS.accent.primary} size="small" />
+                ) : (
+                  <Compass color={COLORS.accent.primary} size={20} strokeWidth={2} />
+                )}
+              </View>
+              <Text style={styles.quickLabel}>Discover</Text>
+            </SpringPressable>
+          </FadeInUp>
+
+          <FadeInUp index={3} style={styles.quickCell}>
+            <SpringPressable
+              style={styles.quickTile}
+              pressScale={0.93}
+              onPress={() => openMoodRadio('chill')}
+              accessibilityRole="button"
+              accessibilityLabel="Start Chill radio"
+            >
+              <View style={styles.quickIconWrap}>
+                <Moon color={COLORS.accent.primary} size={20} strokeWidth={2} />
+              </View>
+              <Text style={styles.quickLabel}>Chill</Text>
+            </SpringPressable>
+          </FadeInUp>
+
+          <FadeInUp index={4} style={styles.quickCell}>
+            <SpringPressable
+              style={styles.quickTile}
+              pressScale={0.93}
+              onPress={() => openMoodRadio('focus')}
+              accessibilityRole="button"
+              accessibilityLabel="Start Focus radio"
+            >
+              <View style={styles.quickIconWrap}>
+                <Target color={COLORS.accent.primary} size={20} strokeWidth={2} />
+              </View>
+              <Text style={styles.quickLabel}>Focus</Text>
+            </SpringPressable>
+          </FadeInUp>
+        </View>
 
         {/* ---------------- Made for you (AI) ---------------- */}
         <SectionHeader
@@ -395,6 +551,11 @@ export default function HomeScreen() {
         </FadeInUp>
 
         {/* ---------------- Mood radios ---------------- */}
+        <View
+          onLayout={(e) => {
+            moodYRef.current = e.nativeEvent.layout.y;
+          }}
+        >
         <SectionHeader
           title="Made for this moment"
           actionLabel={suggestedMood ? undefined : 'All radios'}
@@ -465,6 +626,7 @@ export default function HomeScreen() {
             </SpringPressable>
           </FadeInUp>
         </ScrollView>
+        </View>
 
         {/* ---------------- Continue listening ---------------- */}
         <SectionHeader
@@ -494,6 +656,8 @@ export default function HomeScreen() {
               <Text style={styles.emptyHint}>Play something and it will appear here.</Text>
             </View>
           </View>
+        )}
+          </>
         )}
       </ScrollView>
 
@@ -643,6 +807,126 @@ const styles = StyleSheet.create({
     fontSize: TYPE.callout.fontSize,
     color: COLORS.text.muted,
     marginLeft: SIZES.sm,
+  },
+
+  // Filter chips (Music / Podcasts / Radio) — the reference's pill row.
+  chipRow: {
+    flexDirection: 'row',
+    gap: SIZES.sm + 2,
+    marginTop: SIZES.xs + 2,
+    marginBottom: SIZES.xs,
+  },
+  chip: {
+    height: 38,
+    paddingHorizontal: 18,
+    borderRadius: SIZES.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+  },
+  /** Selected chip: solid aqua fill with dark ink, exactly per the reference. */
+  chipActive: {
+    backgroundColor: COLORS.accent.primary,
+    borderColor: COLORS.accent.primary,
+  },
+  chipText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.text.soft,
+  },
+  chipTextActive: {
+    fontFamily: FONTS.semibold,
+    color: COLORS.text.dark,
+  },
+
+  // Quick access — four glass tiles under the featured card.
+  quickRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: SIZES.xl,
+  },
+  quickCell: {
+    flex: 1,
+  },
+  quickTile: {
+    height: 92,
+    borderRadius: SIZES.radius.md + 2,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+  quickIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.soft,
+  },
+
+  // Podcasts chip — honest "on the way" card.
+  podcastsCard: {
+    borderRadius: SIZES.radius.lg,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    padding: SIZES.xl,
+    alignItems: 'center',
+    marginTop: SIZES.xs,
+  },
+  podcastsIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: 'rgba(59, 240, 223, 0.40)',
+    backgroundColor: 'rgba(59, 240, 223, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SIZES.md,
+  },
+  podcastsTitle: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.title3.fontSize,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    textAlign: 'center',
+  },
+  podcastsHint: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.subheadline.fontSize,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    marginTop: SIZES.sm,
+    lineHeight: 19,
+  },
+  podcastsCta: {
+    marginTop: SIZES.lg,
+    height: 44,
+    paddingHorizontal: 28,
+    borderRadius: SIZES.radius.pill,
+    backgroundColor: COLORS.accent.soft,
+    borderWidth: 1,
+    borderColor: COLORS.accent.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  podcastsCtaText: {
+    fontFamily: FONTS.semibold,
+    fontSize: TYPE.callout.fontSize,
+    color: COLORS.accent.primary,
   },
 
   // Featured
