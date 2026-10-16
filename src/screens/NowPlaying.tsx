@@ -222,6 +222,8 @@ export default function NowPlayingScreen() {
     playNext,
     addToQueue,
     playRadio,
+    volume,
+    setVolume,
   } = usePlayer();
 
   const { isLiked, toggleLike } = useLibrary();
@@ -770,6 +772,8 @@ export default function NowPlayingScreen() {
         onGoToArtist={(t) => goToString(t.artist.name)}
         onViewAlbum={(t) => goToString([t.album, t.artist?.name].filter(Boolean).join(" "))}
         onSleepTimer={handleSleepTimer}
+        volume={volume}
+        onVolumeChange={setVolume}
       />
 
       {/* Share card */}

@@ -1,6 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  DimensionValue,
+  PanResponder,
   Platform,
   StyleSheet,
   Text,
@@ -22,6 +25,7 @@ import {
   Check,
   Download,
   Image as ImageIcon,
+  Volume2,
 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
@@ -52,6 +56,10 @@ type Props = {
   onSleepTimer?: (minutes: number | null) => void;
   /** Opens straight into the sleep-timer picker (player's timer shortcut). */
   initial?: 'actions' | 'sleep';
+  /** Engine volume 0..1. Provided only by the player's menu. */
+  volume?: number;
+  /** Live volume setter (backs onto PlaybackEngine.setVolume + persistence). */
+  onVolumeChange?: (v: number) => void;
 };
 
 const SLEEP_OPTIONS = [15, 30, 45, 60] as const;
@@ -72,6 +80,8 @@ export const TrackActionsSheet: React.FC<Props> = ({
   onViewAlbum,
   onSleepTimer,
   initial = 'actions',
+  volume,
+  onVolumeChange,
 }) => {
   const { playlists, addToPlaylist, removeFromPlaylist, createPlaylist, isLiked, toggleLike } =
     useLibrary();
@@ -145,10 +155,14 @@ export const TrackActionsSheet: React.FC<Props> = ({
     <>
     {/* No title bar: the reference's action sheet opens straight into its rows.
         The sheet stays mounted when track becomes null, so the slide-out
-        animation plays instead of the sheet vanishing. */}
-    <BottomSheet visible={track !== null} onClose={close}>
+        animation plays instead of the sheet vanishing. scrollBody: the menu
+        (volume + ~10 rows) can exceed short viewports, so the body scrolls. */}
+    <BottomSheet visible={track !== null} onClose={close} scrollBody>
       {track ? (
       <>
+      {volume !== undefined && onVolumeChange && (
+        <VolumeControl volume={volume} onChange={onVolumeChange} />
+      )}
       {sleepPickerOpen ? (
         <>
           <Text style={styles.pickerHint}>Pause playback after</Text>
@@ -380,6 +394,67 @@ export const TrackActionsSheet: React.FC<Props> = ({
     {/* Rendered outside the action sheet so both can animate independently. */}
     <ShareSheet request={shareCard} onClose={() => setShareCard(null)} />
     </>
+  );
+};
+
+/**
+ * Volume — a real control over the engine's output level (0..1), exposed in
+ * the player's action menu. Updates live while dragging; persistence is
+ * debounced by the storage layer underneath onVolumeChange.
+ */
+const VolumeControl: React.FC<{ volume: number; onChange: (v: number) => void }> = ({
+  volume,
+  onChange,
+}) => {
+  const [barWidth, setBarWidth] = useState(0);
+  const barWidthRef = useRef(0);
+  const volumeRef = useRef(volume);
+  const onChangeRef = useRef(onChange);
+  barWidthRef.current = barWidth;
+  volumeRef.current = volume;
+  onChangeRef.current = onChange;
+
+  const volumeForX = useCallback((x: number): number => {
+    const width = barWidthRef.current;
+    if (!width || !Number.isFinite(x)) return volumeRef.current;
+    const r = Math.max(0, Math.min(1, x / width));
+    return Math.round(r * 100) / 100;
+  }, []);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e) => onChangeRef.current(volumeForX(e.nativeEvent.locationX)),
+        onPanResponderMove: (e) => onChangeRef.current(volumeForX(e.nativeEvent.locationX)),
+      }),
+    [volumeForX]
+  );
+
+  const pctLabel = `${Math.round(volume * 100)}%`;
+  const pct = pctLabel as DimensionValue;
+
+  return (
+    <View style={styles.volumeWrap}>
+      <View style={styles.volumeLabelRow}>
+        <Volume2 color={COLORS.text.secondary} size={15} strokeWidth={1.9} />
+        <Text style={styles.volumeLabelText}>Volume</Text>
+        <Text style={styles.volumeValue}>{pctLabel}</Text>
+      </View>
+      <View
+        style={styles.volumeBar}
+        hitSlop={{ top: 14, bottom: 14, left: 0, right: 0 }}
+        onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
+        {...panResponder.panHandlers}
+        accessibilityRole="adjustable"
+        accessibilityLabel="Volume"
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(volume * 100) }}
+      >
+        <View style={[styles.volumeFill, { width: pct }]} />
+        <View style={[styles.volumeThumb, { left: pct }]} />
+      </View>
+    </View>
   );
 };
 
@@ -638,5 +713,52 @@ const styles = StyleSheet.create({
     color: COLORS.status.error,
     marginTop: 2,
     marginLeft: SIZES.xxl,
+  },
+  volumeWrap: {
+    marginBottom: 12,
+    paddingBottom: 2,
+  },
+  volumeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  volumeLabelText: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.text.secondary,
+    flex: 1,
+  },
+  volumeValue: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.text.primary,
+  },
+  volumeBar: {
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+  },
+  volumeFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 2.5,
+    backgroundColor: COLORS.accent.primary,
+  },
+  volumeThumb: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -7,
+    marginLeft: -7,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: COLORS.accent.ring,
   },
 });

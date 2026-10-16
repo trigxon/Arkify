@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { SpringPressable, GlassView, FadeInUp } from './Glass';
+import { useAppearance } from '../../hooks/useAppearance';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useEngagement } from '../../hooks/useEngagement';
 
@@ -154,9 +155,12 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
   // iOS drawer parallax: the panel's content trails the panel by a few
   // pixels while sliding, which makes the glass feel like it has depth.
+  // Suppressed under reduced motion — the panel still slides, without the
+  // internal shift.
+  const { motionReduced } = useAppearance();
   const contentShift = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [-28, 0],
+    outputRange: [motionReduced ? 0 : -28, 0],
     extrapolate: 'clamp',
   });
   const scrimOpacity = progress.interpolate({

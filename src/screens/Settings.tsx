@@ -31,9 +31,10 @@ import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { Gender } from '../services/LibraryService';
 import { useLibrary } from '../hooks/useLibrary';
 import { usePlayer } from '../hooks/usePlayer';
+import { useAppearance, GlassIntensity, MotionPref } from '../hooks/useAppearance';
 import { PlaybackSourceSheet } from '../components/player/PlaybackSourceSheet';
 import { EqualizerSheet } from '../components/audio/EqualizerSheet';
-import { BackButton, IOSToggle } from '../components/common/Glass';
+import { BackButton, IOSToggle, Segmented } from '../components/common/Glass';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AudioFX } from '../services/AudioFX';
@@ -45,6 +46,18 @@ const GENDERS: { value: Gender; label: string }[] = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
   { value: 'unspecified', label: 'Prefer not to say' },
+];
+
+const MOTION_OPTIONS = [
+  { value: 'system', label: 'System' },
+  { value: 'on', label: 'On' },
+  { value: 'off', label: 'Off' },
+];
+
+const GLASS_OPTIONS = [
+  { value: 'subtle', label: 'Subtle' },
+  { value: 'standard', label: 'Standard' },
+  { value: 'intense', label: 'Intense' },
 ];
 
 const REPO_URL = 'https://github.com/trigxon/Arkify';
@@ -65,6 +78,7 @@ export default function SettingsScreen() {
   const navigation = useNavigation();
   const { profile, saveProfile, history, playlists, liked, settings, updateSettings } = useLibrary();
   const { currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
+  const { motionPref, glassIntensity, setMotionPref, setGlassIntensity } = useAppearance();
 
   const [name, setName] = useState(profile.name);
   const [showSource, setShowSource] = useState(false);
@@ -298,9 +312,30 @@ export default function SettingsScreen() {
             </View>
           </TouchableOpacity>
           <Divider />
-          <View style={styles.row}>
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() => setShowEQ(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Change crossfade"
+          >
             <Text style={styles.rowLabel}>Crossfade</Text>
-            <Text style={styles.rowValue}>{fxState.crossfade > 0 ? `${fxState.crossfade}s` : 'Off'}</Text>
+            <View style={styles.rowWithIcon}>
+              <Text style={styles.rowValue}>{fxState.crossfade > 0 ? `${fxState.crossfade}s` : 'Off'}</Text>
+              <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
+            </View>
+          </TouchableOpacity>
+          <Divider />
+          <View style={styles.row}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Autoplay similar tracks</Text>
+              <Text style={styles.rowCaption}>Keeps the queue rolling with related music when it ends.</Text>
+            </View>
+            <IOSToggle
+              value={settings.autoplayRelated}
+              onValueChange={(v) => updateSettings({ autoplayRelated: v })}
+              accessibilityLabel="Autoplay similar tracks"
+            />
           </View>
           <Divider />
           <View style={styles.row}>
@@ -311,6 +346,65 @@ export default function SettingsScreen() {
               accessibilityLabel="Prefer audio only"
             />
           </View>
+        </View>
+
+        {/* ---- Display: motion + glass, both genuinely applied app-wide ---- */}
+        <Text style={styles.sectionLabel}>DISPLAY</Text>
+        <View style={styles.card}>
+          <View style={styles.displayBlock}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Reduce motion</Text>
+              <Text style={styles.rowCaption}>
+                Calms springs, entrances and parallax. System follows your device setting.
+              </Text>
+            </View>
+            <Segmented
+              options={MOTION_OPTIONS}
+              value={motionPref}
+              onChange={(v) => setMotionPref(v as MotionPref)}
+              accessibilityLabel="Reduce motion"
+              style={styles.segment}
+            />
+          </View>
+          <Divider />
+          <View style={styles.displayBlock}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Glass intensity</Text>
+              <Text style={styles.rowCaption}>
+                How pronounced the translucent materials read across the app.
+              </Text>
+            </View>
+            <Segmented
+              options={GLASS_OPTIONS}
+              value={glassIntensity}
+              onChange={(v) => setGlassIntensity(v as GlassIntensity)}
+              accessibilityLabel="Glass intensity"
+              style={styles.segment}
+            />
+          </View>
+          <Divider />
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() =>
+              Alert.alert('Reset appearance', 'Restore default motion and glass settings?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Reset',
+                  style: 'destructive',
+                  onPress: () => {
+                    setMotionPref('system');
+                    setGlassIntensity('standard');
+                  },
+                },
+              ])
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Reset appearance to defaults"
+          >
+            <Text style={styles.rowLink}>Reset appearance to defaults</Text>
+            <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
+          </TouchableOpacity>
         </View>
 
         {/* ---- Downloads ---- */}
@@ -668,6 +762,22 @@ const styles = StyleSheet.create({
   },
   settingTextWrap: {
     flex: 1,
+  },
+  rowCaption: {
+    fontFamily: FONTS.regular,
+    fontSize: TYPE.footnote.fontSize,
+    lineHeight: 17,
+    color: COLORS.text.muted,
+    marginTop: 2,
+    flex: 1,
+    paddingRight: SIZES.md,
+  },
+  displayBlock: {
+    paddingVertical: 6,
+    gap: 10,
+  },
+  segment: {
+    marginTop: 2,
   },
   settingTitle: {
     fontFamily: FONTS.semibold,

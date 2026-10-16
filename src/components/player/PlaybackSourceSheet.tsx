@@ -5,7 +5,6 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  Modal,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { X, Check, Trash2, Server } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { probe } from '../../core/http';
 import { useLibrary } from '../../hooks/useLibrary';
+import { WebModal } from '../common/WebModal';
 
 type EndpointKind = 'invidious' | 'piped' | 'custom';
 
@@ -86,7 +86,7 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <WebModal visible={visible} onRequestClose={onClose} animationType="fade">
       <View style={styles.backdrop}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
@@ -180,7 +180,7 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    </WebModal>
   );
 };
 

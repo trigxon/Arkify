@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { PlayerProvider } from './src/hooks/usePlayer';
 import { LibraryProvider } from './src/hooks/useLibrary';
+import { AppearanceProvider } from './src/hooks/useAppearance';
 import { COLORS } from './src/constants/theme';
 import { DownloadService } from './src/services/DownloadService';
 import { AudioFX } from './src/services/AudioFX';
@@ -42,25 +43,35 @@ export default function App() {
     void tasteProfile.load();
     engagement.attach();
 
+    // Crossfade must take effect the moment it is changed, not on next boot:
+    // AudioFX owns the preference, the engine owns the ramps. A one-shot read
+    // here would leave the EqualizerSheet writing values nothing consumes.
     void (async () => {
       await AudioFX.load();
       playbackEngine.setCrossfade(AudioFX.getState().crossfade);
     })();
+    const offFx = AudioFX.subscribe(() => {
+      playbackEngine.setCrossfade(AudioFX.getState().crossfade);
+    });
 
     void DownloadService.smartAutoDownload().catch(() => undefined);
+
+    return offFx;
   }, []);
 
   return (
     <SafeAreaProvider>
       <LibraryProvider>
-        <PlayerProvider>
-          <View style={styles.webWrapper}>
-            <View style={styles.appContainer}>
-              <RootNavigator />
-              <StatusBar style="light" />
+        <AppearanceProvider>
+          <PlayerProvider>
+            <View style={styles.webWrapper}>
+              <View style={styles.appContainer}>
+                <RootNavigator />
+                <StatusBar style="light" />
+              </View>
             </View>
-          </View>
-        </PlayerProvider>
+          </PlayerProvider>
+        </AppearanceProvider>
       </LibraryProvider>
     </SafeAreaProvider>
   );

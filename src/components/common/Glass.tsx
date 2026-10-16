@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Platform,
   StyleSheet,
+  Text,
   View,
   ViewStyle,
   StyleProp,
@@ -24,6 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { COLORS, GLASS, SPRINGS, ENTRANCE, TYPE, FONTS, SIZES } from '../../constants/theme';
+import { useAppearance } from '../../hooks/useAppearance';
 
 // ---------------------------------------------------------------------------
 // GlassView — the material everything translucent is made of
@@ -67,6 +69,9 @@ export const GlassView: React.FC<GlassViewProps> = ({
   pointerEvents,
 }) => {
   const radius = pill ? 999 : GLASS.radius.card;
+  // Materials respond to the user's Glass-intensity setting. Identity at
+  // 'standard', so the default install does zero extra work here.
+  const { glass } = useAppearance();
 
   return (
     <View
@@ -75,9 +80,9 @@ export const GlassView: React.FC<GlassViewProps> = ({
         styles.base,
         {
           borderRadius: radius,
-          backgroundColor: GLASS.fill[weight],
+          backgroundColor: glass.fill[weight],
           borderWidth: 1,
-          borderColor: accent ? GLASS.border.accent : GLASS.border.hairline,
+          borderColor: accent ? glass.border.accent : glass.border.hairline,
           overflow: 'hidden',
         },
         style,
@@ -85,7 +90,7 @@ export const GlassView: React.FC<GlassViewProps> = ({
     >
       {blur && Platform.OS !== 'web' ? (
         <BlurView
-          intensity={weight === 'thick' ? GLASS.blur.thick : weight === 'thin' ? GLASS.blur.thin : GLASS.blur.regular}
+          intensity={weight === 'thick' ? glass.blur.thick : weight === 'thin' ? glass.blur.thin : glass.blur.regular}
           tint="dark"
           style={StyleSheet.absoluteFill}
         />
@@ -94,7 +99,7 @@ export const GlassView: React.FC<GlassViewProps> = ({
       {specular ? (
         <>
           <LinearGradient
-            colors={[GLASS.highlight.strong, GLASS.highlight.faint, 'rgba(255,255,255,0)']}
+            colors={[glass.highlight.strong, glass.highlight.faint, 'rgba(255,255,255,0)']}
             locations={[0, 0.16, 0.44]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
@@ -115,7 +120,7 @@ export const GlassView: React.FC<GlassViewProps> = ({
 
       {accent ? (
         <LinearGradient
-          colors={[GLASS.tint.accentSoft, 'rgba(59, 240, 223, 0)']}
+          colors={[glass.tint.accentSoft, 'rgba(59, 240, 223, 0)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           pointerEvents="none"
@@ -150,9 +155,11 @@ export const SpringPressable: React.FC<SpringPressableProps> = ({
 }) => {
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
+  // Reduced motion: presses answer through opacity, not transform.
+  const { motionReduced } = useAppearance();
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: motionReduced ? 1 : scale.value }],
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
@@ -161,7 +168,7 @@ export const SpringPressable: React.FC<SpringPressableProps> = ({
 
   return (
     <TouchableOpacity
-      activeOpacity={1}
+      activeOpacity={motionReduced ? 0.7 : 1}
       onPressIn={() => {
         scale.value = withSpring(pressScale, SPRINGS.press);
         if (glow) glowOpacity.value = withTiming(1, { duration: 90 });
@@ -200,18 +207,87 @@ export const FadeInUp: React.FC<{
   children: React.ReactNode;
 }> = ({ index = 0, preset = 'base', style, children }) => {
   const cfg = ENTRANCE[preset];
+  const { motionReduced } = useAppearance();
   const entering = useMemo(
     () =>
-      ReFadeInUp.delay(Math.min(index, 8) * 55)
-        .duration(cfg.duration)
-        .easing(Easing.out(Easing.cubic)),
-    [index, cfg.duration]
+      motionReduced
+        ? undefined
+        : ReFadeInUp.delay(Math.min(index, 8) * 55)
+            .duration(cfg.duration)
+            .easing(Easing.out(Easing.cubic)),
+    [index, cfg.duration, motionReduced]
   );
 
   return (
     <Animated.View entering={entering} style={style}>
       {children}
     </Animated.View>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Segmented — iOS-style segmented control for small exclusive choices
+// (motion preference, glass intensity). Sliding selection, spring settle.
+// ---------------------------------------------------------------------------
+
+export const Segmented: React.FC<{
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
+}> = ({ options, value, onChange, accessibilityLabel, style }) => {
+  const { motionReduced } = useAppearance();
+  const [width, setWidth] = useState(0);
+  const slot = width > 0 ? (width - 4) / options.length : 0;
+  const activeIndex = Math.max(0, options.findIndex((o) => o.value === value));
+  const x = useSharedValue(0);
+  const laidOut = useRef(false);
+
+  React.useEffect(() => {
+    const target = activeIndex * slot;
+    if (!laidOut.current) {
+      laidOut.current = true;
+      x.value = target; // first measure snaps, no fly-in
+      return;
+    }
+    x.value = motionReduced ? target : withSpring(target, SPRINGS.release);
+  }, [activeIndex, slot, x, motionReduced]);
+
+  const thumb = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }],
+    width: slot,
+  }));
+
+  return (
+    <View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      style={[styles.segmentWrap, style]}
+      accessibilityRole="radiogroup"
+      accessibilityLabel={accessibilityLabel}
+    >
+      {slot > 0 ? (
+        <Animated.View style={[styles.segmentThumb, thumb]} />
+      ) : null}
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <TouchableOpacity
+            key={option.value}
+            style={styles.segmentOption}
+            activeOpacity={0.7}
+            onPress={() => onChange(option.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={option.label}
+          >
+            <Text style={[styles.segmentText, active && styles.segmentTextActive]} numberOfLines={1}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 };
 
@@ -228,11 +304,16 @@ export const IOSToggle: React.FC<{
   style?: StyleProp<ViewStyle>;
 }> = ({ value, onValueChange, disabled = false, accessibilityLabel, style }) => {
   const knob = useSharedValue(value ? 1 : 0);
+  const { motionReduced } = useAppearance();
 
   React.useEffect(() => {
+    if (motionReduced) {
+      knob.value = value ? 1 : 0;
+      return;
+    }
     knob.value = withSpring(value ? 1 : 0,
       value ? SPRINGS.release : SPRINGS.gentle);
-  }, [value, knob]);
+  }, [value, knob, motionReduced]);
 
   const knobStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: knob.value * 20 }],
@@ -296,11 +377,14 @@ export const BackButton: React.FC<{
 
 export const usePressScale = (pressScale = 0.9) => {
   const pressed = useSharedValue(0);
+  const { motionReduced } = useAppearance();
   const scale = useAnimatedStyle(() => ({
     transform: [
       {
-        scale: withSpring(pressed.value ? pressScale : 1,
-          pressed.value ? SPRINGS.press : SPRINGS.release),
+        scale: motionReduced
+          ? 1
+          : withSpring(pressed.value ? pressScale : 1,
+              pressed.value ? SPRINGS.press : SPRINGS.release),
       },
     ],
   }));
@@ -331,15 +415,22 @@ export const PulsingGlow: React.FC<{
   style?: StyleProp<ViewStyle>;
 }> = ({ size, color = 'rgba(59, 240, 223, 0.30)', period = 3200, style }) => {
   const opacity = useSharedValue(0.5);
+  const { motionReduced } = useAppearance();
 
   React.useEffect(() => {
+    // Reduced motion: a still halo keeps the depth cue without the pulse.
+    if (motionReduced) {
+      cancelAnimation(opacity);
+      opacity.value = 0.5;
+      return;
+    }
     opacity.value = withRepeat(
       withTiming(1, { duration: period / 2, easing: Easing.inOut(Easing.quad) }),
       -1,
       true
     );
     return () => cancelAnimation(opacity);
-  }, [opacity, period]);
+  }, [opacity, period, motionReduced]);
 
   const animated = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
@@ -372,15 +463,21 @@ export const ShimmerBar: React.FC<{ width: number | `${number}%`; height?: numbe
   style,
 }) => {
   const progress = useSharedValue(0);
+  const { motionReduced } = useAppearance();
 
   React.useEffect(() => {
+    if (motionReduced) {
+      cancelAnimation(progress);
+      progress.value = 0.5; // streak parked mid-bar
+      return;
+    }
     progress.value = withRepeat(
       withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
       -1,
       false
     );
     return () => cancelAnimation(progress);
-  }, [progress]);
+  }, [progress, motionReduced]);
 
   const animated = useAnimatedStyle(() => ({
     transform: [{ translateX: -80 + progress.value * 240 }],
@@ -418,6 +515,43 @@ export const ShimmerBar: React.FC<{ width: number | `${number}%`; height?: numbe
 
 const styles = StyleSheet.create({
   base: {},
+  segmentWrap: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(120, 120, 128, 0.22)',
+    borderRadius: 12,
+    padding: 2,
+    minHeight: 36,
+  },
+  segmentThumb: {
+    position: 'absolute',
+    top: 2,
+    bottom: 2,
+    left: 2,
+    borderRadius: 10,
+    backgroundColor: COLORS.surfaceElevated,
+    borderWidth: 1,
+    borderColor: COLORS.hairline,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  segmentOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32,
+    paddingHorizontal: 6,
+  },
+  segmentText: {
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
+    color: COLORS.text.secondary,
+  },
+  segmentTextActive: {
+    color: COLORS.text.primary,
+  },
   backBtn: {
     width: 38,
     height: 38,

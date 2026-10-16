@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Home, Search, Library, User } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, SPRINGS } from '../constants/theme';
+import { useAppearance } from '../hooks/useAppearance';
 // Screens
 import HomeScreen from '../screens/Home';
 import SearchScreen from '../screens/Search';
@@ -66,16 +67,24 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
   const pillX = useSharedValue(0);
   const squish = useSharedValue(1);
   const pillOpacity = useSharedValue(0);
+  const { motionReduced } = useAppearance();
 
   useEffect(() => {
     if (tabW <= 0) return;
     if (pillOpacity.value === 0) {
       // First layout: land directly on the active slot — no fly-in.
       pillX.value = state.index * tabW;
-      pillOpacity.value = withTiming(1, { duration: 200 });
+      pillOpacity.value = withTiming(1, { duration: motionReduced ? 0 : 200 });
       return;
     }
-    // Liquid travel: stretch while moving, spring back on arrival.
+    // Liquid travel: stretch while moving, spring back on arrival. Reduced
+    // motion keeps the slide (it is wayfinding, not decoration) but drops the
+    // squish and glides on a fixed timing instead of an overshooting spring.
+    if (motionReduced) {
+      pillX.value = withTiming(state.index * tabW, { duration: 180 });
+      squish.value = 1;
+      return;
+    }
     pillX.value = withSpring(state.index * tabW, {
       damping: 17,
       stiffness: 280,
@@ -83,7 +92,7 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
     });
     squish.value = 1.16;
     squish.value = withSpring(1, SPRINGS.release);
-  }, [state.index, tabW, pillX, squish, pillOpacity]);
+  }, [state.index, tabW, pillX, squish, pillOpacity, motionReduced]);
 
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: pillX.value }, { scaleX: squish.value }],
@@ -228,14 +237,19 @@ const AnimatedTab: React.FC<{
   children: React.ReactNode;
 }> = ({ focused, label, width, onPress, onLongPress, children }) => {
   const pop = useSharedValue(1);
+  const { motionReduced } = useAppearance();
 
   useEffect(() => {
+    if (motionReduced) {
+      pop.value = 1;
+      return;
+    }
     pop.value = withSpring(focused ? 1.14 : 1, {
       damping: focused ? 13 : 16,
       stiffness: 380,
       mass: 0.7,
     });
-  }, [focused, pop]);
+  }, [focused, pop, motionReduced]);
 
   const glyphStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pop.value }],

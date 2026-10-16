@@ -36,6 +36,13 @@ export type AppSettings = {
   autoDownload: boolean;
   /** AI surface visible (Gemini optional; on-device always on). */
   aiEnabled: boolean;
+  /**
+   * Motion preference. 'system' honours the OS reduce-motion setting
+   * (prefers-reduced-motion on web, AccessibilityInfo on native).
+   */
+  reduceMotion: 'system' | 'on' | 'off';
+  /** How pronounced the Liquid Glass materials read, app-wide. */
+  glassIntensity: 'subtle' | 'standard' | 'intense';
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -46,6 +53,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoplayRelated: true,
   autoDownload: true,
   aiEnabled: true,
+  reduceMotion: 'system',
+  glassIntensity: 'standard',
 };
 
 /**

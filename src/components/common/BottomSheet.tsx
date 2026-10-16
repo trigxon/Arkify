@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { WebModal } from './WebModal';
 
 type BottomSheetProps = {
   visible: boolean;
@@ -27,6 +28,11 @@ type BottomSheetProps = {
   showGrabber?: boolean;
   /** Fills the screen height instead of hugging its content. */
   tall?: boolean;
+  /**
+   * Long menus: cap the sheet at the visible height and scroll the body.
+   * Opt-in so pinned-header sheets (Queue) keep their own scroll contract.
+   */
+  scrollBody?: boolean;
 };
 
 /**
@@ -46,11 +52,15 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   keyboardHeight = 0,
   showGrabber = true,
   tall = false,
+  scrollBody = false,
 }) => {
   const insets = useSafeAreaInsets();
+  const maxSheetHeight = Math.round(Dimensions.get('window').height * 0.88);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    // WebModal keeps the sheet inside the app frame on web (RN Modal portals
+    // to document.body and spans the whole browser window there).
+    <WebModal visible={visible} onRequestClose={onClose} animationType="slide">
       <View style={styles.root}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
@@ -58,6 +68,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           style={[
             styles.sheet,
             tall && { height: Dimensions.get('window').height - insets.top - SIZES.md },
+            scrollBody && { maxHeight: maxSheetHeight },
             {
               paddingBottom:
                 keyboardHeight > 0 ? SIZES.md : Math.max(insets.bottom, SIZES.sm) + SIZES.sm,
@@ -125,10 +136,20 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             )
           ) : null}
 
-          {children}
+          {scrollBody ? (
+            <ScrollView
+              style={styles.bodyScroll}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            children
+          )}
         </View>
       </View>
-    </Modal>
+    </WebModal>
   );
 };
 
@@ -162,6 +183,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: 'rgba(210, 255, 250, 0.34)',
     marginBottom: SIZES.md,
+  },
+  bodyScroll: {
+    flexGrow: 0,
   },
   header: {
     flexDirection: 'row',
