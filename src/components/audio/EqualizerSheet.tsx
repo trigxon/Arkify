@@ -364,11 +364,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     width: '100%',
-    backgroundColor: 'rgba(53, 214, 198, 0.35)',
+    backgroundColor: 'rgba(59, 240, 223, 0.35)',
   },
   /** The "cut" half of the band: quieter, cooler tone below centre. */
   bandFillCut: {
-    backgroundColor: 'rgba(142, 158, 157, 0.30)',
+    backgroundColor: 'rgba(127, 148, 149, 0.30)',
   },
   bandThumb: {
     position: 'absolute',

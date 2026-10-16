@@ -184,16 +184,24 @@ export class PlaybackEngine {
       this.loadTimer = null;
     }
 
+    const loaded = Boolean(s?.isLoaded);
+
     if (s?.error) {
       this.clearLoadTimer();
+      this.status = { ...IDLE_STATUS, volume: this.desiredVolume };
+      this.listeners.onStatus?.(this.status);
       this.listeners.onError?.(appError('playback_failed', String(s.error)));
       return;
     }
 
     this.status = {
-      isPlaying: Boolean(s?.playing),
-      isBuffering: Boolean(s?.isBuffering),
-      isLoaded: Boolean(s?.isLoaded),
+      // A source that never loaded is never "playing": HTML5 backends report
+      // optimistic playing state while the media request is still failing
+      // (e.g. a 502 from the stream proxy). Gating on isLoaded keeps the
+      // MiniPlayer/NowPlaying honest during that window.
+      isPlaying: loaded && Boolean(s?.playing),
+      isBuffering: !loaded && Boolean(s?.isBuffering || s?.playing),
+      isLoaded: loaded,
       position,
       duration,
       volume: Number.isFinite(s?.volume) ? s.volume : this.desiredVolume,

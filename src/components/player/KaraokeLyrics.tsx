@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(53, 214, 198, 0.10)',
+    backgroundColor: 'rgba(59, 240, 223, 0.10)',
     borderRadius: 14,
   },
   line: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: APPROX_LINE_HEIGHT,
     color: '#FFFFFF',
-    textShadowColor: 'rgba(53, 214, 198, 0.45)',
+    textShadowColor: 'rgba(59, 240, 223, 0.45)',
     textShadowRadius: 18,
     textShadowOffset: { width: 0, height: 0 },
   },

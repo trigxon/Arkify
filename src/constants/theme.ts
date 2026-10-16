@@ -1,9 +1,10 @@
 /**
- * Arkify design system — "Nocturne Cyan".
+ * Arkify design system — "Abyss Aqua".
  *
- * Tokens are locked to the product spec: near-black cinematic surfaces
- * (#0C0F0F / #121414 / #161A1A), one restrained cyan (#35D6C6) reserved for
- * interaction and playback state, and a three-step neutral text scale.
+ * Tokens are locked to the reference mockups: near-black teal-flooded
+ * surfaces (#030A0B canvas, #061113–#0A1719 cards), one luminous aqua
+ * (#3BF0DF) reserved for interaction and playback state, deep-teal fills
+ * (#118D8E) for selected chips, and hairline aqua glass borders everywhere.
  * Every screen reads from here — nothing hard-codes colors outside this file.
  */
 
@@ -13,49 +14,49 @@
 
 export const COLORS = {
   /** Global canvas background. */
-  background: '#0C0F0F',
+  background: '#030A0B',
   /** Primary viewports, header backings, dock surfaces. */
-  surface: '#121414',
+  surface: '#061113',
   /** Interactive cards, tiles, bottom sheets, search inputs. */
-  surfaceElevated: '#161A1A',
+  surfaceElevated: '#0A1719',
   /** Floating bars over scrolling content (tab bar, mini player, sheets). */
-  surfaceRaised: '#121414',
+  surfaceRaised: '#071315',
   /** Pressed state for surfaces. */
-  surfacePressed: '#1A1C1C',
+  surfacePressed: '#0D1F21',
   /** Hover/resting variant between surface and elevated. */
-  surfaceCard: '#121414',
+  surfaceCard: '#081417',
   /** Legacy alias. */
-  surfaceLight: '#161A1A',
+  surfaceLight: '#0A1719',
 
   text: {
     primary: '#FFFFFF',
     /** Artist names, greetings, inactive tab labels. */
-    secondary: '#8E9E9D',
+    secondary: '#7F9495',
     /** Chip/label tone: brighter than secondary, softer than pure white. */
-    soft: '#B8C4C3',
+    soft: '#AEC0BF',
     /** Secondary timestamps, disabled glyphs, subtle metadata. */
-    muted: '#546362',
-    /** Ink used on filled cyan surfaces. */
-    dark: '#0C0F0F',
+    muted: '#4A5C5D',
+    /** Ink used on filled aqua surfaces. */
+    dark: '#030A0B',
   },
 
   /**
-   * Nocturne Cyan — applied with strict intentionality: active states,
+   * Abyss Aqua — applied with strict intentionality: active states,
    * interactive controls, playback state, scrubbers, halos.
    */
   accent: {
-    primary: '#35D6C6',
-    bright: '#35D6C6',
-    pressed: '#2BC4B4',
-    glow: 'rgba(53, 214, 198, 0.45)',
-    soft: 'rgba(53, 214, 198, 0.12)',
-    ring: '#35D6C6',
-    border: 'rgba(53, 214, 198, 0.22)',
-    /** Deep shade of the brand hue for gradients that need a darker stop. */
-    deep: '#1FA396',
+    primary: '#3BF0DF',
+    bright: '#53FFF0',
+    pressed: '#2BD9C8',
+    glow: 'rgba(59, 240, 223, 0.50)',
+    soft: 'rgba(59, 240, 223, 0.13)',
+    ring: '#3BF0DF',
+    border: 'rgba(59, 240, 223, 0.30)',
+    /** Deep teal fill behind selected chips and hero tiles. */
+    deep: '#118D8E',
     // Legacy aliases
-    green: '#35D6C6',
-    greenGlow: 'rgba(53, 214, 198, 0.45)',
+    green: '#3BF0DF',
+    greenGlow: 'rgba(59, 240, 223, 0.50)',
     red: '#EF4444',
     redGlow: 'rgba(239, 68, 68, 0.20)',
   },
@@ -78,24 +79,24 @@ export const COLORS = {
     errorGlow: 'rgba(239, 68, 68, 0.20)',
   },
 
-  /** Borders, hairlines and atmospheric scrims. */
-  hairline: 'rgba(255, 255, 255, 0.05)',
-  hairlineMuted: 'rgba(255, 255, 255, 0.08)',
-  divider: 'rgba(255, 255, 255, 0.05)',
-  glassBorder: 'rgba(53, 214, 198, 0.22)',
-  glass: 'rgba(18, 20, 20, 0.85)',
-  scrim: 'rgba(0, 0, 0, 0.60)',
+  /** Borders, hairlines and atmospheric scrims — aqua-tinted glass. */
+  hairline: 'rgba(59, 240, 223, 0.09)',
+  hairlineMuted: 'rgba(59, 240, 223, 0.14)',
+  divider: 'rgba(59, 240, 223, 0.09)',
+  glassBorder: 'rgba(59, 240, 223, 0.28)',
+  glass: 'rgba(7, 19, 21, 0.82)',
+  scrim: 'rgba(0, 0, 0, 0.62)',
 
   player: {
     progressTrack: 'rgba(255, 255, 255, 0.10)',
-    progressFill: '#35D6C6',
+    progressFill: '#3BF0DF',
     progressFillLegacy: '#FFFFFF',
   },
 
   atmosphere: {
-    soft: 'rgba(53, 214, 198, 0.06)',
-    medium: 'rgba(53, 214, 198, 0.12)',
-    glow: 'rgba(53, 214, 198, 0.22)',
+    soft: 'rgba(59, 240, 223, 0.08)',
+    medium: 'rgba(59, 240, 223, 0.16)',
+    glow: 'rgba(59, 240, 223, 0.30)',
   },
 } as const;
 
@@ -219,30 +220,30 @@ export const MOTION = {
 // ---------------------------------------------------------------------------
 
 export const GLASS = {
-  /** Translucent fills, darkest → lightest. Chosen so text keeps AA contrast. */
+  /** Translucent teal-flooded fills, darkest → lightest. AA contrast kept. */
   fill: {
-    ultraThin: 'rgba(18, 24, 24, 0.42)',
-    thin: 'rgba(16, 21, 21, 0.58)',
-    regular: 'rgba(14, 18, 18, 0.72)',
-    thick: 'rgba(12, 15, 15, 0.86)',
+    ultraThin: 'rgba(10, 23, 25, 0.44)',
+    thin: 'rgba(8, 20, 22, 0.60)',
+    regular: 'rgba(7, 17, 19, 0.74)',
+    thick: 'rgba(5, 13, 15, 0.88)',
   },
-  /** Edge treatment. The top edge reads brighter — light from above. */
+  /** Edge treatment. Aqua light reads along every edge — light from above. */
   border: {
-    subtle: 'rgba(255, 255, 255, 0.07)',
-    hairline: 'rgba(255, 255, 255, 0.10)',
-    luminous: 'rgba(255, 255, 255, 0.16)',
-    accent: 'rgba(53, 214, 198, 0.28)',
+    subtle: 'rgba(59, 240, 223, 0.10)',
+    hairline: 'rgba(59, 240, 223, 0.16)',
+    luminous: 'rgba(59, 240, 223, 0.30)',
+    accent: 'rgba(59, 240, 223, 0.42)',
   },
   /** The specular streak drawn along the top edge of a glass panel. */
   highlight: {
-    strong: 'rgba(255, 255, 255, 0.22)',
-    soft: 'rgba(255, 255, 255, 0.10)',
-    faint: 'rgba(255, 255, 255, 0.05)',
+    strong: 'rgba(200, 255, 250, 0.24)',
+    soft: 'rgba(200, 255, 250, 0.11)',
+    faint: 'rgba(200, 255, 250, 0.05)',
   },
   /** Inner ambient tints used by glowing variants. */
   tint: {
-    accentSoft: 'rgba(53, 214, 198, 0.10)',
-    accentGlow: 'rgba(53, 214, 198, 0.20)',
+    accentSoft: 'rgba(59, 240, 223, 0.12)',
+    accentGlow: 'rgba(59, 240, 223, 0.24)',
     dangerSoft: 'rgba(239, 68, 68, 0.12)',
   },
   /** Blur radii per material weight (used where BlurView is available). */
@@ -260,16 +261,16 @@ export const GLASS = {
 
 /**
  * Brand gradient pairs. Two-stop diagonal washes used on hero cards,
- * AI surfaces and share cards. Pairs keep the Nocturne cyan identity
+ * AI surfaces and share cards. Pairs keep the Abyss aqua identity
  * while letting each feature own a hue.
  */
 export const GRADIENTS = {
-  brand: ['#35D6C6', '#5B8DEF'] as const,
-  aurora: ['#57E8D6', '#9B8CF0'] as const,
+  brand: ['#3BF0DF', '#3AA8F0'] as const,
+  aurora: ['#53FFF0', '#9B8CF0'] as const,
   sunset: ['#FF8A5C', '#FF4E8E'] as const,
   midnight: ['#4C5BD4', '#7B4CD4'] as const,
   gold: ['#FFC24D', '#FF8A3D'] as const,
-  mint: ['#5AD1A8', '#35D6C6'] as const,
+  mint: ['#118D8E', '#3BF0DF'] as const,
   rose: ['#FF6B9E', '#C155D9'] as const,
 } as const;
 
@@ -317,10 +318,10 @@ export type MoodId =
 export const MOOD_PALETTE: Record<MoodId, { gradient: readonly [string, string]; glow: string; tint: string }> = {
   workout: { gradient: ['#FF6B5A', '#FF8A3D'], glow: 'rgba(255, 107, 90, 0.35)', tint: 'rgba(255, 107, 90, 0.12)' },
   focus: { gradient: ['#4C5BD4', '#38BDF8'], glow: 'rgba(76, 91, 212, 0.35)', tint: 'rgba(76, 91, 212, 0.12)' },
-  chill: { gradient: ['#35D6C6', '#5AD1A8'], glow: 'rgba(53, 214, 198, 0.30)', tint: 'rgba(53, 214, 198, 0.10)' },
+  chill: { gradient: ['#3BF0DF', '#5AD1A8'], glow: 'rgba(59, 240, 223, 0.30)', tint: 'rgba(59, 240, 223, 0.10)' },
   latenight: { gradient: ['#9B8CF0', '#5B8DEF'], glow: 'rgba(155, 140, 240, 0.35)', tint: 'rgba(155, 140, 240, 0.12)' },
   party: { gradient: ['#FF4E8E', '#FFC24D'], glow: 'rgba(255, 78, 142, 0.35)', tint: 'rgba(255, 78, 142, 0.12)' },
   emotional: { gradient: ['#7FB2FF', '#C155D9'], glow: 'rgba(127, 178, 255, 0.30)', tint: 'rgba(127, 178, 255, 0.10)' },
-  commute: { gradient: ['#57E8D6', '#4C5BD4'], glow: 'rgba(87, 232, 214, 0.30)', tint: 'rgba(87, 232, 214, 0.10)' },
+  commute: { gradient: ['#53FFF0', '#4C5BD4'], glow: 'rgba(59, 240, 223, 0.30)', tint: 'rgba(59, 240, 223, 0.10)' },
   romance: { gradient: ['#FF6B9E', '#FF8A5C'], glow: 'rgba(255, 107, 158, 0.30)', tint: 'rgba(255, 107, 158, 0.10)' },
 };

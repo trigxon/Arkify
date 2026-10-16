@@ -8,7 +8,7 @@ import { Category } from '../core/types';
  * Cyan system — the tiles themselves are drawn in Cards.tsx's CATEGORY_ART.
  */
 export const BROWSE_CATEGORIES: Category[] = [
-  { id: 'c1', name: 'Charts', color: '#35D6C6', query: 'top hits this week' },
+  { id: 'c1', name: 'Charts', color: '#3BF0DF', query: 'top hits this week' },
   { id: 'c2', name: 'New Releases', color: '#FFFFFF', query: 'new music releases' },
   { id: 'c3', name: 'Moods', color: '#FFA63D', query: 'chill mood playlist' },
   { id: 'c4', name: 'Indian', color: '#F5A9CE', query: 'bollywood hits' },

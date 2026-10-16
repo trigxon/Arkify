@@ -312,7 +312,7 @@ export default function NowPlayingScreen() {
         blurRadius={24}
       />
       <LinearGradient
-        colors={['rgba(12, 15, 15, 0.55)', COLORS.background]}
+        colors={['rgba(4, 10, 11, 0.55)', COLORS.background]}
         locations={[0, 0.72]}
         style={StyleSheet.absoluteFill}
       />
@@ -900,7 +900,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(53, 214, 198, 0.35)',
+    borderColor: 'rgba(59, 240, 223, 0.35)',
     backgroundColor: COLORS.accent.soft,
   },
   lyricsPillText: {
@@ -1025,7 +1025,7 @@ const styles = StyleSheet.create({
     height: 30,
     paddingHorizontal: 10,
     borderRadius: 15,
-    backgroundColor: 'rgba(53, 214, 198, 0.10)',
+    backgroundColor: 'rgba(59, 240, 223, 0.10)',
     borderWidth: 1,
     borderColor: COLORS.accent.border,
   },

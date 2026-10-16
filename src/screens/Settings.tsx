@@ -504,9 +504,9 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(53, 214, 198, 0.06)',
+    backgroundColor: 'rgba(59, 240, 223, 0.06)',
     borderWidth: 1.5,
-    borderColor: 'rgba(53, 214, 198, 0.55)',
+    borderColor: 'rgba(59, 240, 223, 0.55)',
   },
   avatarInitial: {
     fontFamily: FONTS.medium,

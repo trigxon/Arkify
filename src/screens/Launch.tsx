@@ -186,14 +186,14 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
       {/* Cinematic teal atmosphere: a bloom upper-left + deep falloff, matching
           the reference's dark ambient lighting. */}
       <LinearGradient
-        colors={['rgba(53, 214, 198, 0.16)', 'rgba(53, 214, 198, 0.045)', 'rgba(12, 15, 15, 0)']}
+        colors={['rgba(59, 240, 223, 0.16)', 'rgba(59, 240, 223, 0.045)', 'rgba(4, 10, 11, 0)']}
         locations={[0, 0.4, 0.75]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 0.7 }}
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(53, 214, 198, 0.05)', 'transparent']}
+        colors={['rgba(59, 240, 223, 0.05)', 'transparent']}
         start={{ x: 0.8, y: 0.9 }}
         end={{ x: 0.3, y: 0.4 }}
         style={StyleSheet.absoluteFill}
@@ -275,10 +275,14 @@ export default function LaunchScreen({ onDone }: { onDone: () => void }) {
         </Animated.Text>
       ) : null}
 
-      {/* Engineer credit — the quiet signature at the base of the moment. */}
-      <Animated.Text style={[styles.credit, { opacity: creditOpacity }]} numberOfLines={1}>
-        ENGINEERED BY ARK DURRANI (PATHAN)
-      </Animated.Text>
+      {/* Engineer credit — the signature line, styled per the reference. */}
+      <Animated.View style={[styles.creditWrap, { opacity: creditOpacity }]} pointerEvents="none">
+        <View style={styles.creditRule} />
+        <Animated.Text style={styles.credit} numberOfLines={1}>
+          ENGINEERED BY ARK DURRANI
+        </Animated.Text>
+        <View style={styles.creditRule} />
+      </Animated.View>
     </View>
   );
 }
@@ -306,11 +310,11 @@ const styles = StyleSheet.create({
   },
   logoHaloOuter: {
     position: 'absolute',
-    backgroundColor: 'rgba(53, 214, 198, 0.035)',
+    backgroundColor: 'rgba(59, 240, 223, 0.035)',
   },
   logoHaloInner: {
     position: 'absolute',
-    backgroundColor: 'rgba(53, 214, 198, 0.05)',
+    backgroundColor: 'rgba(59, 240, 223, 0.05)',
   },
   wordmark: {
     // Orbitron 800 at 50px: +6% tracking keeps the circular glyphs airy —
@@ -321,7 +325,7 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     color: COLORS.text.primary,
     marginTop: SIZES.lg,
-    textShadowColor: 'rgba(53, 214, 198, 0.35)',
+    textShadowColor: 'rgba(59, 240, 223, 0.35)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 18,
   },
@@ -355,8 +359,8 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     borderWidth: 1.2,
-    borderColor: 'rgba(53, 214, 198, 0.55)',
-    backgroundColor: 'rgba(53, 214, 198, 0.06)',
+    borderColor: 'rgba(59, 240, 223, 0.55)',
+    backgroundColor: 'rgba(59, 240, 223, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -376,14 +380,26 @@ const styles = StyleSheet.create({
     letterSpacing: 3.4,
     color: 'rgba(184, 196, 195, 0.9)',
   },
-  credit: {
+  creditWrap: {
     position: 'absolute',
-    bottom: 46,
+    bottom: 52,
     alignSelf: 'center',
-    paddingHorizontal: SIZES.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  creditRule: {
+    width: 26,
+    height: 1,
+    backgroundColor: 'rgba(59, 240, 223, 0.45)',
+  },
+  credit: {
     fontFamily: BRAND_FONTS.credit,
-    fontSize: TYPE.micro.fontSize,
-    letterSpacing: 2.6,
-    color: 'rgba(142, 158, 157, 0.75)',
+    fontSize: TYPE.footnote.fontSize,
+    letterSpacing: 3.2,
+    color: 'rgba(174, 192, 191, 0.95)',
+    textShadowColor: 'rgba(59, 240, 223, 0.35)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
 });

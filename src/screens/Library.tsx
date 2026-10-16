@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
   rowArtworkTinted: {
     backgroundColor: COLORS.accent.soft,
     borderWidth: 1,
-    borderColor: 'rgba(53, 214, 198, 0.22)',
+    borderColor: 'rgba(59, 240, 223, 0.22)',
   },
   likedCard: {
     backgroundColor: COLORS.surface,
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
     top: 0,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(53, 214, 198, 0.30)',
+    borderColor: 'rgba(59, 240, 223, 0.30)',
     transform: [{ rotate: '7deg' }],
     ...SHADOWS.ambient,
   },
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.xl,
     borderRadius: SIZES.radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(53, 214, 198, 0.45)',
+    borderColor: 'rgba(59, 240, 223, 0.45)',
   },
   createButtonText: {
     fontFamily: FONTS.medium,

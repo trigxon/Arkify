@@ -94,7 +94,7 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
           <BlurView intensity={52} tint="dark" style={StyleSheet.absoluteFill} />
         ) : null}
         <LinearGradient
-          colors={['rgba(16, 21, 21, 0.78)', 'rgba(12, 15, 15, 0.94)']}
+          colors={['rgba(16, 21, 21, 0.78)', 'rgba(4, 10, 11, 0.94)']}
           style={StyleSheet.absoluteFill}
         />
         <LinearGradient
@@ -280,9 +280,9 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 4,
     borderRadius: 24,
-    backgroundColor: 'rgba(53, 214, 198, 0.13)',
+    backgroundColor: 'rgba(59, 240, 223, 0.13)',
     borderWidth: 1,
-    borderColor: 'rgba(53, 214, 198, 0.30)',
+    borderColor: 'rgba(59, 240, 223, 0.30)',
     shadowColor: COLORS.accent.primary,
     shadowOpacity: 0.35,
     shadowRadius: 14,

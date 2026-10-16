@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
-    backgroundColor: Platform.OS === 'web' ? COLORS.surfaceRaised : 'rgba(18, 22, 22, 0.78)',
+    backgroundColor: Platform.OS === 'web' ? COLORS.surfaceRaised : 'rgba(7, 18, 20, 0.78)',
     borderColor: COLORS.glassBorder,
     borderWidth: 1,
   },
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: 'rgba(53, 214, 198, 0.60)',
+    borderColor: 'rgba(59, 240, 223, 0.60)',
     backgroundColor: COLORS.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',

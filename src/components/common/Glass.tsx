@@ -316,7 +316,7 @@ export const PulsingGlow: React.FC<{
   /** Seconds per breath. */
   period?: number;
   style?: StyleProp<ViewStyle>;
-}> = ({ size, color = 'rgba(53, 214, 198, 0.30)', period = 3200, style }) => {
+}> = ({ size, color = 'rgba(59, 240, 223, 0.30)', period = 3200, style }) => {
   const opacity = useSharedValue(0.5);
 
   React.useEffect(() => {
@@ -443,8 +443,8 @@ const styles = StyleSheet.create({
   glowRing: {
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: 'rgba(53, 214, 198, 0.55)',
-    shadowColor: '#35D6C6',
+    borderColor: 'rgba(59, 240, 223, 0.55)',
+    shadowColor: '#3BF0DF',
     shadowOpacity: 0.5,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },

@@ -154,7 +154,7 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({ label, onPress, styl
       />
       {/* Depth: darken the lower half so the label always holds contrast. */}
       <LinearGradient
-        colors={['rgba(12, 15, 15, 0.02)', 'rgba(12, 15, 15, 0.62)']}
+        colors={['rgba(4, 10, 11, 0.02)', 'rgba(4, 10, 11, 0.62)']}
         start={{ x: 0.5, y: 0.3 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}

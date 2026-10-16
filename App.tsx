@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     // Add subtle borders and rounded corners to look like a phone screen on Web
     borderWidth: Platform.OS === 'web' ? 1 : 0,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(59, 240, 223, 0.18)',
     borderRadius: Platform.OS === 'web' ? 40 : 0,
   }
 });

@@ -224,7 +224,7 @@ export default function AIPlaylistScreen() {
         {/* Generating */}
         {loading ? (
           <View style={styles.generating}>
-            <PulsingGlow size={120} color="rgba(53, 214, 198, 0.12)" style={styles.generatingGlow} />
+            <PulsingGlow size={120} color="rgba(59, 240, 223, 0.12)" style={styles.generatingGlow} />
             <ActivityIndicator color={COLORS.accent.primary} size="large" />
             <Text style={styles.generatingText}>Arkify AI is reading your taste...</Text>
             <Text style={styles.generatingSub}>picking, ranking, sequencing</Text>

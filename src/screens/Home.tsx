@@ -29,6 +29,7 @@ import {
   CloudRain,
   Car,
   Radio,
+  SlidersHorizontal,
   ChevronRight,
   Repeat2,
   Bot,
@@ -255,6 +256,12 @@ export default function HomeScreen() {
         >
           <Search color={COLORS.text.secondary} size={SIZES.icon.md - 2} strokeWidth={2.2} />
           <Text style={styles.searchText}>Songs, artists, moods, vibes...</Text>
+          <SlidersHorizontal
+            color={COLORS.accent.primary}
+            size={SIZES.icon.sm}
+            strokeWidth={2.1}
+            style={{ marginLeft: 'auto' }}
+          />
         </TouchableOpacity>
       </View>
 
@@ -292,12 +299,12 @@ export default function HomeScreen() {
                 />
               ) : null}
               <LinearGradient
-                colors={['rgba(12, 15, 15, 0.42)', 'rgba(12, 15, 15, 0.84)', 'rgba(10, 13, 13, 0.95)']}
+                colors={['rgba(4, 10, 11, 0.42)', 'rgba(4, 10, 11, 0.84)', 'rgba(3, 9, 10, 0.95)']}
                 locations={[0, 0.55, 1]}
                 style={StyleSheet.absoluteFill}
               />
               <LinearGradient
-                colors={['rgba(53, 214, 198, 0.16)', 'rgba(53, 214, 198, 0)']}
+                colors={['rgba(59, 240, 223, 0.16)', 'rgba(59, 240, 223, 0)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -338,7 +345,7 @@ export default function HomeScreen() {
             <MixCard
               title="Discovery Mix"
               subtitle={coldStart ? 'Trending picks to start' : 'Fresh music, your taste'}
-              gradient={['#35D6C6', '#5B8DEF']}
+              gradient={['#3BF0DF', '#5B8DEF']}
               Icon={Compass}
               loading={mixLoading && !discover.length}
               tracks={discover}
@@ -373,7 +380,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Ask Arkify AI for a playlist"
           >
-            <PulsingGlow size={130} color="rgba(53, 214, 198, 0.16)" style={styles.askAIGlow} />
+            <PulsingGlow size={130} color="rgba(59, 240, 223, 0.16)" style={styles.askAIGlow} />
             <View style={styles.askAIIcon}>
               <Bot color={COLORS.accent.primary} size={26} />
             </View>
@@ -607,11 +614,11 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: 'rgba(53, 214, 198, 0.06)',
+    backgroundColor: 'rgba(59, 240, 223, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(53, 214, 198, 0.55)',
+    borderColor: 'rgba(59, 240, 223, 0.55)',
   },
   avatarInitial: {
     fontFamily: FONTS.medium,

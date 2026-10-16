@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   },
   queueRowDragging: {
     backgroundColor: COLORS.surfacePressed,
-    borderColor: 'rgba(53, 214, 198, 0.30)',
+    borderColor: 'rgba(59, 240, 223, 0.30)',
     zIndex: 10,
     elevation: 8,
   },
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceElevated,
   },
   footerButtonActive: {
-    borderColor: 'rgba(53, 214, 198, 0.45)',
+    borderColor: 'rgba(59, 240, 223, 0.45)',
     backgroundColor: COLORS.accent.soft,
   },
   footerText: {

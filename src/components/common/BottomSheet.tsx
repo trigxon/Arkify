@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceElevated,
     borderRadius: SIZES.radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(53, 214, 198, 0.20)',
+    borderColor: 'rgba(59, 240, 223, 0.20)',
     paddingTop: SIZES.sm + 2,
     paddingHorizontal: SIZES.gutter,
   },
