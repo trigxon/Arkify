@@ -97,6 +97,11 @@ export class PlaybackEngine {
         onError: (err) => {
           if (this.isWebActive) {
             this.clearLoadTimer();
+            // Reset the reported status first: a failed load must never leave
+            // the UI (MiniPlayer / NowPlaying) advertising a playing state.
+            this.isWebActive = false;
+            this.status = { ...IDLE_STATUS, volume: this.desiredVolume };
+            this.listeners.onStatus?.(this.status);
             // One-shot fallback: the IFrame player can be refused by YouTube
             // (embed restrictions, network-level blocks). If we hold a
             // resolved stream URL, retry the track through the HTML5 audio
@@ -397,6 +402,8 @@ export class PlaybackEngine {
     this.loadTimer = setTimeout(() => {
       if (token !== this.loadToken) return;
       if (this.status.isLoaded) return;
+      this.status = { ...IDLE_STATUS, volume: this.desiredVolume };
+      this.listeners.onStatus?.(this.status);
       this.listeners.onError?.(appError('playback_failed', 'Stream did not start'));
     }, 20_000);
 
