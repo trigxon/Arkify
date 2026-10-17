@@ -62,3 +62,8 @@ brag-output/
 
 # Gradle build cache inside local Expo modules
 modules/*/android/.gradle/
+
+# CI polling scratch
+qa/.runid
+qa/runid.err
+qa/*.log
