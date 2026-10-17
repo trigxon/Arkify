@@ -1,7 +1,10 @@
-const { toRomanEnglish, transliterateLine } = require('./romanizer');
+const { transliterateLine } = require('./romanizer');
 
 const lyricsCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const MISS_TTL = 15 * 60 * 1000; // "no lyrics found" is cached briefly so an
+// unavailable song doesn't re-hit the providers on every open, but a provider
+// that gains the lyrics later is picked up within minutes.
 
 /**
  * Clean up title string (remove "Official Video", "(Official Audio)", "ft.", etc.)
@@ -32,82 +35,197 @@ function cleanArtistName(artist) {
     .trim();
 }
 
+/** Normalise text for match verification: lowercase, strip punctuation/feats. */
+function normalizeForMatch(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/\(.*?\)|\[.*?\]/g, ' ')
+    .replace(/\b(official|video|audio|lyrics|music|video|remastered|hd|4k)\b/g, ' ')
+    .replace(/\b(ft|feat|featuring)\b.*$/g, ' ')
+    .replace(/\b(topic|vevo)\b/g, ' ')
+    .replace(/[^a-z0-9\u00c0-\u024f\u0400-\u04ff\u0600-\u06ff\u0900-\u097f\u0a00-\u0a7f\u3040-\u30ff\uac00-\ud7a3]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
- * Convert raw synced LRC lyrics string into array of { time: number, text: string }
+ * Whole-token containment: every token of `needle` must appear as an EXACT
+ * token of `haystack` — "night" must not match inside "Midnight".
+ */
+function tokensContained(needle, haystack) {
+  const needleTokens = needle.split(' ').filter(Boolean);
+  if (needleTokens.length === 0) return false;
+  const haystackTokens = new Set(haystack.split(' ').filter(Boolean));
+  return needleTokens.every((t) => haystackTokens.has(t));
+}
+
+/**
+ * Verify + score one LRCLIB hit against the requested track.
+ *
+ * The old implementation took the FIRST hit with any synced lyrics — queries
+ * degrade to a bare title, so lyrics from a different artist/version could be
+ * served for one track. Every candidate now has to plausibly BE the requested
+ * song: its normalised title must match, and artist/duration agreement adds
+ * score. Returns null for hits that are not the requested song.
+ */
+function scoreLrclibHit(hit, reqTitleNorm, reqArtistNorm, duration) {
+  if (!hit) return null;
+  const hitTitle = normalizeForMatch(hit.trackName);
+  const hitArtist = normalizeForMatch(hit.artistName);
+  if (!hitTitle) return null;
+
+  // Title must match: exact normalised equality, or the requested title is
+  // fully contained in the hit title (or vice versa) — covers "(Live)" style
+  // variants. A hit whose title shares no full token with the request is a
+  // different song and is rejected outright.
+  let score = 0;
+  if (hitTitle === reqTitleNorm) score += 4;
+  else if (reqTitleNorm && tokensContained(reqTitleNorm, hitTitle)) score += 3;
+  else if (hitTitle && tokensContained(hitTitle, reqTitleNorm)) score += 2;
+  else return null;
+
+  // Artist agreement strengthens the match; disagreement is suspicious but
+  // not fatal on its own (compilations, featured credits) — it just cannot
+  // rescue a weak title match.
+  // Artist identity is mandatory when the request names one: the same title
+  // recorded by a different artist is exactly the "lyrics for another
+  // version" failure this module exists to prevent.
+  let artistAgrees = false;
+  if (reqArtistNorm && hitArtist) {
+    if (hitArtist === reqArtistNorm) { score += 3; artistAgrees = true; }
+    else if (tokensContained(reqArtistNorm, hitArtist) || tokensContained(hitArtist, reqArtistNorm)) {
+      score += 2; artistAgrees = true;
+    }
+  }
+  if (reqArtistNorm && hitArtist && !artistAgrees) return null;
+
+  // Duration proximity (LRCLIB reports seconds; tolerate one reconnect boundary).
+  if (duration > 0 && typeof hit.duration === 'number' && hit.duration > 0) {
+    const delta = Math.abs(hit.duration - duration);
+    if (delta <= 5) score += 2;
+    else if (delta <= 12) score += 1;
+    else score -= 1;
+  }
+
+  // Synced availability is a tiebreaker only, never a substitute for identity.
+  if (hit.syncedLyrics) score += 1;
+
+  return score;
+}
+
+/**
+ * Convert raw synced LRC lyrics into lines.
+ *
+ * Genuine timestamps are kept; the provider's original text is always
+ * preserved (`original` is set only when romanization actually changed the
+ * line). Plain text is NEVER given invented timestamps here.
  */
 function parseSyncedLyrics(syncedText) {
   const lines = [];
+  let anyRomanized = false;
   const rawLines = syncedText.split('\n');
   for (const line of rawLines) {
-    const match = line.match(/^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$/);
-    if (match) {
-      const mins = parseInt(match[1], 10);
-      const secs = parseInt(match[2], 10);
-      const ms = parseInt(match[3].padEnd(3, '0').slice(0, 3), 10);
-      const time = mins * 60 + secs + ms / 1000;
-      const rawText = match[4].trim();
-      if (rawText) {
-        const romanText = transliterateLine(rawText);
-        if (romanText) {
-          lines.push({ time, text: romanText });
-        }
-      }
-    }
+    const match = line.match(/^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)$/);
+    if (!match) continue;
+    const mins = parseInt(match[1], 10);
+    const secs = parseInt(match[2], 10);
+    const ms = match[3] ? parseInt(match[3].padEnd(3, '0').slice(0, 3), 10) : 0;
+    const time = mins * 60 + secs + ms / 1000;
+    const rawText = match[4].trim();
+    if (!rawText) continue;
+
+    const t = transliterateLine(rawText);
+    if (t.romanized) anyRomanized = true;
+    if (!t.text) continue;
+    const entry = { time, text: t.text };
+    if (t.romanized) entry.original = rawText;
+    lines.push(entry);
   }
-  return lines;
+  return { lines, anyRomanized };
 }
 
 /**
- * Convert plain lyrics string into timed array distributed across track duration
+ * Convert plain lyrics into UNsynced lines — no timestamps are invented.
+ * (The previous implementation distributed plain lines evenly across the
+ * duration and returned synced:true, which faked live synchronization.)
  */
-function parsePlainLyrics(plainText, duration) {
-  const rawLines = plainText
+function parsePlainLyrics(plainText) {
+  const rawLines = (plainText || '')
     .split('\n')
     .map((l) => l.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 300);
 
-  if (rawLines.length === 0) return [];
-
-  const dur = Math.max(30, duration || 180);
-  const total = rawLines.length;
-  const startOffset = Math.min(8, dur * 0.05);
-  const effectiveDur = dur - startOffset - Math.min(10, dur * 0.08);
-  const step = effectiveDur / Math.max(1, total);
-
+  let anyRomanized = false;
   const lines = [];
-  rawLines.forEach((text, idx) => {
-    const roman = transliterateLine(text);
-    if (roman) {
-      lines.push({
-        time: Math.round((startOffset + idx * step) * 10) / 10,
-        text: roman,
-      });
-    }
-  });
-
-  return lines;
+  for (const raw of rawLines) {
+    const t = transliterateLine(raw);
+    if (t.romanized) anyRomanized = true;
+    if (!t.text) continue;
+    const entry = { text: t.text };
+    if (t.romanized) entry.original = raw;
+    lines.push(entry);
+  }
+  return { lines, anyRomanized };
 }
 
 /**
- * Fetch from LRCLIB with multiple query strategies
+ * Fetch from LRCLIB with several query strategies, accepting only VERIFIED
+ * matches. Returns { lines, synced, source, romanized } or null.
  */
 async function fetchFromLrclib(title, artist, duration) {
   const cleanedTitle = cleanSongTitle(title);
   const primaryArtist = cleanArtistName(artist);
+  const reqTitleNorm = normalizeForMatch(cleanedTitle || title);
+  const reqArtistNorm = normalizeForMatch(primaryArtist || artist);
 
   const queries = [
     `${cleanedTitle} ${primaryArtist}`.trim(),
     `${cleanedTitle} ${artist}`.trim(),
     `${title} ${primaryArtist}`.trim(),
     cleanedTitle,
-    title,
   ].filter(Boolean);
 
   const seenQueries = new Set();
+  // Best verified candidate across ALL queries — not the first hit.
+  let best = null; // { score, lines, synced, source, romanized }
+
+  const consider = (hit) => {
+    const score = scoreLrclibHit(hit, reqTitleNorm, reqArtistNorm, duration);
+    if (score === null || score < 3) return; // identity bar: title must match
+    if (best && score <= best.score) return;
+
+    if (hit.syncedLyrics) {
+      const parsed = parseSyncedLyrics(hit.syncedLyrics);
+      if (parsed.lines.length >= 3) {
+        best = {
+          score,
+          lines: parsed.lines,
+          synced: true,
+          romanized: parsed.anyRomanized,
+          source: 'LRCLIB',
+        };
+      }
+      return;
+    }
+    if (hit.plainLyrics) {
+      const parsed = parsePlainLyrics(hit.plainLyrics);
+      if (parsed.lines.length >= 3) {
+        best = {
+          score,
+          lines: parsed.lines,
+          synced: false,
+          romanized: parsed.anyRomanized,
+          source: 'LRCLIB',
+        };
+      }
+    }
+  };
 
   for (const query of queries) {
-    if (seenQueries.has(query.toLowerCase())) continue;
-    seenQueries.add(query.toLowerCase());
+    const key = query.toLowerCase();
+    if (seenQueries.has(key)) continue;
+    seenQueries.add(key);
 
     try {
       const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`, {
@@ -117,63 +235,37 @@ async function fetchFromLrclib(title, artist, duration) {
       if (!res.ok) continue;
 
       const items = await res.json();
-      if (!Array.isArray(items) || items.length === 0) continue;
-
-      // Find best match in hits
-      for (const hit of items) {
-        if (hit.syncedLyrics) {
-          const lines = parseSyncedLyrics(hit.syncedLyrics);
-          if (lines.length > 0) {
-            return {
-              lines,
-              synced: true,
-              source: 'Roman English (Live Synced)',
-            };
-          }
-        }
-        if (hit.plainLyrics) {
-          const lines = parsePlainLyrics(hit.plainLyrics, duration || hit.duration || 180);
-          if (lines.length > 0) {
-            return {
-              lines,
-              synced: true,
-              source: 'Roman English (Timed)',
-            };
-          }
-        }
-      }
+      if (!Array.isArray(items)) continue;
+      for (const hit of items) consider(hit);
     } catch {
       // Continue to next query
     }
   }
 
-  // Try direct LRCLIB get endpoint
+  if (best) return { lines: best.lines, synced: best.synced, source: best.source, romanized: best.romanized };
+
+  // Direct get endpoint — same verification, last chance for exact metadata.
   try {
     const directUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanedTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`;
     const res = await fetch(directUrl, {
       signal: AbortSignal.timeout(3000),
-      headers: { 'User-Agent': 'ArkifyMusic/1.2.0' },
+      headers: { 'User-Agent': 'ArkifyMusic/1.2.0 (contact@arkifymusic.internal)' },
     });
     if (res.ok) {
       const hit = await res.json();
-      if (hit && hit.syncedLyrics) {
-        const lines = parseSyncedLyrics(hit.syncedLyrics);
-        if (lines.length > 0) {
-          return {
-            lines,
-            synced: true,
-            source: 'Roman English (Live Synced)',
-          };
+      const score = scoreLrclibHit(hit, reqTitleNorm, reqArtistNorm, duration);
+      if (score !== null && score >= 3) {
+        if (hit.syncedLyrics) {
+          const parsed = parseSyncedLyrics(hit.syncedLyrics);
+          if (parsed.lines.length >= 3) {
+            return { lines: parsed.lines, synced: true, source: 'LRCLIB', romanized: parsed.anyRomanized };
+          }
         }
-      }
-      if (hit && hit.plainLyrics) {
-        const lines = parsePlainLyrics(hit.plainLyrics, duration || hit.duration || 180);
-        if (lines.length > 0) {
-          return {
-            lines,
-            synced: true,
-            source: 'Roman English (Timed)',
-          };
+        if (hit.plainLyrics) {
+          const parsed = parsePlainLyrics(hit.plainLyrics);
+          if (parsed.lines.length >= 3) {
+            return { lines: parsed.lines, synced: false, source: 'LRCLIB', romanized: parsed.anyRomanized };
+          }
         }
       }
     }
@@ -185,9 +277,10 @@ async function fetchFromLrclib(title, artist, duration) {
 }
 
 /**
- * Fetch from Lyrics.ovh as secondary fallback
+ * Fetch from Lyrics.ovh as secondary fallback (plain text only — it is
+ * presented unsynced, with no invented timestamps).
  */
-async function fetchFromLyricsOvh(title, artist, duration) {
+async function fetchFromLyricsOvh(title, artist) {
   const cleanedTitle = cleanSongTitle(title);
   const primaryArtist = cleanArtistName(artist);
 
@@ -200,12 +293,13 @@ async function fetchFromLyricsOvh(title, artist, duration) {
 
     const data = await res.json();
     if (data && data.lyrics && typeof data.lyrics === 'string') {
-      const lines = parsePlainLyrics(data.lyrics, duration);
-      if (lines.length > 0) {
+      const parsed = parsePlainLyrics(data.lyrics);
+      if (parsed.lines.length >= 3) {
         return {
-          lines,
-          synced: true,
-          source: 'Roman English (Lyrics.ovh)',
+          lines: parsed.lines,
+          synced: false,
+          source: 'Lyrics.ovh',
+          romanized: parsed.anyRomanized,
         };
       }
     }
@@ -216,35 +310,14 @@ async function fetchFromLyricsOvh(title, artist, duration) {
 }
 
 /**
- * Generate rhythmic Roman English lyrics if unindexed in databases
- */
-function generateRhythmicRomanLyrics(title, artist, duration) {
-  const cleaned = cleanSongTitle(title) || title || 'Song';
-  const cleanArt = cleanArtistName(artist) || artist || 'Artist';
-  const dur = Math.max(45, duration || 180);
-
-  const lines = [
-    { time: 0, text: `♪ (Intro) ♪` },
-    { time: Math.min(10, Math.round(dur * 0.05)), text: `${cleaned}` },
-    { time: Math.min(18, Math.round(dur * 0.1)), text: `by ${cleanArt}` },
-    { time: Math.round(dur * 0.18), text: `♪ (Verse 1) ♪` },
-    { time: Math.round(dur * 0.32), text: `♪ (Hook / Chorus) ♪` },
-    { time: Math.round(dur * 0.45), text: `${cleaned} · ${cleanArt}` },
-    { time: Math.round(dur * 0.58), text: `♪ (Verse 2 / Solo) ♪` },
-    { time: Math.round(dur * 0.72), text: `♪ (Chorus & Bridge) ♪` },
-    { time: Math.round(dur * 0.85), text: `♪ (Outro) ♪` },
-    { time: Math.max(dur - 8, Math.round(dur * 0.94)), text: `♪ ♪ ♪` },
-  ];
-
-  return {
-    lines,
-    synced: true,
-    source: 'Roman English (Audio Rhythm)',
-  };
-}
-
-/**
- * Handle incoming /api/lyrics requests
+ * Handle incoming /api/lyrics requests.
+ *
+ * Honesty contract (this is the API the shipped app relies on):
+ *   - only VERIFIED matches are returned (title identity is mandatory),
+ *   - `synced: true` means genuine per-line timestamps from an LRC payload,
+ *   - plain lyrics are returned unsynced — never with invented timestamps,
+ *   - when nothing matches, `lines: []` is returned and the app shows its
+ *     explicit unavailable state; lyrics are never generated or invented.
  */
 async function handleLyricsRequest(req, res, parsedUrl) {
   const query = parsedUrl.searchParams;
@@ -261,43 +334,43 @@ async function handleLyricsRequest(req, res, parsedUrl) {
 
   const cacheKey = `${title.toLowerCase().trim()}___${artist.toLowerCase().trim()}`;
   const cached = lyricsCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  if (cached && Date.now() - cached.timestamp < cached.ttl) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ trackId, ...cached.data }));
     return true;
   }
 
-  let lyricsData = null;
+  // 1. LRCLIB with verified matching
+  let lyricsData = await fetchFromLrclib(title, artist, duration);
 
-  // 1. Try LRCLIB with fuzzy matching
-  lyricsData = await fetchFromLrclib(title, artist, duration);
-
-  // 2. Try lyrics.ovh fallback
+  // 2. Lyrics.ovh fallback (plain, unsynced)
   if (!lyricsData) {
-    lyricsData = await fetchFromLyricsOvh(title, artist, duration);
+    lyricsData = await fetchFromLyricsOvh(title, artist);
   }
 
-  // 3. Fallback: Always generate structured Roman English rhythm so every single song has lyrics
-  if (!lyricsData || !lyricsData.lines || lyricsData.lines.length === 0) {
-    lyricsData = generateRhythmicRomanLyrics(title, artist, duration);
+  let payload;
+  let ttl = CACHE_TTL;
+
+  if (lyricsData && lyricsData.lines && lyricsData.lines.length > 0) {
+    payload = {
+      lines: lyricsData.lines,
+      synced: lyricsData.synced === true,
+      source: lyricsData.source || 'LRCLIB',
+      romanized: lyricsData.romanized === true,
+    };
+  } else {
+    // No verified lyrics found anywhere. Return an explicit empty result —
+    // the app renders its unavailable state. NEVER generate placeholder or
+    // "(Verse 1)"-style filler lyrics.
+    payload = { lines: [], synced: false, source: null, romanized: false };
+    ttl = MISS_TTL;
   }
 
-  // Cache result
-  lyricsCache.set(cacheKey, {
-    timestamp: Date.now(),
-    data: lyricsData,
-  });
+  lyricsCache.set(cacheKey, { timestamp: Date.now(), ttl, data: payload });
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({
-      trackId,
-      lines: lyricsData.lines,
-      synced: lyricsData.synced ?? true,
-      source: lyricsData.source || 'Roman English',
-    })
-  );
+  res.end(JSON.stringify({ trackId, ...payload }));
   return true;
 }
 
-module.exports = { handleLyricsRequest };
+module.exports = { handleLyricsRequest, scoreLrclibHit, normalizeForMatch };

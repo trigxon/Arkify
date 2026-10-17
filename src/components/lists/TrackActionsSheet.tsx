@@ -29,7 +29,7 @@ import {
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { confirmAlert } from '../common/ConfirmDialog';
-import { ShareSheet, ShareRequest } from '../share/ShareSheet';
+import { ShareSheetBody, ShareRequest } from '../share/ShareSheet';
 import { Track } from '../../core/types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { DownloadService } from '../../services/DownloadService';
@@ -107,6 +107,7 @@ export const TrackActionsSheet: React.FC<Props> = ({
   useEffect(() => {
     setSleepPickerOpen(initial === 'sleep');
     setCreating(false);
+    setShareCard(null);
   }, [track?.id, initial]);
 
   const liked = track ? isLiked(track.id) : false;
@@ -114,6 +115,7 @@ export const TrackActionsSheet: React.FC<Props> = ({
   const close = () => {
     setCreating(false);
     setSleepPickerOpen(false);
+    setShareCard(null);
     onClose();
   };
 
@@ -185,6 +187,13 @@ export const TrackActionsSheet: React.FC<Props> = ({
         (volume + ~10 rows) can exceed short viewports, so the body scrolls. */}
     <BottomSheet visible={track !== null} onClose={close} scrollBody>
       {track ? (
+        shareCard ? (
+          <ShareSheetBody
+            request={shareCard}
+            onClose={close}
+            onBack={() => setShareCard(null)}
+          />
+        ) : (
       <>
       {volume !== undefined && onVolumeChange && (
         <VolumeControl volume={volume} onChange={onVolumeChange} />
@@ -364,6 +373,9 @@ export const TrackActionsSheet: React.FC<Props> = ({
                 label="Share as card"
                 accent
                 onPress={() => {
+                  // Swap the body INSIDE this sheet — the old code closed
+                  // the menu and opened the share sheet simultaneously,
+                  // leaving two full-screen modals visible mid-transition.
                   setShareCard({
                     kind: 'track',
                     title: track.title,
@@ -372,7 +384,6 @@ export const TrackActionsSheet: React.FC<Props> = ({
                     contextLabel: 'Shared from Arkify',
                     message: `${track.title} — ${track.artist.name}`,
                   });
-                  close();
                 }}
               />
               {onViewAlbum && track.album && (
@@ -425,11 +436,9 @@ export const TrackActionsSheet: React.FC<Props> = ({
         />
       )}
       </>
+        )
       ) : null}
     </BottomSheet>
-
-    {/* Rendered outside the action sheet so both can animate independently. */}
-    <ShareSheet request={shareCard} onClose={() => setShareCard(null)} />
     </>
   );
 };

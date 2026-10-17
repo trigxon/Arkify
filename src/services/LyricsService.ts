@@ -1,19 +1,18 @@
 import { Platform } from 'react-native';
 import { metadataCache } from '../core/cache';
 import { Track } from '../core/types';
+import {
+  activeLineIndexFor,
+  normalizeForMatch,
+  parseLrclibPayload,
+  sanitizeCompanionPayload,
+  scoreLrclibHit,
+  Lyrics,
+  LyricLine,
+  LrcLibHit,
+} from './lyricsCore';
 
-export type LyricLine = {
-  /** Seconds into the track. Undefined for unsynced lyrics. */
-  time?: number;
-  text: string;
-};
-
-export type Lyrics = {
-  trackId: string;
-  lines: LyricLine[];
-  synced: boolean;
-  source: string;
-};
+export type { Lyrics, LyricLine };
 
 export interface LyricsProvider {
   readonly id: string;
@@ -23,52 +22,20 @@ export interface LyricsProvider {
 const TTL = 24 * 60 * 60 * 1000;
 
 /**
- * Built-in Roman English Lyrics Provider powered by Arkify AI & synced databases.
- * Automatically romanizes any song (Punjabi, Hindi, Urdu, K-Pop, Japanese, Spanish, etc.)
- * into clear Roman English phonetic script.
+ * Lyrics provider.
+ *
+ * Web rides the same-origin companion server (`/api/lyrics`: verified LRCLIB
+ * matching + the romanizer engine + fallbacks). Native has no CORS limits and
+ * no companion, so it talks to LRCLIB directly — a relative `/api/lyrics`
+ * path cannot resolve in the shipped app bundle. The two paths are honest
+ * about what they deliver: native never claims Roman English (it has no
+ * transliteration capability and preserves the provider's original script),
+ * and both paths only accept VERIFIED matches for the requested track.
  */
-/**
- * Parse an lrclib payload into Lyrics. Prefers synced LRC; falls back to plain.
- */
-function parseLrclibPayload(data: any): { lines: LyricLine[]; synced: boolean } | null {
-  if (!data) return null;
-
-  if (typeof data.syncedLyrics === 'string' && data.syncedLyrics.trim()) {
-    const lines: LyricLine[] = [];
-    for (const raw of data.syncedLyrics.split('\n')) {
-      const m = /^\s*\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]\s*(.*)$/.exec(raw);
-      if (!m) continue;
-      const min = parseInt(m[1], 10);
-      const sec = parseInt(m[2], 10);
-      const frac = m[3] ? parseFloat(`0.${m[3]}`) : 0;
-      const text = m[4].trim();
-      lines.push({ time: min * 60 + sec + frac, text });
-    }
-    // A synced payload with no usable timestamps is not synced lyrics.
-    if (lines.length > 0) return { lines, synced: true };
-  }
-
-  if (typeof data.plainLyrics === 'string' && data.plainLyrics.trim()) {
-    const lines = data.plainLyrics
-      .split('\n')
-      .map((t: string) => t.trim())
-      .filter(Boolean)
-      .slice(0, 240)
-      .map((text: string) => ({ text }));
-    if (lines.length > 0) return { lines, synced: false };
-  }
-
-  return null;
-}
-
-class RomanEnglishLyricsProvider implements LyricsProvider {
-  readonly id = 'arkify-roman-lyrics';
+class ArkifyLyricsProvider implements LyricsProvider {
+  readonly id = 'arkify-lyrics';
 
   async fetch(track: Track, signal?: AbortSignal): Promise<Lyrics | null> {
-    // Web rides the same-origin companion server (lrclib + fallbacks + the
-    // romanizer engine). Native has no CORS limits, so it talks to LRCLIB
-    // directly — a relative `/api/lyrics` path cannot resolve in the shipped
-    // app bundle.
     if (Platform.OS === 'web') {
       return this.fetchViaCompanion(track, signal);
     }
@@ -98,22 +65,26 @@ class RomanEnglishLyricsProvider implements LyricsProvider {
       }
 
       const data = await res.json();
-      if (!data || !Array.isArray(data.lines) || data.lines.length === 0) {
+      const clean = sanitizeCompanionPayload(data);
+      if (!clean) {
+        // Explicit empty result from the server (no verified lyrics) or a
+        // malformed payload — surface the unavailable state, never a guess.
         return null;
       }
 
       return {
         trackId: track.id,
-        lines: data.lines,
-        synced: data.synced ?? true,
-        source: data.source || 'Roman English (Arkify AI)',
+        lines: clean.lines,
+        synced: clean.synced,
+        source: clean.source || 'Lyrics',
+        romanized: clean.romanized,
       };
     } catch {
       return null;
     }
   }
 
-  /** Native path: LRCLIB directly (exact match first, then fuzzy search). */
+  /** Native path: LRCLIB directly (exact lookup first, then VERIFIED search). */
   private async fetchDirect(track: Track, signal?: AbortSignal): Promise<Lyrics | null> {
     const title = (track.title || '').trim();
     const artist = (track.artist?.name || '').trim();
@@ -121,6 +92,8 @@ class RomanEnglishLyricsProvider implements LyricsProvider {
 
     const headers = { Accept: 'application/json' };
     const duration = Math.round(track.duration || 0);
+    const reqTitleNorm = normalizeForMatch(title);
+    const reqArtistNorm = normalizeForMatch(artist);
 
     // 1) Exact lookup with the strongest keys we have.
     try {
@@ -134,7 +107,7 @@ class RomanEnglishLyricsProvider implements LyricsProvider {
             trackId: track.id,
             lines: parsed.lines,
             synced: parsed.synced,
-            source: parsed.synced ? 'Synced (LRCLIB)' : 'Lyrics (LRCLIB)',
+            source: 'LRCLIB',
           };
         }
       }
@@ -142,30 +115,34 @@ class RomanEnglishLyricsProvider implements LyricsProvider {
       // Fall through to search.
     }
 
-    // 2) Fuzzy search; prefer synced results, then closest duration.
+    // 2) Fuzzy search — but only VERIFIED matches are accepted. The old code
+    // took the first synced hit, which could belong to a different artist or
+    // version entirely; now title identity is mandatory and artist/duration
+    // agreement adjusts the score.
     try {
       const qs = new URLSearchParams({ q: `${title} ${artist}`.trim() });
       const res = await fetch(`https://lrclib.net/api/search?${qs.toString()}`, { signal, headers });
       if (res.ok) {
-        const results: any[] = await res.json();
+        const results: LrcLibHit[] = await res.json();
         if (Array.isArray(results) && results.length > 0) {
-          const withLyrics = results.filter((r) => r?.syncedLyrics || r?.plainLyrics);
-          withLyrics.sort((a, b) => {
-            const aSynced = a.syncedLyrics ? 1 : 0;
-            const bSynced = b.syncedLyrics ? 1 : 0;
-            if (aSynced !== bSynced) return bSynced - aSynced;
-            if (duration > 0 && a.duration && b.duration) {
-              return Math.abs(a.duration - duration) - Math.abs(b.duration - duration);
+          let bestHit: LrcLibHit | null = null;
+          let bestScore = -Infinity;
+          for (const hit of results) {
+            if (!hit?.syncedLyrics && !hit?.plainLyrics) continue;
+            const score = scoreLrclibHit(hit, reqTitleNorm, reqArtistNorm, duration);
+            if (score === null || score < 3) continue; // identity bar
+            if (score > bestScore) {
+              bestScore = score;
+              bestHit = hit;
             }
-            return 0;
-          });
-          const parsed = parseLrclibPayload(withLyrics[0]);
+          }
+          const parsed = bestHit ? parseLrclibPayload(bestHit) : null;
           if (parsed) {
             return {
               trackId: track.id,
               lines: parsed.lines,
               synced: parsed.synced,
-              source: parsed.synced ? 'Synced (LRCLIB)' : 'Lyrics (LRCLIB)',
+              source: 'LRCLIB',
             };
           }
         }
@@ -179,10 +156,10 @@ class RomanEnglishLyricsProvider implements LyricsProvider {
 }
 
 class LyricsServiceImpl {
-  private provider: LyricsProvider = new RomanEnglishLyricsProvider();
+  private provider: LyricsProvider = new ArkifyLyricsProvider();
 
   use(provider: LyricsProvider | null): void {
-    this.provider = provider || new RomanEnglishLyricsProvider();
+    this.provider = provider || new ArkifyLyricsProvider();
   }
 
   get isConfigured(): boolean {
@@ -190,14 +167,26 @@ class LyricsServiceImpl {
   }
 
   get providerName(): string | null {
-    return this.provider?.id ?? 'arkify-roman-lyrics';
+    return this.provider?.id ?? 'arkify-lyrics';
   }
 
-  /** Returns Roman English lyrics for any given track. */
+  /**
+   * Whether the active path can genuinely transliterate to Roman English.
+   * Only the web companion ships the romanizer engine; native preserves the
+   * provider's original script and never describes it as Roman English.
+   */
+  get romanizationAvailable(): boolean {
+    return Platform.OS === 'web';
+  }
+
+  /** Returns lyrics for the given track, or null when none are available. */
   async get(track: Track, signal?: AbortSignal): Promise<Lyrics | null> {
     if (!this.provider) return null;
 
-    const key = `lyrics:${this.provider.id}:${track.id}`;
+    // v2 namespace: entries persisted under the old key belonged to a
+    // provider generation that fabricated placeholder lyrics — they must
+    // never surface again.
+    const key = `lyrics:v2:${this.provider.id}:${track.id}`;
     const cached = metadataCache.get<Lyrics | null>(key);
     if (cached !== undefined) return cached;
 
@@ -214,17 +203,8 @@ class LyricsServiceImpl {
 
   /** The line that should be highlighted at `position` seconds. */
   activeLineIndex(lyrics: Lyrics | null, position: number): number {
-    if (!lyrics?.synced || !lyrics.lines.length) return -1;
-
-    let index = -1;
-    for (let i = 0; i < lyrics.lines.length; i++) {
-      const t = lyrics.lines[i].time;
-      if (t === undefined || t > position) break;
-      index = i;
-    }
-    return index;
+    return activeLineIndexFor(lyrics, position);
   }
 }
 
 export const LyricsService = new LyricsServiceImpl();
-

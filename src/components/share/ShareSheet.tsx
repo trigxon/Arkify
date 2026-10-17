@@ -1,5 +1,12 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { ShareCard, ShareCardKind } from './ShareCard';
@@ -30,17 +37,24 @@ export type ShareRequest = {
   message?: string;
 };
 
-export const ShareSheet: React.FC<{
-  request: ShareRequest | null;
+/**
+ * ShareSheetBody — the panel content (capture card + preview + share action).
+ *
+ * Exported so the track actions sheet can present the share card INSIDE its
+ * own BottomSheet (one modal surface, no crossfade overlap). `onClose` fires
+ * after a share attempt (success or failure), matching the original flow.
+ * `onBack`, when provided, renders a Back affordance that returns to the
+ * caller's previous view without closing anything.
+ */
+export const ShareSheetBody: React.FC<{
+  request: ShareRequest;
   onClose: () => void;
-}> = ({ request, onClose }) => {
+  onBack?: () => void;
+}> = ({ request, onClose, onBack }) => {
   const shotRef = useRef<ViewShot>(null);
   const [busy, setBusy] = useState(false);
-  // Keep the capture card mounted while the sheet lives so the ref is usable.
-  const cardRequest = request;
 
   const share = useCallback(async () => {
-    if (!request) return;
     setBusy(true);
     try {
       const uri = await new Promise<string>((resolve, reject) => {
@@ -78,14 +92,11 @@ export const ShareSheet: React.FC<{
     }
   }, [request, onClose]);
 
-  // Mounted always (so the Modal animates out properly); content is gated.
   return (
-    <BottomSheet visible={!!request} onClose={onClose} title="Share" subtitle="Send a card, not just a link">
-      {request ? (
-        <>
+    <>
       {/* Hidden, off-card render used for capture. */}
       <View style={styles.offscreen} pointerEvents="none">
-        <ShareCard ref={shotRef} {...cardRequest!} />
+        <ShareCard ref={shotRef} {...request} />
       </View>
 
       <GlassView weight="thin" style={styles.previewWrap}>
@@ -107,11 +118,33 @@ export const ShareSheet: React.FC<{
       </SpringPressable>
 
       {request.message ? <Text style={styles.messageHint}>{request.message}</Text> : null}
-        </>
+
+      {onBack ? (
+        <TouchableOpacity
+          style={styles.backRowBtn}
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Back to actions"
+        >
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
       ) : null}
-    </BottomSheet>
+    </>
   );
 };
+
+/**
+ * Standalone share sheet (NowPlaying, Wrapped). Mounted always so the Modal
+ * animates out properly; content is gated on `request`.
+ */
+export const ShareSheet: React.FC<{
+  request: ShareRequest | null;
+  onClose: () => void;
+}> = ({ request, onClose }) => (
+  <BottomSheet visible={!!request} onClose={onClose} title="Share" subtitle="Send a card, not just a link">
+    {request ? <ShareSheetBody request={request} onClose={onClose} /> : null}
+  </BottomSheet>
+);
 
 const styles = StyleSheet.create({
   offscreen: {
@@ -139,6 +172,17 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semibold,
     fontSize: TYPE.headline.fontSize,
     color: COLORS.text.dark,
+  },
+  backRowBtn: {
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    marginBottom: SIZES.sm,
+  },
+  backText: {
+    color: COLORS.text.secondary,
+    fontFamily: FONTS.medium,
+    fontSize: TYPE.footnote.fontSize,
   },
   messageHint: {
     fontFamily: FONTS.regular,

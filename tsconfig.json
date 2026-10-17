@@ -11,6 +11,7 @@
     "jest.config.js",
     "android",
     "ios",
-    "dist"
+    "dist",
+    "test"
   ]
 }

@@ -147,14 +147,16 @@ const LyricsView: React.FC<{
       {loading ? (
         <View style={styles.lyricsLoading}>
           <ActivityIndicator color={COLORS.accent.primary} size="large" />
-          <Text style={styles.lyricsLoadingText}>Loading Roman English lyrics...</Text>
+          <Text style={styles.lyricsLoadingText}>Loading lyrics...</Text>
         </View>
       ) : !lyrics || lyrics.lines.length === 0 ? (
         <View style={styles.lyricsEmpty}>
           <AudioLines color={COLORS.text.muted} size={SIZES.icon.lg} />
           <Text style={styles.lyricsEmptyTitle}>Lyrics unavailable</Text>
           <Text style={styles.lyricsEmptyHint}>
-            Could not fetch Roman English lyrics for this track right now.
+            {LyricsService.romanizationAvailable
+              ? 'Roman English lyrics not available for this song.'
+              : 'Lyrics not available for this song.'}
           </Text>
           {onRetry && (
             <TouchableOpacity style={styles.retryLyricsButton} onPress={onRetry}>
@@ -200,7 +202,8 @@ const LyricsView: React.FC<{
           <View style={styles.lyricsFooter}>
             <Text style={styles.lyricsSource}>
               {lyrics.source}
-              {lyrics.synced ? ' · Live Synced' : ''} · Roman English
+              {lyrics.synced ? ' · Live Synced' : ''}
+              {lyrics.romanized ? ' · Roman English' : ''}
             </Text>
           </View>
         </ScrollView>
@@ -820,7 +823,10 @@ export default function NowPlayingScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.headerIcon}
-                onPress={() => setActionsTrack(currentTrack)}
+                onPress={() => {
+                  setActionsInitial('actions');
+                  setActionsTrack(currentTrack);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Track actions"
               >
@@ -1090,7 +1096,10 @@ export default function NowPlayingScreen() {
                 loading={lyricsLoading}
                 onSeek={seekTo}
                 onRetry={loadLyrics}
-                onMore={() => setActionsTrack(currentTrack)}
+                onMore={() => {
+                  setActionsInitial('actions');
+                  setActionsTrack(currentTrack);
+                }}
               />
             ) : (
               <View style={styles.aboutWrap}>

@@ -50,6 +50,7 @@
     "start": "node server.js",
     "build": "node scripts/patchCors.js && expo export -p web",
     "lint": "node -e \"process.exit(0)\"",
+    "test": "node --test test/romanizer.test.js test/lyricsProxy.test.js test/lyricsCore.test.ts",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web"

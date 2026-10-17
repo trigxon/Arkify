@@ -285,12 +285,39 @@ function transliterateDevanagariWord(word) {
 }
 
 /**
- * Transliterate any single line into Roman English
+ * True when the line contains a script this engine can actually transliterate
+ * (Arabic/Persian/Urdu, Gurmukhi, Devanagari, Cyrillic, Kana, Hangul).
+ *
+ * Scripts WITHOUT a reliable mapping here (e.g. Han ideographs) must be left
+ * untouched: stripping untransliterated characters silently corrupted those
+ * lyrics into garbage. Honest behavior: romanize what we can, preserve what
+ * we cannot.
+ */
+function hasSupportedScript(line) {
+  return /[\u0600-\u06FF]|[\u0A00-\u0A7F]|[\u0900-\u097F]|[\u0400-\u04FF]|[\u3040-\u30FF]|[\uAC00-\uD7A3]/.test(line);
+}
+
+/**
+ * Transliterate a single line into Roman English.
+ *
+ * Returns { text, romanized }:
+ *   - romanized=false, text=original line — Latin input or an unsupported
+ *     script. The caller must not describe such a line as transliterated, and
+ *     the provider's original script is preserved verbatim.
+ *   - romanized=true,  text=roman — the line contained a supported script and
+ *     converted fully to Latin.
  */
 function transliterateLine(line) {
-  if (!line) return '';
+  if (!line) return { text: '', romanized: false };
 
-  // 1. Check for Arabic / Persian / Urdu script
+  const original = line;
+
+  // Unsupported non-Latin scripts (e.g. Han ideographs) are preserved as-is.
+  if (!hasSupportedScript(line)) {
+    return { text: original, romanized: false };
+  }
+
+  // 1. Arabic / Persian / Urdu
   if (/[\u0600-\u06FF]/.test(line)) {
     let arabOut = '';
     for (const ch of line) {
@@ -299,17 +326,17 @@ function transliterateLine(line) {
     line = arabOut;
   }
 
-  // 2. Check for Gurmukhi script
+  // 2. Gurmukhi
   if (/[\u0A00-\u0A7F]/.test(line)) {
-    line = line.split(/(\s+)/).map(transliterateGurmukhiWord).join('');
+    line = line.split(/(\s+)/).map(function (w) { return transliterateGurmukhiWord(w); }).join('');
   }
 
-  // 3. Check for Devanagari script
+  // 3. Devanagari
   if (/[\u0900-\u097F]/.test(line)) {
-    line = line.split(/(\s+)/).map(transliterateDevanagariWord).join('');
+    line = line.split(/(\s+)/).map(function (w) { return transliterateDevanagariWord(w); }).join('');
   }
 
-  // 4. Check for Cyrillic
+  // 4. Cyrillic
   if (/[\u0400-\u04FF]/.test(line)) {
     let cyrOut = '';
     for (const ch of line) {
@@ -318,7 +345,7 @@ function transliterateLine(line) {
     line = cyrOut;
   }
 
-  // 5. Check for Japanese Kana
+  // 5. Japanese Kana
   if (/[\u3040-\u30FF]/.test(line)) {
     let kanaOut = '';
     for (const ch of line) {
@@ -327,7 +354,7 @@ function transliterateLine(line) {
     line = kanaOut;
   }
 
-  // 6. Check for Korean Hangul
+  // 6. Korean Hangul
   if (/[\uAC00-\uD7A3]/.test(line)) {
     let korOut = '';
     for (const ch of line) {
@@ -336,27 +363,25 @@ function transliterateLine(line) {
     line = korOut;
   }
 
-  // Clean formatting: capitalize first letter, remove stray characters, clean repeated spaces
-  line = line
-    .replace(/[^\x00-\x7F\s.,!?'"()\-–—]/g, '') // remove unprintable or non-Latin remnants
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Whitespace tidy-up only. Original characters are never stripped here —
+  // an unmapped remnant means the conversion was incomplete.
+  line = line.replace(/\s+/g, ' ').trim();
 
-  if (line.length > 0) {
-    line = line.charAt(0).toUpperCase() + line.slice(1);
+  // A conversion that still contains non-Latin characters (mixed-script lines
+  // with unsupported runs) is not a complete transliteration — keep the
+  // provider's original line instead of a half-converted one.
+  if (line.length === 0 || /[^\x00-\x7F\s]/.test(line)) {
+    return { text: original.trim(), romanized: false };
   }
 
-  return line;
+  return { text: line, romanized: true };
 }
 
-/**
- * Transliterate multi-line lyrics to Roman English
- */
 function toRomanEnglish(text) {
   if (!text) return '';
   return text
     .split('\n')
-    .map(transliterateLine)
+    .map(function (l) { return transliterateLine(l).text; })
     .join('\n');
 }
 
