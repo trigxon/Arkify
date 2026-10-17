@@ -35,6 +35,7 @@ import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
 import { TrackActionsHost } from '../components/lists/TrackActionsHost';
 import { BottomSheet } from '../components/common/BottomSheet';
+import { confirmAlert } from '../components/common/ConfirmDialog';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { BackButton, FadeInUp } from '../components/common/Glass';
 import { Artwork } from '../components/common/Artwork';
@@ -155,14 +156,7 @@ export default function PlaylistDetailScreen() {
     if (!playlist || playlist.id === 'liked') return;
     const message = `“${playlist.name}” will be removed. Your liked songs and downloads stay.`;
 
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(message)) {
-        deletePlaylist(playlist.id);
-        navigation.goBack();
-      }
-      return;
-    }
-    Alert.alert('Delete playlist?', message, [
+    confirmAlert('Delete playlist?', message, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

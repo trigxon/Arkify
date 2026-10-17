@@ -8,7 +8,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -36,6 +35,7 @@ import { usePalette } from '../hooks/usePalette';
 import { PlaybackSourceSheet } from '../components/player/PlaybackSourceSheet';
 import { EqualizerSheet } from '../components/audio/EqualizerSheet';
 import { BackButton, IOSToggle, Segmented } from '../components/common/Glass';
+import { confirmAlert } from '../components/common/ConfirmDialog';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AudioFX } from '../services/AudioFX';
@@ -267,7 +267,7 @@ export default function SettingsScreen() {
           style={[styles.card, styles.dangerCard]}
           activeOpacity={0.8}
           onPress={() =>
-            Alert.alert(
+            confirmAlert(
               'Reset personalisation',
               'Your taste profile, streaks, XP and badges will be cleared. Likes, playlists and history stay.',
               [
@@ -418,7 +418,7 @@ export default function SettingsScreen() {
             style={styles.row}
             activeOpacity={0.7}
             onPress={() =>
-              Alert.alert('Reset appearance', 'Restore default motion, glass and color settings?', [
+              confirmAlert('Reset appearance', 'Restore default motion, glass and color settings?', [
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Reset',

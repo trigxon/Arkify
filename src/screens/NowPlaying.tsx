@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   PanResponder,
   Platform,
@@ -57,6 +56,7 @@ import { TrackActionsSheet } from '../components/lists/TrackActionsSheet';
 import { KaraokeLyrics } from '../components/player/KaraokeLyrics';
 import { ShareSheet, ShareRequest } from '../components/share/ShareSheet';
 import { Artwork } from '../components/common/Artwork';
+import { confirmAlert } from '../components/common/ConfirmDialog';
 import { DownloadService } from '../services/DownloadService';
 import { LyricsService, Lyrics } from '../services/LyricsService';
 import { SleepTimer } from '../services/SleepTimerService';
@@ -306,7 +306,7 @@ export default function NowPlayingScreen() {
         return;
       }
       SleepTimer.start(minutes, pauseIfPlaying);
-      Alert.alert('Sleep timer', `Playback will pause in ${minutes} minutes.`);
+      confirmAlert('Sleep timer', `Playback will pause in ${minutes} minutes.`);
     },
     [pauseIfPlaying]
   );

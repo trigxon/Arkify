@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
-  Alert,
   Animated,
   PanResponder,
   Platform,
@@ -14,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { ChevronRight, Menu, Shuffle } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { confirmAlert } from '../common/ConfirmDialog';
 import { Artwork } from '../common/Artwork';
 import { Track } from '../../core/types';
 
@@ -191,15 +191,7 @@ export const QueueSheet: React.FC<Props> = ({
    */
   const confirmRemove = useCallback(
     (track: Track) => {
-      const title = `Remove “${track.title}” from the queue?`;
-
-      // react-native-web has no Alert, so the preview asks through the browser.
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.confirm(title)) onRemove(track.id);
-        return;
-      }
-
-      Alert.alert('Remove from queue?', title, [
+      confirmAlert(`Remove “${track.title}” from the queue?`, 'It will leave the playback order immediately.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Remove', style: 'destructive', onPress: () => onRemove(track.id) },
       ]);

@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
+import { confirmAlert } from '../components/common/ConfirmDialog';
 import { TrackActionsHost } from '../components/lists/TrackActionsHost';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { BackButton } from '../components/common/Glass';
@@ -66,7 +67,7 @@ export default function HistoryScreen() {
 
   /** Clearing is destructive, so it asks first. */
   const confirmClear = useCallback(() => {
-    Alert.alert('Clear listening history?', 'This removes every entry. It cannot be undone.', [
+    confirmAlert('Clear listening history?', 'This removes every entry. It cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Clear', style: 'destructive', onPress: () => clearHistory() },
     ]);

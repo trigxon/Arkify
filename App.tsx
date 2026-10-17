@@ -3,6 +3,7 @@ import { StyleSheet, View, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { ConfirmHost } from './src/components/common/ConfirmDialog';
 import { PlayerProvider } from './src/hooks/usePlayer';
 import { LibraryProvider } from './src/hooks/useLibrary';
 import { AppearanceProvider } from './src/hooks/useAppearance';
@@ -70,6 +71,7 @@ export default function App() {
                 <View style={styles.appContainer}>
                   <RootNavigator />
                   <StatusBar style="light" />
+                  <ConfirmHost />
                 </View>
               </View>
             </PaletteProvider>

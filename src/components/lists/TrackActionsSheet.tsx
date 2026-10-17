@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   DimensionValue,
   PanResponder,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { BottomSheet } from '../common/BottomSheet';
+import { confirmAlert } from '../common/ConfirmDialog';
 import { ShareSheet, ShareRequest } from '../share/ShareSheet';
 import { Track } from '../../core/types';
 import { useLibrary } from '../../hooks/useLibrary';
@@ -146,11 +146,7 @@ export const TrackActionsSheet: React.FC<Props> = ({
       ? `Remove “${t.title}” from Liked Songs?`
       : `Remove “${t.title}” from your library and every playlist?`;
 
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(message)) removeFromLibrary(t);
-      return;
-    }
-    Alert.alert('Remove from library?', message, [
+    confirmAlert('Remove from library?', message, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: () => removeFromLibrary(t) },
     ]);
@@ -166,14 +162,7 @@ export const TrackActionsSheet: React.FC<Props> = ({
     if (!contextPlaylistId) return;
     const message = `Remove “${t.title}” from this playlist?`;
 
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm(message)) {
-        removeFromPlaylist(contextPlaylistId, t.id);
-        close();
-      }
-      return;
-    }
-    Alert.alert('Remove from playlist?', message, [
+    confirmAlert('Remove from playlist?', message, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',

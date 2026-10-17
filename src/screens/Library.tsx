@@ -8,13 +8,13 @@ import {
   TextInput,
   ActivityIndicator,
   Keyboard,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, X, Trash2, ChevronRight, ListMusic, DownloadCloud, Heart, Music2, Share, Search, ArrowDownUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, FONTS, TYPE, SHADOWS } from '../constants/theme';
 import { Pill } from '../components/common/Pill';
+import { confirmAlert } from '../components/common/ConfirmDialog';
 import { TrackRow } from '../components/lists/TrackRow';
 import { TrackActionsHost } from '../components/lists/TrackActionsHost';
 import { MiniPlayer } from '../components/player/MiniPlayer';
@@ -417,7 +417,7 @@ export default function LibraryScreen() {
                       style={styles.rowAction}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       onPress={() =>
-                        Alert.alert(
+                        confirmAlert(
                           'Delete playlist',
                           `“${playlist.name}” will be removed. Your liked songs and downloads stay.`,
                           [

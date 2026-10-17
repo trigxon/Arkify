@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Download, Trash2, Wifi } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { IOSToggle } from '../components/common/Glass';
+import { confirmAlert } from '../components/common/ConfirmDialog';
 import { BackButton } from '../components/common/Glass';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
@@ -63,7 +64,7 @@ export default function DownloadsScreen() {
 
   const confirmClearAll = useCallback(() => {
     if (!summary.count) return;
-    Alert.alert(
+    confirmAlert(
       'Remove all downloads',
       `${summary.count} tracks will be deleted from this device. Your likes and playlists stay.`,
       [
