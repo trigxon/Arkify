@@ -139,7 +139,9 @@ class ArkifyNativeModule : Module() {
       val boost = ensureBassBoost()
         ?: return@Function mapOf("ok" to false, "message" to "BassBoost unavailable")
       try {
-        boost.strength = strength.toInt().coerceIn(0, 1000).toShort()
+        // BassBoost exposes setStrength() but no matching getter, so Kotlin
+        // cannot synthesise a `.strength` property -- call the setter directly.
+        boost.setStrength(strength.toInt().coerceIn(0, 1000).toShort())
         boost.enabled = strength > 0
         mapOf("ok" to true)
       } catch (e: Exception) {
@@ -152,7 +154,7 @@ class ArkifyNativeModule : Module() {
     if (equalizer == null) {
       equalizer = try {
         Equalizer(0, OUTPUT_SESSION)
-      } catch {
+      } catch (e: Exception) {
         null // device refuses global-session effects
       }
     }
@@ -163,7 +165,7 @@ class ArkifyNativeModule : Module() {
     if (bassBoost == null) {
       bassBoost = try {
         BassBoost(0, OUTPUT_SESSION)
-      } catch {
+      } catch (e: Exception) {
         null
       }
     }

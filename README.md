@@ -36,7 +36,8 @@ No account. No ads. No backend. No tracking.
 
 Arkify is a free, open-source music player. You search for a song, tap it, and it plays —
 including in the background, with the screen locked, using your phone's normal lock-screen
-media controls.
+media controls. Everything is wrapped in a clear liquid-glass interface with an
+artwork-aware ambience, and an on-device AI engine that learns what you like.
 
 Everything you build up — liked songs, playlists, history, queue — is stored **on your
 device only**. There is no Arkify account, no Arkify server, and nothing is sent anywhere
@@ -47,31 +48,41 @@ except the requests needed to search for and stream the audio you asked for.
 - **Search** — songs, artists, albums and playlists, with artwork and durations
 - **Background playback** — keeps playing with the screen off, via a foreground service
 - **Lock-screen controls** — play/pause, skip, and ±10s seeking from the notification
+- **Cinematic Now Playing** — full-screen player with artwork-reactive ambient glow,
+  karaoke-style lyrics, sleep timer, and shared-element artwork flight from the mini player
+- **Arkify AI** — on-device taste profile and recommendations, mood radios, and
+  prompt-based playlist generation (optionally upgraded with your own Gemini API key)
 - **Queue** — add, remove, reorder, play-next, shuffle, and repeat (off / all / one)
-- **Library** — liked songs, your own playlists, and imported public playlists
+- **Library** — liked songs, your own playlists, and imported public playlists — with
+  search-within, sorting, descriptions, and drag-to-reorder
+- **Audio FX** — system equalizer with presets and custom bands, plus crossfade
+- **Offline** — smart auto-downloads with a storage manager
+- **Listening streaks, stats, and a Wrapped** — your year in music, gamified
 - **History** — what you played, when
 - **Resumes where you left off** — queue and playback position survive a restart
 - **A real seek bar** — drag to scrub, not a decoration
+- **Liquid glass UI** — clear iOS-grade glass materials, spring-physics motion, filter
+  chips, a sidebar drawer, and a branded launch experience
 
 ## Download
 
 Grab the signed APK from the **[latest release](https://github.com/trigxon/Arkify/releases/latest)**:
 
-**[⬇ Download Arkify-v1.3.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v1.3.0.apk)**
+**[⬇ Download Arkify-v2.1.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v2.1.0.apk)**
 
-Verify it before installing:
-
-```
-SHA-256  ab1f9e32667607a9df9b1adc409052132c01dce8a0c2e8105825e4928f0e3370
-```
+Verify it before installing — every release publishes its exact APK checksum in the
+release notes and as a `.sha256` file next to the APK:
 
 ```bash
 # Linux / macOS
-sha256sum Arkify-v1.3.0.apk
+sha256sum Arkify-v2.1.0.apk
 
 # Windows (PowerShell)
-Get-FileHash Arkify-v1.3.0.apk -Algorithm SHA256
+Get-FileHash Arkify-v2.1.0.apk -Algorithm SHA256
 ```
+
+Then compare the output with the `SHA-256` shown on the release page (and in the
+`.sha256` sidecar) before installing.
 
 Arkify is **not distributed through Google Play**, so you install it by sideloading. Android
 will warn you about installing from an unknown source — that warning is expected for any
@@ -97,10 +108,11 @@ check by construction. To install:
 Only install a build downloaded from this repository's Releases page or compiled by you
 from source.
 
-Requires Android 7.0 or newer. The APK published here is built by CI and signed with a
-debug key for testing; a production release-signed build requires the maintainer's private
-keystore (see `plugins/withReleaseSigning.js`). This project is not affiliated with,
-reviewed by, or distributed by Google.
+Requires Android 7.0 or newer. The APK published here is built by CI, signed with a
+stable release key that the pipeline generates once and caches across builds, and
+verified release-signed before upload (see `RELEASE_BUILD.md` and
+`plugins/withReleaseSigning.js`). This project is not affiliated with, reviewed by, or
+distributed by Google.
 
 ## Build from source
 
@@ -275,6 +287,11 @@ Liked songs, playlists, history, queue, playback position, and settings are writ
 device's local storage and never leave it. Uninstalling the app removes them. The only
 network requests Arkify makes are those required to fulfil a search or play a track you
 selected.
+
+Arkify's recommendations, mood radios, and playlist generation run **on your device**. If
+you optionally paste your own Google Gemini API key in Settings, "Ask AI" playlist prompts
+are sent from your device directly to Google's Gemini API using that key — Arkify's author
+never sees them, and the key stays in your device's local storage.
 
 ## DMCA and contact
 

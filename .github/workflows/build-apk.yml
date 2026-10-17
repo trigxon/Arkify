@@ -3,6 +3,7 @@ name: Build Arkify APK
 on:
   push:
     branches: [main]
+    tags: ['v*']
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -16,6 +17,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Exposed so the publish-release job can name the artifact it needs.
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,8 +28,10 @@ jobs:
         # Single source of truth: every later step names the APK after the
         # version in app.json, so a release bump can never leave a step
         # pointing at a stale hard-coded filename.
+        id: ver
         run: |
           VERSION="$(node -p "require('./app.json').expo.version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "ARKIFY_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "ARKIFY_APK=Arkify-v$VERSION.apk" >> "$GITHUB_ENV"
           echo "Building Arkify v$VERSION"
@@ -153,3 +159,30 @@ jobs:
             output/${{ env.ARKIFY_APK }}
             output/${{ env.ARKIFY_APK }}.sha256
           if-no-files-found: error
+
+  # Cutting a release is now a single action: push a version tag.
+  #   git tag v2.1.0 && git push origin v2.1.0
+  # The tag run rebuilds the APK from the tagged commit, then publishes a
+  # GitHub release with the APK + its SHA-256 sidecar attached. Release notes
+  # are auto-generated from the commits since the previous tag.
+  publish-release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download built APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Arkify-v${{ needs.build.outputs.version }}-apk
+          path: output
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Arkify ${{ github.ref_name }}
+          files: output/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

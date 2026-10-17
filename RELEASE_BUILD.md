@@ -180,6 +180,26 @@ removing the file from HEAD is not enough).
 7. [ ] SHA-256 recorded and published with the APK
 8. [ ] GitHub Release updated with the new APK + hash
 
+### The automated path (preferred)
+
+Every push to `main` builds the APK and uploads it as a CI artifact. Cutting a
+release is one more step — push a version tag:
+
+```bash
+git tag v2.1.0
+git push origin v2.1.0
+```
+
+The tag triggers the same `Build Arkify APK` workflow, which builds from the
+tagged commit and then automatically publishes a GitHub release containing:
+
+- `Arkify-v<version>.apk` — named after `expo.version` in `app.json`
+- `Arkify-v<version>.apk.sha256` — the checksum sidecar
+- auto-generated release notes covering every commit since the previous tag
+
+After the release appears, mirror its checksum into the README's Download
+section so the README never drifts from what is actually published.
+
 ## Signing vs Google's systems
 
 Be precise about what signing does and does not do:
