@@ -24,6 +24,7 @@ import Reanimated, {
   withSequence,
   withDelay,
   cancelAnimation,
+  runOnJS,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -48,7 +49,8 @@ import {
   Mic2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SIZES, FONTS, TYPE, SHADOWS, SPRINGS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, SHADOWS, SPRINGS, springVelocity } from '../constants/theme';
+import { peekExpansionOrigin, type ExpansionOrigin } from '../player/expansionStore';
 import { SeekBar } from '../components/player/SeekBar';
 import { QueueSheet } from '../components/player/QueueSheet';
 import { TrackActionsSheet } from '../components/lists/TrackActionsSheet';
@@ -345,6 +347,126 @@ export default function NowPlayingScreen() {
   const scrollY = useSharedValue(0);
   const colorFade = motionReduced ? 0 : 480;
 
+  // -----------------------------------------------------------------------
+  // Shared-element flight — the artwork physically travels from the mini
+  // player's rect to the hero position (and back on dismissal).
+  //
+  // Honesty + safety rules:
+  //   · The flight only runs when the mini player published a rect for the
+  //     SAME artwork URI, motion is allowed, and the hero has laid out.
+  //     Anything else falls back to the plain fade entrance/dismissal.
+  //   · The clone and the real hero swap in the same frame (hero snaps
+  //     visible the moment the clone lands), so no seam is ever visible.
+  //   · Window coordinates are converted into the screen's own coordinate
+  //     space (the container origin), which matters on web where the app
+  //     renders inside a phone frame offset from the viewport origin.
+  // -----------------------------------------------------------------------
+  const flightOriginRef = useRef<ExpansionOrigin | null>(peekExpansionOrigin());
+  const flightUri = flightOriginRef.current?.uri ?? null;
+  const flightActive = !!flightOriginRef.current && !motionReduced && !!flightUri;
+  const flightActiveRef = useRef(flightActive);
+  useEffect(() => {
+    flightActiveRef.current = flightActive;
+  }, [flightActive]);
+
+  // Flight clone shared values; they start parked on the mini rect.
+  const flyX = useSharedValue(flightOriginRef.current?.x ?? 0);
+  const flyY = useSharedValue(flightOriginRef.current?.y ?? 0);
+  const flySize = useSharedValue(flightOriginRef.current?.size ?? 44);
+  const flyRadius = useSharedValue(12);
+  const flyOpacity = useSharedValue(flightActive ? 1 : 0);
+  // Hero hidden while the clone owns the artwork; screen dissolves in behind it.
+  const heroVisible = useSharedValue(flightActive ? 0 : 1);
+  const screenIn = useSharedValue(flightActive ? 0 : 1);
+  const [flightUriState, setFlightUriState] = useState<string | null>(flightActive && flightUri ? flightUri : null);
+  const landedRef = useRef(!flightActive);
+  const committedRef = useRef(false);
+  const flyStartedRef = useRef(!flightActive);
+  const landTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heroRef = useRef<View | null>(null);
+  const containerRef = useRef<View | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (landTimerRef.current) clearTimeout(landTimerRef.current);
+      if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
+    };
+  }, []);
+
+  /** The real hero takes over from the clone in one frame. */
+  const landFlight = useCallback(() => {
+    if (landedRef.current) return;
+    landedRef.current = true;
+    heroVisible.value = 1;
+    flyOpacity.value = 0;
+    // Keep the clone mounted one extra tick so the swap can never flash.
+    setTimeout(() => setFlightUriState(null), 80);
+  }, [heroVisible, flyOpacity]);
+
+  /** Fly the clone from wherever the hero is right now back to the mini rect. */
+  const commitDismiss = useCallback(() => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    navigationRef.current.goBack();
+  }, []);
+
+  const dismissingRef = useRef(false);
+  const requestDismiss = useCallback(
+    (velocityY = 0, relaxDrag = false) => {
+      if (dismissingRef.current) return;
+      const origin = peekExpansionOrigin();
+      const node = heroRef.current;
+      // Honest fallback: no flight data, reduced motion, or no laid-out hero
+      // (lyrics/about views) → the plain route dismissal.
+      if (!flightActiveRef.current || !origin || !node) {
+        if (relaxDrag) dragY.value = withTiming(0, { duration: 160 });
+        commitDismiss();
+        return;
+      }
+      dismissingRef.current = true;
+      // Freeze drag tracking while measuring so the takeover is exact.
+      const uri = currentTrack?.albumImageUrl ?? origin.uri ?? '';
+      node.measureInWindow((hx, hy, w) => {
+        if (w <= 0) {
+          if (relaxDrag) dragY.value = withTiming(0, { duration: 160 });
+          commitDismiss();
+          return;
+        }
+        containerRef.current?.measureInWindow((cx, cy) => {
+          // Clone takes over from the hero's LIVE rect (scroll, parallax and
+          // any drag translation included), then flies home.
+          flyX.value = hx - cx;
+          flyY.value = hy - cy;
+          flySize.value = w;
+          flyRadius.value = SIZES.radius.xl;
+          flyOpacity.value = 1;
+          setFlightUriState(uri || null);
+          heroVisible.value = 0;
+          // The room dissolves while the artwork travels home.
+          screenIn.value = withTiming(0, { duration: 240 });
+          if (relaxDrag) dragY.value = withTiming(0, { duration: 200 });
+          const spring = { ...SPRINGS.flight, velocity: springVelocity(velocityY) };
+          flyX.value = withSpring(origin.x - cx, spring);
+          flyY.value = withSpring(origin.y - cy, spring, (finished) => {
+            if (finished) runOnJS(commitDismiss)();
+          });
+          flySize.value = withSpring(origin.size, spring);
+          flyRadius.value = withSpring(12, spring);
+          if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
+          commitTimerRef.current = setTimeout(commitDismiss, 800);
+        });
+      });
+    },
+    [commitDismiss, dragY, currentTrack, flyOpacity, flyRadius, flySize, flyX, flyY, heroVisible, screenIn]
+  );
+
+  // Ref bridge: memoized gesture handlers must reach the latest closure.
+  const requestDismissRef = useRef(requestDismiss);
+  useEffect(() => {
+    requestDismissRef.current = requestDismiss;
+  }, [requestDismiss]);
+
   useEffect(() => {
     accentShared.value = withTiming(accent, { duration: colorFade });
     ringBgShared.value = withTiming(accentSoft, { duration: colorFade });
@@ -363,16 +485,22 @@ export default function NowPlayingScreen() {
   }, [immersive, motionReduced, chromeOpacity, bottomOpacity, immersiveGlow, artworkScale]);
 
   // Entrance choreography — once per mount, before immersive can fight it.
+  // With a shared-element flight pending, the flight owns the artwork and
+  // only the room fades in; the plain choreography never runs.
   const didEnter = useRef(false);
   useEffect(() => {
     if (didEnter.current) return;
     didEnter.current = true;
     if (motionReduced) return;
+    if (flightActiveRef.current) {
+      screenIn.value = withTiming(1, { duration: 300 });
+      return;
+    }
     entranceOpacity.value = 0;
     artworkScale.value = 0.92;
     entranceOpacity.value = withTiming(1, { duration: 300 });
     artworkScale.value = withSpring(1, SPRINGS.lively);
-  }, [motionReduced, entranceOpacity, artworkScale]);
+  }, [motionReduced, entranceOpacity, artworkScale, screenIn]);
 
   // Ambient pulse — breathing glow around the play ring while ACTUALLY playing.
   useEffect(() => {
@@ -412,6 +540,58 @@ export default function NowPlayingScreen() {
     transform: [{ translateY: scrollY.value * 0.08 }, { scale: artworkScale.value }],
     opacity: entranceOpacity.value,
   }));
+  // The hero itself hides while the flight clone owns the artwork — the glow
+  // stays, so the light arrives before the object, like the reference.
+  const heroStyle = useAnimatedStyle(() => ({ opacity: heroVisible.value }));
+  const screenStyle = useAnimatedStyle(() => ({ opacity: screenIn.value }));
+  const flyStyle = useAnimatedStyle(() => ({
+    width: flySize.value,
+    height: flySize.value,
+    borderRadius: flyRadius.value,
+    transform: [{ translateX: flyX.value }, { translateY: flyY.value }],
+    opacity: flyOpacity.value,
+  }));
+
+  /** Measure the hero's live window rect and launch the flight to it. */
+  const onHeroLayout = useCallback(() => {
+    if (flyStartedRef.current) return;
+    const node = heroRef.current;
+    if (!node) return;
+    node.measureInWindow((hx, hy, w) => {
+      if (flyStartedRef.current || w <= 0) return;
+      const origin = flightOriginRef.current;
+      if (!origin) return;
+      containerRef.current?.measureInWindow((cx, cy) => {
+        if (flyStartedRef.current) return;
+        flyStartedRef.current = true;
+        flyX.value = withSpring(hx - cx, SPRINGS.flight);
+        flyY.value = withSpring(hy - cy, SPRINGS.flight, (finished) => {
+          if (finished) runOnJS(landFlight)();
+        });
+        flySize.value = withSpring(w, SPRINGS.flight);
+        flyRadius.value = withSpring(SIZES.radius.xl, SPRINGS.flight);
+        // Safety: an interrupted spring must still hand over to the hero.
+        if (landTimerRef.current) clearTimeout(landTimerRef.current);
+        landTimerRef.current = setTimeout(landFlight, 900);
+      });
+    });
+  }, [flyX, flyY, flySize, flyRadius, landFlight]);
+
+  /**
+   * Container origin: window coords → screen-local coords. The parked clone
+   * starts in window coordinates; the moment the container measures, the
+   * clone is re-anchored into local space (identical visual position) so web
+   * frames offset from the viewport never show it at the wrong spot.
+   */
+  const onContainerLayout = useCallback(() => {
+    containerRef.current?.measureInWindow((cx, cy) => {
+      const origin = flightOriginRef.current;
+      if (!origin || flyStartedRef.current) return;
+      flyX.value = origin.x - cx;
+      flyY.value = origin.y - cy;
+    });
+  }, [flyX, flyY]);
+
   const glowStyle = useAnimatedStyle(() => {
     const base = Math.max(0, 1 - Math.min(scrollY.value / 320, 0.6));
     const boost = immersiveGlow.value > 0.5 ? 1.4 : 1;
@@ -437,11 +617,15 @@ export default function NowPlayingScreen() {
           dragY.value = Math.max(g.dy, 0);
         },
         onPanResponderRelease: (_, g) => {
-          if (g.dy > 110) {
-            dragY.value = withTiming(260, { duration: 150 });
-            navigationRef.current.goBack();
+          if (g.dy > 110 || g.vy > 0.9) {
+            // The flight owns the exit: freeze the drag where it is, let
+            // requestDismiss measure and hand over, then relax the chrome.
+            requestDismissRef.current(g.vy, true);
           } else {
-            dragY.value = withSpring(0, SPRINGS.release);
+            dragY.value = withSpring(0, {
+              ...SPRINGS.release,
+              velocity: springVelocity(g.vy),
+            });
           }
         },
         onPanResponderTerminate: () => {
@@ -459,31 +643,46 @@ export default function NowPlayingScreen() {
   // (testID closest-match). The PanResponder above stays authoritative on
   // native; on web RNW's pan claim is unreliable and text selection wins —
   // this path is deterministic. Listeners live for the screen's lifetime and
-  // only act while a press STARTED inside the header.
+  // only act while a press STARTED inside the header. Velocity comes from
+  // the last two pointer samples (px/ms), matching the mini player.
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     let active = false;
     let startY = 0;
+    let lastY = 0;
+    let lastT = 0;
+    let velocity = 0;
     const onDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
       if (!t || typeof t.closest !== 'function' || !t.closest('[data-testid="np-header"]')) return;
       active = true;
       startY = e.clientY;
+      lastY = e.clientY;
+      lastT = e.timeStamp;
+      velocity = 0;
     };
     const onMove = (e: PointerEvent) => {
       if (!active || motionRef.current) return;
       const dy = e.clientY - startY;
       if (dy > 0) dragY.value = dy;
+      const dt = e.timeStamp - lastT;
+      if (dt > 0) {
+        velocity = velocity * 0.6 + ((e.clientY - lastY) / dt) * 0.4;
+        lastY = e.clientY;
+        lastT = e.timeStamp;
+      }
     };
     const onUp = (e: PointerEvent) => {
       if (!active) return;
       active = false;
       const dy = e.clientY - startY;
-      if (dy > 110) {
-        dragY.value = withTiming(260, { duration: 150 });
-        navigationRef.current.goBack();
+      if (dy > 110 || velocity > 0.9) {
+        requestDismissRef.current(velocity, true);
       } else if (dragY.value > 0) {
-        dragY.value = withSpring(0, SPRINGS.release);
+        dragY.value = withSpring(0, {
+          ...SPRINGS.release,
+          velocity: springVelocity(velocity),
+        });
       }
     };
     document.addEventListener('pointerdown', onDown);
@@ -535,7 +734,8 @@ export default function NowPlayingScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} ref={containerRef}>
+      <Reanimated.View style={[StyleSheet.absoluteFill, screenStyle]} pointerEvents="box-none">
       {/* Background artwork blur — the track colours the room. */}
       <Image
         source={{ uri: currentTrack.albumImageUrl }}
@@ -574,7 +774,7 @@ export default function NowPlayingScreen() {
           {...headerPan.panHandlers}
         >
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={() => requestDismiss()}
             style={styles.headerIcon}
             accessibilityRole="button"
             accessibilityLabel="Close player"
@@ -646,10 +846,13 @@ export default function NowPlayingScreen() {
                 ]}
               />
               <Reanimated.View
+                ref={heroRef}
+                onLayout={onHeroLayout}
                 style={[
                   styles.artworkContainer,
                   { width: artworkSize, height: artworkSize },
                   SHADOWS.artwork,
+                  heroStyle,
                 ]}
               >
                 <Artwork
@@ -1008,6 +1211,15 @@ export default function NowPlayingScreen() {
           </>
         )}
       </Reanimated.ScrollView>
+      </Reanimated.View>
+
+      {/* The flying artwork clone — outside the fading room so it stays fully
+          visible while the screen dissolves in or out around it. */}
+      {flightUriState ? (
+        <Reanimated.View pointerEvents="none" style={[styles.flyArtwork, flyStyle]}>
+          <Image source={{ uri: flightUriState }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        </Reanimated.View>
+      ) : null}
 
       {/* Queue sheet */}
       <QueueSheet
@@ -1049,8 +1261,24 @@ export default function NowPlayingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    // Transparent on purpose: the room (blur image + gradient + content)
+    // fades in over the app behind it during the shared-element flight.
+    backgroundColor: 'transparent',
   },
+  /** The flying artwork clone — window-anchored, above every sheet. */
+  flyArtwork: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    overflow: 'hidden',
+    backgroundColor: COLORS.surfaceElevated,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 16,
+    zIndex: 50,
+  } as ViewStyle,
   /** Headers never become text-selection sources during drag gestures. */
   noSelect: {
     userSelect: 'none',

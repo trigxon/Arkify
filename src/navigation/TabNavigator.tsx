@@ -21,6 +21,7 @@ import Animated, {
 import { Home, Search, Library, User } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE, SPRINGS } from '../constants/theme';
 import { useAppearance } from '../hooks/useAppearance';
+import { glassMaterial } from '../components/common/Glass';
 import { hapticLight, hapticMedium, hapticSelection } from '../utils/haptics';
 // Screens
 import HomeScreen from '../screens/Home';
@@ -104,7 +105,10 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
   // Selection-mode chrome: the slab leans forward and its rim lights up.
   const barScale = useSharedValue(1);
   const selectionGlow = useSharedValue(0);
-  const { motionReduced } = useAppearance();
+  const { motionReduced, glass } = useAppearance();
+  // The floating slab uses the named `nav` material (§ material family),
+  // resolved against the user's glass-intensity setting.
+  const navMaterial = glassMaterial(glass, 'nav');
 
   // One effect owns the pill in every state: selection tracking, first
   // measure, reduced-motion glide and the ordinary liquid travel.
@@ -323,7 +327,11 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
       <View pointerEvents="none" style={styles.underGlow} />
 
       <Animated.View
-        style={[styles.bar, { height: BAR_HEIGHT }, barAnimatedStyle]}
+        style={[
+          styles.bar,
+          { height: BAR_HEIGHT, backgroundColor: navMaterial.fill, borderColor: navMaterial.border },
+          barAnimatedStyle,
+        ]}
         onLayout={onBarLayout}
       >
         {/* Material: real blur on native, layered translucency everywhere. */}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { PanResponder, Platform, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,8 +10,10 @@ import { useProgress } from '../../hooks/usePlayer';
 import { useLibrary } from '../../hooks/useLibrary';
 import { usePalette } from '../../hooks/usePalette';
 import { useAppearance } from '../../hooks/useAppearance';
-import { COLORS, SIZES, FONTS, TYPE, SHADOWS, SPRINGS } from '../../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, SHADOWS, SPRINGS, springVelocity } from '../../constants/theme';
 import { Artwork } from '../common/Artwork';
+import { glassMaterial } from '../common/Glass';
+import { setExpansionOrigin } from '../../player/expansionStore';
 import { hapticLight } from '../../utils/haptics';
 
 interface MiniPlayerProps {
@@ -106,7 +108,9 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   // Artwork-reactive accent, crossfaded on the UI thread (480 ms — inside the
   // directive's 350–600 ms band, and never an abrupt recolor).
   const { palette } = usePalette();
-  const { motionReduced } = useAppearance();
+  const { motionReduced, glass } = useAppearance();
+  // The slab uses the named `mini` material — glass-intensity aware.
+  const miniMaterial = glassMaterial(glass, 'mini');
   const accent = palette?.accent ?? COLORS.accent.primary;
   const accentSoft = palette?.accentSoft ?? COLORS.accent.soft;
   const accentShared = useSharedValue<string>(accent);
@@ -123,17 +127,51 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
     backgroundColor: underGlowColor.value,
   }));
 
+  // --- shared-element handoff ----------------------------------------------
+  // The full player flies the artwork out of this slab, so the artwork's
+  // window rect is published continuously (layout + every open) with the
+  // artwork URI stamped in — a stale rect can never fly the wrong image.
+  const artworkRef = useRef<View | null>(null);
+  const trackRef = useRef(track);
+  useEffect(() => {
+    trackRef.current = track;
+  }, [track]);
+
+  const publishOrigin = useCallback(() => {
+    const t = trackRef.current;
+    if (!t || !artworkRef.current) return;
+    artworkRef.current.measureInWindow((x, y, width) => {
+      if (width <= 0) return;
+      setExpansionOrigin({ x, y, size: width, uri: t.albumImageUrl ?? null });
+    });
+  }, []);
+
+  // Keep the store warm on mount, track change and layout so even an
+  // immediate press finds a fresh rect (measureInWindow resolves async).
+  useEffect(() => {
+    publishOrigin();
+  }, [publishOrigin, track]);
+
+  /** Open the full player: refresh the rect first, then navigate. */
+  const openPlayer = useCallback(() => {
+    publishOrigin();
+    onPress();
+  }, [publishOrigin, onPress]);
+
   // --- swipe-up to expand --------------------------------------------------
   // Vertical upward drags lift the slab and open the full player; taps pass
   // straight through to the touchables (the responder is claimed on movement
   // only). Disabled under reduced motion — tap still opens the player.
+  // Release honours FLICK VELOCITY: a fast flick commits even from a short
+  // drag, and the settle-back spring inherits the gesture's velocity so the
+  // slab decelerates like a mass, not a timer.
   const dragY = useSharedValue(0);
-  const onPressRef = useRef(onPress);
+  const openPlayerRef = useRef(openPlayer);
   const motionRef = useRef(motionReduced);
   useEffect(() => {
-    onPressRef.current = onPress;
+    openPlayerRef.current = openPlayer;
     motionRef.current = motionReduced;
-  }, [onPress, motionReduced]);
+  }, [openPlayer, motionReduced]);
 
   const pan = useMemo(
     () =>
@@ -144,11 +182,15 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
           dragY.value = Math.max(g.dy, -44);
         },
         onPanResponderRelease: (_, g) => {
-          if (g.dy < -34) {
+          const flick = g.vy < -0.8; // px/ms — a decisive upward throw
+          if (g.dy < -34 || flick) {
             dragY.value = withTiming(0, { duration: 110 });
-            onPressRef.current();
+            openPlayerRef.current();
           } else {
-            dragY.value = withSpring(0, SPRINGS.release);
+            dragY.value = withSpring(0, {
+              ...SPRINGS.release,
+              velocity: springVelocity(g.vy),
+            });
           }
         },
         onPanResponderTerminate: () => {
@@ -165,30 +207,46 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 
   // Web swipe-up: document-level pointer tracking scoped to the mini player.
   // Native keeps the PanResponder; on web RNW's pan claim is unreliable.
+  // Velocity is derived from the last two pointer samples (px/ms).
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     let active = false;
     let startY = 0;
+    let lastY = 0;
+    let lastT = 0;
+    let velocity = 0;
     const onDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
       if (!t || typeof t.closest !== 'function' || !t.closest('[data-testid="mini-player"]')) return;
       active = true;
       startY = e.clientY;
+      lastY = e.clientY;
+      lastT = e.timeStamp;
+      velocity = 0;
     };
     const onMove = (e: PointerEvent) => {
       if (!active || motionRef.current) return;
       const dy = e.clientY - startY;
       if (dy < 0) dragY.value = Math.max(dy, -44);
+      const dt = e.timeStamp - lastT;
+      if (dt > 0) {
+        velocity = velocity * 0.6 + ((e.clientY - lastY) / dt) * 0.4;
+        lastY = e.clientY;
+        lastT = e.timeStamp;
+      }
     };
     const onUp = (e: PointerEvent) => {
       if (!active) return;
       active = false;
       const dy = e.clientY - startY;
-      if (dy < -34) {
+      if (dy < -34 || velocity < -0.8) {
         dragY.value = withTiming(0, { duration: 110 });
-        onPressRef.current();
+        openPlayerRef.current();
       } else if (dragY.value < 0) {
-        dragY.value = withSpring(0, SPRINGS.release);
+        dragY.value = withSpring(0, {
+          ...SPRINGS.release,
+          velocity: springVelocity(velocity),
+        });
       }
     };
     document.addEventListener('pointerdown', onDown);
@@ -203,6 +261,9 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
     };
   }, [dragY]);
 
+  // Layout changes (tab bar height, rotation) invalidate the stored rect.
+  const onArtworkLayout = publishOrigin;
+
   if (!track) return null;
 
   return (
@@ -214,7 +275,13 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
       {/* Aqua ambience bleeding from under the slab — matches the tab bar. */}
       <Animated.View pointerEvents="none" style={[styles.underGlow, underGlowStyle]} />
       {/* Liquid glass slab: real blur on native, layered translucency on web. */}
-      <View style={[styles.container, SHADOWS.glass]}>
+      <View
+        style={[
+          styles.container,
+          SHADOWS.glass,
+          { backgroundColor: miniMaterial.fill, borderColor: miniMaterial.border },
+        ]}
+      >
         {Platform.OS !== 'web' ? (
           <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
         ) : null}
@@ -239,12 +306,13 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
           <TouchableOpacity
             style={styles.mainPressArea}
             activeOpacity={0.85}
-            onPress={onPress}
+            onPress={openPlayer}
             accessibilityRole="button"
             accessibilityLabel={`Now playing: ${track.title} by ${track.artist.name}. Open player.`}
           >
-            {/* Artwork: inset on a subtle accent-tinted plinth, per the reference. */}
-            <View style={styles.artworkWrap}>
+            {/* Artwork: inset on a subtle accent-tinted plinth, per the reference.
+                This exact rect is the origin of the shared-element flight. */}
+            <View style={styles.artworkWrap} ref={artworkRef} onLayout={onArtworkLayout}>
               <Artwork uri={track.albumImageUrl} size={44} radius={10} />
             </View>
 
@@ -353,8 +421,9 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: SIZES.radius.lg,
     overflow: 'hidden',
-    backgroundColor:
-      Platform.OS === 'web' ? 'rgba(8, 20, 22, 0.78)' : 'rgba(7, 18, 20, 0.74)',
+    // Fill/border come from the `mini` material at render time; these static
+    // values are only the pre-measure fallback.
+    backgroundColor: 'rgba(8, 20, 22, 0.78)',
     borderColor: 'rgba(59, 240, 223, 0.26)',
     borderWidth: 1,
   },

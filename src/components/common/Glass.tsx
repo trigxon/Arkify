@@ -24,8 +24,23 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { COLORS, GLASS, SPRINGS, ENTRANCE, TYPE, FONTS, SIZES } from '../../constants/theme';
+import { COLORS, GLASS, GLASS_MATERIALS, SPRINGS, ENTRANCE, TYPE, FONTS, SIZES, type GlassMaterialId } from '../../constants/theme';
 import { useAppearance } from '../../hooks/useAppearance';
+import type { TunedGlass } from '../../constants/appearance';
+
+/**
+ * Resolve a named glass material against the user's glass-intensity tuning.
+ * One registry (theme.GLASS_MATERIALS), one resolution point — nav slabs,
+ * sheets, menus and buttons never share identical blur/opacity again.
+ */
+export function glassMaterial(glass: TunedGlass, id: GlassMaterialId) {
+  const m = GLASS_MATERIALS[id];
+  return {
+    fill: glass.fill[m.weight as keyof typeof glass.fill],
+    border: glass.border[m.border as keyof typeof glass.border],
+    blur: glass.blur[m.blur as keyof typeof glass.blur],
+  };
+}
 
 // ---------------------------------------------------------------------------
 // GlassView — the material everything translucent is made of
@@ -47,6 +62,9 @@ type GlassViewProps = {
   specular?: boolean;
   /** Adds a soft inner accent tint (AI surfaces, active states). */
   accent?: boolean;
+  /** Named material from the GLASS_MATERIALS family — resolves weight and
+   *  border recipe; explicit `weight` still wins when both are given. */
+  material?: GlassMaterialId;
   /** Blurs whatever is behind the panel (native). Off on web. */
   blur?: boolean;
   /** Rounded pill (full radius). */
@@ -57,9 +75,10 @@ type GlassViewProps = {
 };
 
 export const GlassView: React.FC<GlassViewProps> = ({
-  weight = 'regular',
+  weight: weightProp = 'regular',
   specular = true,
   accent = false,
+  material,
   // Real translucent material on native (iOS UIBlurEffect / Android blur);
   // web keeps the layered translucent fill, which reads nearly identically.
   blur = Platform.OS !== 'web',
@@ -72,6 +91,13 @@ export const GlassView: React.FC<GlassViewProps> = ({
   // Materials respond to the user's Glass-intensity setting. Identity at
   // 'standard', so the default install does zero extra work here.
   const { glass } = useAppearance();
+  const mat = material ? GLASS_MATERIALS[material] : null;
+  const weight = (mat?.weight as GlassWeight | undefined) ?? weightProp;
+  const borderColor = accent
+    ? glass.border.accent
+    : mat
+      ? glass.border[mat.border as keyof typeof glass.border]
+      : glass.border.hairline;
 
   return (
     <View
@@ -82,7 +108,7 @@ export const GlassView: React.FC<GlassViewProps> = ({
           borderRadius: radius,
           backgroundColor: glass.fill[weight],
           borderWidth: 1,
-          borderColor: accent ? glass.border.accent : glass.border.hairline,
+          borderColor,
           overflow: 'hidden',
         },
         style,
@@ -143,19 +169,29 @@ type SpringPressableProps = TouchableOpacityProps & {
   pressScale?: number;
   /** Glows while pressed (accent ring). */
   glow?: boolean;
+  /** Movement-linked specular: a light streak slides down the face while
+   *  pressed and springs away on release. Best on pill/round controls —
+   *  set `sheenRadius` to match the surface. */
+  sheen?: boolean;
+  /** Corner radius the sheen layer is clipped to. */
+  sheenRadius?: number;
   style?: StyleProp<ViewStyle>;
 };
 
 export const SpringPressable: React.FC<SpringPressableProps> = ({
   pressScale = 0.96,
   glow = false,
+  sheen = false,
+  sheenRadius = 999,
   style,
   children,
   ...touchProps
 }) => {
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
-  // Reduced motion: presses answer through opacity, not transform.
+  const sheenProgress = useSharedValue(0);
+  // Reduced motion: presses answer through opacity, not transform or
+  // travelling light.
   const { motionReduced } = useAppearance();
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -166,21 +202,41 @@ export const SpringPressable: React.FC<SpringPressableProps> = ({
     opacity: glowOpacity.value,
   }));
 
+  const sheenStyle = useAnimatedStyle(() => ({
+    opacity: motionReduced ? sheenProgress.value * 0.6 : sheenProgress.value,
+    transform: [{ translateY: motionReduced ? 0 : -3 + (1 - sheenProgress.value) * 3 }],
+  }));
+
   return (
     <TouchableOpacity
       activeOpacity={motionReduced ? 0.7 : 1}
       onPressIn={() => {
         scale.value = withSpring(pressScale, SPRINGS.press);
         if (glow) glowOpacity.value = withTiming(1, { duration: 90 });
+        if (sheen) sheenProgress.value = withTiming(1, { duration: 110 });
       }}
       onPressOut={() => {
         scale.value = withSpring(1, SPRINGS.release);
         if (glow) glowOpacity.value = withTiming(0, { duration: 220 });
+        if (sheen) sheenProgress.value = withTiming(0, { duration: 260 });
       }}
       {...touchProps}
     >
       <Animated.View style={[style, animatedStyle]}>
         {children}
+        {sheen ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, styles.sheenClip, { borderRadius: sheenRadius }, sheenStyle]}
+          >
+            <LinearGradient
+              colors={['rgba(255,255,255,0)', GLASS.highlight.strong, 'rgba(255,255,255,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
+        ) : null}
         {glow ? (
           <Animated.View
             pointerEvents="none"
@@ -356,6 +412,8 @@ export const BackButton: React.FC<{
     <SpringPressable
       style={[styles.backBtn, style]}
       pressScale={0.88}
+      sheen
+      sheenRadius={19}
       onPress={
         onPress ??
         (() => {
@@ -596,6 +654,9 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
   },
+  sheenClip: {
+    overflow: 'hidden',
+  } as ViewStyle,
   glowBlur: Platform.select({
     // Blur via stacked alpha rings on Android (shadow blur is unreliable there)
     android: {

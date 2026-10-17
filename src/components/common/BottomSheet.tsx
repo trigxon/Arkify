@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { useAppearance } from '../../hooks/useAppearance';
+import { glassMaterial } from './Glass';
 import { WebModal } from './WebModal';
 
 type BottomSheetProps = {
@@ -55,6 +57,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   scrollBody = false,
 }) => {
   const insets = useSafeAreaInsets();
+  // The sheet uses the named `sheet` material — resolved against the user's
+  // glass-intensity setting so Display preferences reach every surface.
+  const { glass } = useAppearance();
+  const sheetMaterial = glassMaterial(glass, 'sheet');
   const maxSheetHeight = Math.round(Dimensions.get('window').height * 0.88);
 
   return (
@@ -67,6 +73,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         <View
           style={[
             styles.sheet,
+            {
+              backgroundColor: sheetMaterial.fill,
+              borderColor: sheetMaterial.border,
+            },
             tall && { height: Dimensions.get('window').height - insets.top - SIZES.md },
             scrollBody && { maxHeight: maxSheetHeight },
             {

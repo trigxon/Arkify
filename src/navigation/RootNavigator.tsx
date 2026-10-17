@@ -110,7 +110,13 @@ export const RootNavigator = () => {
           <Stack.Screen
             name="NowPlaying"
             component={NowPlayingScreen}
-            options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+            options={{
+              presentation: 'fullScreenModal',
+              // The route itself only fades — the artwork's shared-element
+              // flight (mini rect → hero) IS the transition. A slide here
+              // would fight the choreography.
+              animation: 'fade',
+            }}
           />
           <Stack.Screen name="Stats" component={StatsScreen} />
           <Stack.Screen name="Wrapped" component={WrappedScreen} />

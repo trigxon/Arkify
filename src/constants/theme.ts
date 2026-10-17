@@ -262,6 +262,39 @@ export const GLASS = {
 } as const;
 
 /**
+ * The glass MATERIAL FAMILY. One visual language, ten tuned recipes — a
+ * floating nav slab must not share blur/opacity/highlights with a context
+ * menu or a background wash. Each entry names its GlassView weight, border
+ * luminance and blur weight; `glassMaterial()` resolves them against the
+ * user's glass-intensity setting at render time.
+ *
+ *   background — barely-there wash under ambient content
+ *   card       — floating card glass (rows, tiles)
+ *   control    — compact control glass (segmented bars, chips)
+ *   button     — interactive button glass (luminous rim on press)
+ *   nav        — floating navigation slab
+ *   mini       — mini-player slab
+ *   player     — expanded Now Playing surfaces
+ *   sheet      — bottom sheets (queue, actions, filters)
+ *   menu       — context menus / popovers (opacity-forward for text contrast)
+ *   modal      — dialogs and full modals
+ */
+export const GLASS_MATERIALS = {
+  background: { weight: 'ultraThin', border: 'subtle', blur: 'thin' },
+  card: { weight: 'thin', border: 'hairline', blur: 'regular' },
+  control: { weight: 'regular', border: 'hairline', blur: 'regular' },
+  button: { weight: 'regular', border: 'luminous', blur: 'thin' },
+  nav: { weight: 'regular', border: 'luminous', blur: 'regular' },
+  mini: { weight: 'regular', border: 'luminous', blur: 'regular' },
+  player: { weight: 'thick', border: 'hairline', blur: 'thick' },
+  sheet: { weight: 'thick', border: 'hairline', blur: 'thick' },
+  menu: { weight: 'thick', border: 'luminous', blur: 'thick' },
+  modal: { weight: 'thick', border: 'luminous', blur: 'thick' },
+} as const;
+
+export type GlassMaterialId = keyof typeof GLASS_MATERIALS;
+
+/**
  * Brand gradient pairs. Two-stop diagonal washes used on hero cards,
  * AI surfaces and share cards. Pairs keep the Abyss aqua identity
  * while letting each feature own a hue.
@@ -291,7 +324,20 @@ export const SPRINGS = {
   lively: { damping: 16, stiffness: 260, mass: 1 },
   /** Karaoke line snap. */
   snap: { damping: 20, stiffness: 320, mass: 0.6 },
+  /** Shared-element flight: mini-player artwork ↔ Now Playing hero.
+   *  Settles in roughly 350 ms — inside the large-transition band. */
+  flight: { damping: 26, stiffness: 320, mass: 0.85 },
 } as const;
+
+/**
+ * Convert a gesture velocity (px/ms, as reported by PanResponder/pointer
+ * events) into a `withSpring` velocity (px/s), clamped so one violent flick
+ * can never destabilise the physics.
+ */
+export function springVelocity(velocityPxPerMs: number, max = 1600): number {
+  const v = velocityPxPerMs * 350;
+  return Math.max(-max, Math.min(max, v));
+}
 
 /**
  * Stagger-in presets for list/section entrances (duration ms + translate).
