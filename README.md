@@ -68,12 +68,12 @@ except the requests needed to search for and stream the audio you asked for.
 
 Grab the signed APK from the **[latest release](https://github.com/trigxon/Arkify/releases/latest)**:
 
-**[⬇ Download Arkify-v2.1.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v2.1.0.apk)**
+**[⬇ Download Arkify-v2.1.1.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v2.1.1.apk)**
 
 Verify it before installing:
 
 ```
-SHA-256  59244849efa7b289b35f6beabba90d27c8cfb9fb22d7e94f365f6506eb2ed1b9
+SHA-256  ff0c3a625e725593af64319573c8eddedfa5123e13b90b496bfce7ab92031b46
 ```
 
 Every release also publishes its checksum as a `.sha256` file next to the APK
@@ -81,10 +81,10 @@ and in the release notes. To check:
 
 ```bash
 # Linux / macOS
-sha256sum Arkify-v2.1.0.apk
+sha256sum Arkify-v2.1.1.apk
 
 # Windows (PowerShell)
-Get-FileHash Arkify-v2.1.0.apk -Algorithm SHA256
+Get-FileHash Arkify-v2.1.1.apk -Algorithm SHA256
 ```
 
 Then compare the output with the `SHA-256` shown above (and in the `.sha256`
