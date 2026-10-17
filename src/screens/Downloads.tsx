@@ -210,19 +210,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.gutter,
     paddingBottom: SIZES.sm,
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: TYPE.title3.fontSize,
+    fontSize: TYPE.title2.fontSize,
     color: COLORS.text.primary,
   },
   scroll: {

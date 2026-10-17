@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Play, Radio, Shuffle } from 'lucide-react-native';
+import { ArrowLeft, Play, Radio, RefreshCw, Shuffle } from 'lucide-react-native';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { usePlayer } from '../hooks/usePlayer';
@@ -185,7 +185,7 @@ export default function MoodRadiosScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Refresh mix"
               >
-                <Text style={styles.refreshText}>↻</Text>
+                <RefreshCw color="#FFFFFF" size={19} strokeWidth={2.4} />
               </SpringPressable>
             </View>
           </View>
@@ -245,6 +245,7 @@ export default function MoodRadiosScreen() {
             isLoading={isLoading}
             onPlayPause={togglePlayPause}
             onPress={() => navigation.navigate('NowPlaying' as never)}
+            tabBarHeight={0}
           />
         ) : null}
       </View>
@@ -309,6 +310,20 @@ export default function MoodRadiosScreen() {
           );
         })}
       </ScrollView>
+
+      {/* BUG FIX: the grid view is the screen's default state — with music
+          playing it must carry the mini player exactly like the list view
+          and every other pushed screen does. */}
+      {currentTrack ? (
+        <MiniPlayer
+          track={currentTrack}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          onPlayPause={togglePlayPause}
+          onPress={() => navigation.navigate('NowPlaying' as never)}
+          tabBarHeight={0}
+        />
+      ) : null}
     </View>
   );
 }
@@ -347,7 +362,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: TYPE.title3.fontSize,
+    fontSize: TYPE.title2.fontSize,
     color: COLORS.text.primary,
   },
 
@@ -378,7 +393,7 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
+    fontSize: TYPE.micro.fontSize,
     letterSpacing: 1.5,
     color: '#FFFFFF',
   },
@@ -423,13 +438,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  refreshText: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: '#FFFFFF',
-    marginTop: -2,
-  },
-
   // List
   list: {
     paddingHorizontal: SIZES.gutter,

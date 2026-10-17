@@ -17,6 +17,7 @@ export const Pill: React.FC<PillProps> = ({ label, isActive, onPress, style, sma
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
+      hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
       style={[
         styles.container,
         small && styles.containerSmall,

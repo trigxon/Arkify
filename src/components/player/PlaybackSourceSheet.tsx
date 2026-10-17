@@ -8,12 +8,12 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Check, Trash2, Server } from 'lucide-react-native';
+import { Check, Trash2, Server } from 'lucide-react-native';
 import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
 import { probe } from '../../core/http';
 import { useLibrary } from '../../hooks/useLibrary';
-import { WebModal } from '../common/WebModal';
+import { BottomSheet } from '../common/BottomSheet';
+import { Segmented } from '../common/Glass';
 
 type EndpointKind = 'invidious' | 'piped' | 'custom';
 
@@ -31,7 +31,6 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
   visible,
   onClose,
 }) => {
-  const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useLibrary();
 
   const [url, setUrl] = useState('');
@@ -86,139 +85,90 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
   };
 
   return (
-    <WebModal visible={visible} onRequestClose={onClose} animationType="fade">
-      <View style={styles.backdrop}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+    // Rehosted on the shared BottomSheet — this was the last hand-rolled
+    // sheet in the app (solid surface, edge-to-edge top corners, 36px
+    // grabber) and visibly broke from the floating glass material family.
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="Playback source"
+      subtitle="Discovery works out of the box"
+      scrollBody
+    >
+      <Text style={styles.explainer}>
+        Search and playlists work already. To stream audio, point Arkify at a
+        playback service you're authorized to use.
+      </Text>
 
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + SIZES.lg }]}>
-          <View style={styles.grabber} />
-
-          <View style={styles.header}>
-            <Text style={styles.title}>Playback source</Text>
-            <TouchableOpacity
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <X color={COLORS.text.secondary} size={SIZES.icon.md} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.explainer}>
-            Search and playlists work already. To stream audio, point Arkify at a
-            playback service you're authorized to use.
-          </Text>
-
-          <View style={styles.kindRow}>
-            {KINDS.map((k) => (
-              <TouchableOpacity
-                key={k}
-                style={[styles.kindChip, kind === k && styles.kindChipActive]}
-                onPress={() => setKind(k)}
-                accessibilityRole="button"
-                accessibilityLabel={`Source type ${k}`}
-                accessibilityState={{ selected: kind === k }}
-                aria-pressed={kind === k}
-              >
-                <Text style={[styles.kindText, kind === k && styles.kindTextActive]}>{k}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="https://your-instance.example"
-              placeholderTextColor={COLORS.text.muted}
-              value={url}
-              onChangeText={setUrl}
-              onSubmitEditing={add}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              accessibilityLabel="Playback source URL"
-            />
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={add}
-              disabled={checking}
-              accessibilityRole="button"
-              accessibilityLabel="Add source"
-            >
-              {checking ? (
-                <ActivityIndicator size="small" color={COLORS.text.dark} />
-              ) : (
-                <Check color={COLORS.text.dark} size={SIZES.icon.sm + 2} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {status && <Text style={styles.status}>{status}</Text>}
-
-          <ScrollView style={styles.list}>
-            {endpoints.length === 0 ? (
-              <Text style={styles.empty}>No playback source configured yet.</Text>
-            ) : (
-              endpoints.map((e) => (
-                <View key={e.url} style={styles.row}>
-                  <View style={styles.rowIcon}>
-                    <Server color={COLORS.text.secondary} size={SIZES.icon.sm} />
-                  </View>
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.rowUrl} numberOfLines={1}>{e.url}</Text>
-                    <Text style={styles.rowKind}>{e.kind}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => remove(e.url)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${e.url}`}
-                  >
-                    <Trash2 color={COLORS.text.muted} size={SIZES.icon.sm} />
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        </View>
+      <View style={styles.kindRow}>
+        <Segmented
+          options={KINDS.map((k) => ({ value: k, label: k }))}
+          value={kind}
+          onChange={(v) => setKind(v as EndpointKind)}
+          accessibilityLabel="Source type"
+        />
       </View>
-    </WebModal>
+
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          placeholder="https://your-instance.example"
+          placeholderTextColor={COLORS.text.muted}
+          value={url}
+          onChangeText={setUrl}
+          onSubmitEditing={add}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          accessibilityLabel="Playback source URL"
+        />
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={add}
+          disabled={checking}
+          accessibilityRole="button"
+          accessibilityLabel="Add source"
+        >
+          {checking ? (
+            <ActivityIndicator size="small" color={COLORS.text.dark} />
+          ) : (
+            <Check color={COLORS.text.dark} size={SIZES.icon.sm + 2} />
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {status && <Text style={styles.status}>{status}</Text>}
+
+      <ScrollView style={styles.list} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+        {endpoints.length === 0 ? (
+          <Text style={styles.empty}>No playback source configured yet.</Text>
+        ) : (
+          endpoints.map((e) => (
+            <View key={e.url} style={styles.row}>
+              <View style={styles.rowIcon}>
+                <Server color={COLORS.text.secondary} size={SIZES.icon.sm} />
+              </View>
+              <View style={styles.rowInfo}>
+                <Text style={styles.rowUrl} numberOfLines={1}>{e.url}</Text>
+                <Text style={styles.rowKind}>{e.kind}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => remove(e.url)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${e.url}`}
+              >
+                <Trash2 color={COLORS.text.muted} size={SIZES.icon.sm} />
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </ScrollView>
+    </BottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: COLORS.scrim,
-  },
-  sheet: {
-    backgroundColor: COLORS.surfaceRaised,
-    borderTopLeftRadius: SIZES.radius.xl,
-    borderTopRightRadius: SIZES.radius.xl,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    padding: SIZES.lg,
-    paddingTop: SIZES.sm,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.glassBorder,
-    marginBottom: SIZES.md,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.xs,
-  },
-  title: {
-    fontFamily: FONTS.semibold,
-    fontSize: TYPE.title3.fontSize,
-    color: COLORS.text.primary,
-  },
   explainer: {
     fontFamily: FONTS.regular,
     fontSize: TYPE.subheadline.fontSize,
@@ -227,33 +177,12 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.md,
   },
   kindRow: {
-    flexDirection: 'row',
-    marginBottom: SIZES.sm,
-    gap: SIZES.sm,
-  },
-  kindChip: {
-    paddingHorizontal: SIZES.md,
-    paddingVertical: 8,
-    borderRadius: SIZES.radius.pill,
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-  },
-  kindChipActive: {
-    backgroundColor: COLORS.accent.primary,
-    borderColor: COLORS.accent.primary,
-  },
-  kindText: {
-    fontFamily: FONTS.medium,
-    fontSize: TYPE.footnote.fontSize,
-    color: COLORS.text.secondary,
-  },
-  kindTextActive: {
-    color: COLORS.text.dark,
+    marginBottom: SIZES.md,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: SIZES.sm,
   },
   input: {
     flex: 1,

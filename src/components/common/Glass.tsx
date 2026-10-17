@@ -367,6 +367,9 @@ export const Segmented: React.FC<{
             key={option.value}
             style={styles.segmentOption}
             activeOpacity={0.7}
+            // Vertical slop only — horizontal would bleed into the
+            // neighbouring segment.
+            hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
             onPress={() => onChange(option.value)}
             accessibilityRole="radio"
             accessibilityState={{ selected: active }}
@@ -460,6 +463,8 @@ export const BackButton: React.FC<{
       pressScale={0.88}
       sheen
       sheenRadius={19}
+      // 38px disc + 3px slop = the project's 44px touch target.
+      hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
       onPress={
         onPress ??
         (() => {
@@ -624,7 +629,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(120, 120, 128, 0.22)',
     borderRadius: 12,
     padding: 2,
-    minHeight: 36,
+    minHeight: 40,
   },
   segmentThumb: {
     position: 'absolute',
@@ -645,7 +650,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 32,
+    minHeight: 36,
     paddingHorizontal: 6,
   },
   segmentText: {
@@ -678,7 +683,10 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   toggleTrackOnLayer: {
     borderRadius: 15.5,
-    backgroundColor: COLORS.status.success,
+    // One luminous accent owns "selected" across the app — the ON track
+    // included (iOS-green competed with aqua pills/segments on the same
+    // Settings page).
+    backgroundColor: COLORS.accent.primary,
   },
   toggleTrackOn: {},
   toggleKnob: {

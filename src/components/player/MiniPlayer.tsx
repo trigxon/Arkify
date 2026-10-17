@@ -269,7 +269,14 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
 
   return (
     <Animated.View
-      style={[styles.positionContainer, { bottom: resolvedTabBarHeight + 8 }, dragStyle, styles.noSelect]}
+      style={[
+        styles.positionContainer,
+        // Stack screens pass tabBarHeight={0}; never let the slab sink into
+        // the home-indicator / gesture zone — clear the safe area at minimum.
+        { bottom: Math.max(resolvedTabBarHeight + 8, insets.bottom + 8) },
+        dragStyle,
+        styles.noSelect,
+      ]}
       testID="mini-player"
       {...pan.panHandlers}
     >

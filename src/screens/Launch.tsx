@@ -348,10 +348,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SIZES.md + 2,
     marginTop: SIZES.xxl,
+    alignSelf: 'center',
+    maxWidth: '100%',
   },
   pillItem: {
     alignItems: 'center',
     width: 72,
+    // Compress instead of clipping the fourth value on 320dp screens.
+    flexShrink: 1,
   },
   /** Value rings: brighter and larger than a first pass, per the reference. */
   pill: {

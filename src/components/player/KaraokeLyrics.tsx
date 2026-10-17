@@ -22,8 +22,13 @@ import { Lyrics, LyricsService } from '../../services/LyricsService';
  */
 
 const LINE_SPACING = 12;
+const LINE_PAD_Y = 5;
 const AUTO_SCROLL_OFFSET = 150;
-const APPROX_LINE_HEIGHT = 40; // active line height, used for scroll math
+// BUG FIX: the active line used to change fontSize (24→30) — every activation
+// reflowed the whole list and lower lines jumped. Layout metrics are now
+// CONSTANT (lineHeight 40 for every line); the active pop comes from a scale
+// transform, which never moves layout. Pitch = 40 + 5*2 pad + 12 gap.
+const LINE_PITCH = 40 + LINE_PAD_Y * 2 + LINE_SPACING;
 
 type Props = {
   lyrics: Lyrics;
@@ -45,7 +50,7 @@ export const KaraokeLyrics: React.FC<Props> = ({ lyrics, position, onSeek }) => 
   useEffect(() => {
     if (activeIndex < 0 || activeIndex === lastLineRef.current) return;
     lastLineRef.current = activeIndex;
-    const y = Math.max(0, activeIndex * (APPROX_LINE_HEIGHT + LINE_SPACING) - AUTO_SCROLL_OFFSET);
+    const y = Math.max(0, activeIndex * LINE_PITCH - AUTO_SCROLL_OFFSET);
     scrollRef.current?.scrollTo({ y, animated: true });
   }, [activeIndex]);
 
@@ -91,7 +96,9 @@ const KaraokeLine: React.FC<{
     const t = activeSV.value;
     return {
       opacity: interpolate(t, [0, 1], [0.34, 1]),
-      transform: [{ scale: interpolate(t, [0, 1], [0.9, 1]) }],
+      // Optical emphasis only — scale never touches layout, so activation
+      // can't reflow the lines below (the old fontSize swap did).
+      transform: [{ scale: interpolate(t, [0, 1], [0.9, 1.15]) }],
     };
   });
 
@@ -120,7 +127,7 @@ const styles = StyleSheet.create({
   },
   lineWrap: {
     marginBottom: LINE_SPACING,
-    paddingVertical: 5,
+    paddingVertical: LINE_PAD_Y,
   },
   lineGlow: {
     position: 'absolute',
@@ -133,14 +140,12 @@ const styles = StyleSheet.create({
   },
   line: {
     fontSize: 24,
-    lineHeight: 34,
+    lineHeight: 40,
     fontWeight: '800',
     color: 'rgba(255,255,255,0.92)',
     letterSpacing: -0.3,
   },
   lineActive: {
-    fontSize: 30,
-    lineHeight: APPROX_LINE_HEIGHT,
     color: '#FFFFFF',
     textShadowColor: 'rgba(59, 240, 223, 0.45)',
     textShadowRadius: 18,

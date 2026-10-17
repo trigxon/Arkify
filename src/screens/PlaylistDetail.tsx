@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   FlatList,
   PanResponder,
@@ -232,6 +231,16 @@ export default function PlaylistDetailScreen() {
   const ghostStartY = useRef(0);
   const ghostTop = useRef(new Animated.Value(0)).current;
   const [ghostTrack, setGhostTrack] = useState<Track | null>(null);
+  // BUG FIX: pageY is a WINDOW coordinate; on desktop web the app frame sits
+  // centered in the viewport, so the ghost rendered ~90px below the finger.
+  // Capture the screen root's window Y so pageY converts to frame-local.
+  const rootRef = useRef<View>(null);
+  const rootWindowY = useRef(0);
+  const measureRoot = useCallback(() => {
+    rootRef.current?.measureInWindow((_x, y) => {
+      rootWindowY.current = y;
+    });
+  }, []);
 
   /** Per-row displacement springs so neighbours glide out of the way. */
   const rowOffsets = useRef<Map<string, Animated.Value>>(new Map());
@@ -332,9 +341,10 @@ export default function PlaylistDetailScreen() {
       startIndex.current = index;
       lastOverRef.current = index;
       active.current = true;
-      ghostStartY.current = pageY;
+      const localY = pageY - rootWindowY.current;
+      ghostStartY.current = localY;
       setGhostTrack(listRef.current[index] ?? null);
-      ghostTop.setValue(pageY - rowHRef.current / 2);
+      ghostTop.setValue(localY - rowHRef.current / 2);
       setDragIndex(index);
       setHoverIndex(index);
       hapticTick();
@@ -524,7 +534,11 @@ export default function PlaylistDetailScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View
+      ref={rootRef}
+      style={styles.container}
+      onLayout={measureRoot}
+    >
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <AmbientGlow />
       </View>
@@ -786,7 +800,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.hairline,
     borderRadius: SIZES.radius.pill,
     paddingHorizontal: SIZES.md,
-    minHeight: SIZES.touchTarget - 8,
+    minHeight: SIZES.touchTarget - 4,
   },
   searchInput: {
     flex: 1,
@@ -876,7 +890,8 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   emptyCard: {
-    marginHorizontal: SIZES.md,
+    // Aligns with the header/toolbar gutter directly above (was 16).
+    marginHorizontal: SIZES.gutter,
   },
 });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Platform,
   ScrollView,
@@ -63,13 +63,27 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   // glass-intensity setting so Display preferences reach every surface.
   const { glass } = useAppearance();
   const sheetMaterial = glassMaterial(glass, 'sheet');
-  const maxSheetHeight = Math.round(Dimensions.get('window').height * 0.88);
+  // BUG FIX: sheet heights were derived from Dimensions.get('window') — the
+  // BROWSER viewport on web. Inside the 420x900 app frame a desktop viewport
+  // made `tall` sheets (Queue, Equalizer) ~160px taller than the frame they
+  // live in, clipping grabber + title above the top edge (bottom-anchored).
+  // Measure the overlay the sheet actually occupies; window dims are only
+  // the first-frame fallback (identical on native).
+  const [hostH, setHostH] = useState(0);
+  const frameH = hostH > 0 ? hostH : Dimensions.get('window').height;
+  const maxSheetHeight = Math.round(frameH * 0.88);
 
   return (
     // WebModal keeps the sheet inside the app frame on web (RN Modal portals
     // to document.body and spans the whole browser window there).
     <WebModal visible={visible} onRequestClose={onClose} animationType="slide">
-      <View style={styles.root}>
+      <View
+        style={styles.root}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (Math.abs(h - hostH) > 1) setHostH(h);
+        }}
+      >
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
         <View
@@ -79,7 +93,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
               backgroundColor: sheetMaterial.fill,
               borderColor: sheetMaterial.border,
             },
-            tall && { height: Dimensions.get('window').height - insets.top - SIZES.md },
+            tall && { height: Math.max(frameH - insets.top - SIZES.md, 0) },
             scrollBody && { maxHeight: maxSheetHeight },
             {
               paddingBottom:

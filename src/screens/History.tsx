@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SIZES, FONTS, TYPE } from '../constants/theme';
 import { TrackRow } from '../components/lists/TrackRow';
@@ -10,7 +10,7 @@ import { BackButton } from '../components/common/Glass';
 import { StatusBarScrim } from '../components/common/StatusBarScrim';
 import { AmbientGlow } from '../components/common/AmbientGlow';
 import { EmptyState } from '../components/common/UI';
-import { History, ChevronLeft } from 'lucide-react-native';
+import { History } from 'lucide-react-native';
 import { Track } from '../core/types';
 import { HistoryEntry } from '../services/LibraryService';
 import { usePlayer } from '../hooks/usePlayer';
@@ -151,7 +151,7 @@ export default function HistoryScreen() {
           stickySectionHeadersEnabled={false}
           initialNumToRender={12}
           windowSize={9}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS !== 'web'}
         />
       )}
 
@@ -183,25 +183,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingLeft: SIZES.gutter,
-    // Leave room for the floating settings button pinned top-right.
-    paddingRight: SIZES.xxl + SIZES.lg,
+    // BUG FIX: a stale 72px right inset reserved space for a floating settings
+    // button that no longer exists — "Clear" sat deep inside the margin while
+    // every sibling screen aligns header actions to the gutter.
+    paddingRight: SIZES.gutter,
     paddingBottom: SIZES.md,
   },
   title: {
     fontFamily: FONTS.bold,
-    fontSize: TYPE.title1.fontSize,
-    lineHeight: TYPE.title1.lineHeight,
+    fontSize: TYPE.title2.fontSize,
+    lineHeight: TYPE.title2.lineHeight,
     color: COLORS.text.primary,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   clear: {
     fontFamily: FONTS.medium,

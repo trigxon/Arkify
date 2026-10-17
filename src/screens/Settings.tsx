@@ -132,7 +132,7 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
+        contentContainerStyle={{ paddingBottom: SIZES.bottomInset }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.hairline,
     backgroundColor: COLORS.surface,
-    minHeight: SIZES.touchTarget - 8,
+    minHeight: SIZES.touchTarget,
     justifyContent: 'center',
   },
   pillActive: {
@@ -863,28 +863,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: TYPE.callout.fontSize,
     color: COLORS.text.muted,
-  },
-  toggle: {
-    width: 52,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    padding: 3,
-  },
-  toggleOn: {
-    backgroundColor: COLORS.accent.primary,
-    borderColor: COLORS.accent.primary,
-  },
-  toggleKnob: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.text.secondary,
-  },
-  toggleKnobOn: {
-    backgroundColor: '#FFFFFF',
-    alignSelf: 'flex-end',
   },
 });

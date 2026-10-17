@@ -235,6 +235,7 @@ export const DrawerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 <SpringPressable
                   style={styles.closeBtn}
                   pressScale={0.88}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                   onPress={closeDrawer}
                   accessibilityRole="button"
                   accessibilityLabel="Close menu"

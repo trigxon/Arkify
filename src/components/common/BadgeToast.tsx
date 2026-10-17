@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
+    fontSize: TYPE.micro.fontSize,
     letterSpacing: 1.6,
   },
   xp: {

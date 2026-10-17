@@ -27,12 +27,21 @@ import { useEngagement } from '../hooks/useEngagement';
  */
 export default function WrappedScreen() {
   const insets = useSafeAreaInsets();
-  const { width: SCREEN_W, height: SCREEN_H } = useWindowDimensions();
+  const { width: windowW } = useWindowDimensions();
   const navigation = useNavigation();
   const eng = useEngagement();
   const [shareRequest, setShareRequest] = useState<ShareRequest | null>(null);
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  // BUG FIX: slides were sized from the browser viewport; on desktop web the
+  // app lives inside a 420px frame, so posters rendered window-wide and
+  // clipped. Measure the actual pager instead — identical on native. Height
+  // is measured too: a horizontal ScrollView's children otherwise collapse
+  // to content height, leaving the poster parked at the top with dead space
+  // below instead of filling the story area.
+  const [pagerW, setPagerW] = useState(0);
+  const [pagerH, setPagerH] = useState(0);
+  const slideW = pagerW > 0 ? pagerW : Math.min(windowW, 420);
 
   const wrapped = useMemo(() => computeWrapped(), []);
 
@@ -41,8 +50,12 @@ export default function WrappedScreen() {
     [wrapped, eng.streak, eng.level, eng.levelName, eng.minutesToday]
   );
 
+  // RNW gap: a programmatic scrollTo never fires onMomentumScrollEnd, so the
+  // dots froze on page 1 after every Next tap. Derive the page from onScroll
+  // instead — it streams during both user swipes and animated scrollTo.
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    if (!slideW) return;
+    const idx = Math.round(e.nativeEvent.contentOffset.x / slideW);
     if (idx !== page) setPage(idx);
   };
 
@@ -99,11 +112,18 @@ export default function WrappedScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onScroll}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          const h = e.nativeEvent.layout.height;
+          if (Math.abs(w - pagerW) > 1) setPagerW(w);
+          if (Math.abs(h - pagerH) > 1) setPagerH(h);
+        }}
         style={{ flex: 1 }}
       >
         {slides.map((slide, i) => (
-          <View key={i} style={{ width: SCREEN_W }}>
+          <View key={i} style={{ width: slideW, height: pagerH > 0 ? pagerH : undefined }}>
             <SlideBody slide={slide} />
           </View>
         ))}
@@ -121,7 +141,7 @@ export default function WrappedScreen() {
             style={styles.nextBtn}
             pressScale={0.94}
             glow
-            onPress={() => scrollRef.current?.scrollTo({ x: (page + 1) * SCREEN_W, animated: true })}
+            onPress={() => scrollRef.current?.scrollTo({ x: (page + 1) * slideW, animated: true })}
             accessibilityRole="button"
             accessibilityLabel="Next slide"
           >
@@ -254,8 +274,8 @@ const SlideBody: React.FC<{ slide: Slide }> = ({ slide }) => (
     <View style={styles.slideContent}>
       <Text style={styles.slideKicker}>{slide.kicker.toUpperCase()}</Text>
       {slide.art ? <View style={styles.slideArt}>{slide.art}</View> : null}
-      <Text style={styles.slideTitle}>{slide.title}</Text>
-      {slide.body ? <Text style={styles.slideBody}>{slide.body}</Text> : null}
+      <Text style={styles.slideTitle} numberOfLines={3}>{slide.title}</Text>
+      {slide.body ? <Text style={styles.slideBody} numberOfLines={4}>{slide.body}</Text> : null}
     </View>
     <Text style={styles.slideMark}>ARKIFY</Text>
   </LinearGradient>
@@ -286,7 +306,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: TYPE.title3.fontSize,
+    fontSize: TYPE.title2.fontSize,
     color: COLORS.text.primary,
   },
   slide: {

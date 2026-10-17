@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: TYPE.title3.fontSize,
+    fontSize: TYPE.title2.fontSize,
     color: COLORS.text.primary,
   },
   scroll: {
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   },
   ringLabel: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
+    fontSize: TYPE.micro.fontSize,
     letterSpacing: 2,
     color: COLORS.text.muted,
   },
@@ -431,8 +431,7 @@ const styles = StyleSheet.create({
   },
   badgeDesc: {
     fontFamily: FONTS.regular,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: TYPE.micro.fontSize,
     color: COLORS.text.muted,
     textAlign: 'center',
     marginTop: 2,

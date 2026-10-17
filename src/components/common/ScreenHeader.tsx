@@ -45,8 +45,10 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, kicker, left,
     <View style={styles.row}>
       {left}
       <View style={styles.textWrap}>
-        {kicker ? <Text style={styles.kicker}>{kicker}</Text> : null}
-        <Text style={styles.title}>{title}</Text>
+        {kicker ? <Text style={styles.kicker} numberOfLines={1}>{kicker}</Text> : null}
+        {/* UGC names flow in here — a 40-char profile name must never push
+            the whole identity row down (Settings clamps the same data). */}
+        <Text style={styles.title} numberOfLines={1}>{title}</Text>
       </View>
       {right}
     </View>

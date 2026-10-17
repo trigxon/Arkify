@@ -332,6 +332,7 @@ export default function AIPlaylistScreen() {
           isLoading={isLoading}
           onPlayPause={togglePlayPause}
           onPress={() => navigation.navigate('NowPlaying' as never)}
+          tabBarHeight={0}
         />
       ) : null}
     </View>
@@ -363,7 +364,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: TYPE.title3.fontSize,
+    fontSize: TYPE.title2.fontSize,
     color: COLORS.text.primary,
   },
   scroll: {

@@ -96,7 +96,7 @@ export default function YouScreen() {
             </LinearGradient>
 
             <View style={styles.identityText}>
-              <Text style={styles.identityName}>{firstName}</Text>
+              <Text style={styles.identityName} numberOfLines={1}>{firstName}</Text>
               <View style={styles.identityMetaRow}>
                 <View style={styles.levelChip}>
                   <Sparkles color={COLORS.accent.primary} size={12} />
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   },
   badgeChipText: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
+    fontSize: TYPE.micro.fontSize,
     color: '#FFFFFF',
     letterSpacing: 1,
   },

@@ -37,8 +37,9 @@ type Props = {
   onShuffle: () => void;
 };
 
-/** Height of one reorderable row — must match the rendered row height (60px row + 4px gap). */
+/** Height of one reorderable row (64px) plus its 4px marginBottom — the drag math must step the full 68px pitch, or displaced rows sit 4px off their slots. */
 const ROW_HEIGHT = 64;
+const ROW_PITCH = ROW_HEIGHT + 4; // SIZES.xs gap
 
 /**
  * The queue sheet, per the Queue reference: "Now Playing" pinned at the top,
@@ -113,8 +114,8 @@ export const QueueSheet: React.FC<Props> = ({
       list.forEach((track, i) => {
         if (i === from) return;
         let target = 0;
-        if (from < over && i > from && i <= over) target = -ROW_HEIGHT;
-        else if (from > over && i < from && i >= over) target = ROW_HEIGHT;
+        if (from < over && i > from && i <= over) target = -ROW_PITCH;
+        else if (from > over && i < from && i >= over) target = ROW_PITCH;
         Animated.spring(getOffset(track.id), {
           toValue: target,
           stiffness: 500,
@@ -151,8 +152,8 @@ export const QueueSheet: React.FC<Props> = ({
           dragY.setValue(g.dy);
 
           const count = upcomingRef.current.length;
-          const draggedY = startIndex.current * ROW_HEIGHT + g.dy;
-          const over = Math.max(0, Math.min(count - 1, Math.round(draggedY / ROW_HEIGHT)));
+          const draggedY = startIndex.current * ROW_PITCH + g.dy;
+          const over = Math.max(0, Math.min(count - 1, Math.round(draggedY / ROW_PITCH)));
           if (over !== hoverIndexRef.current) {
             setHoverIndex(over);
             hapticTick();
@@ -236,7 +237,13 @@ export const QueueSheet: React.FC<Props> = ({
       <Text style={[styles.sectionLabel, styles.upNextLabel]}>Up Next</Text>
 
       {upcoming.length === 0 ? (
-        <Text style={styles.emptyText}>Nothing queued. Tracks you play next appear here.</Text>
+        /* Empty state fills the tall sheet's body so the footer pair stays
+           pinned to the panel bottom — same geometry as a populated queue. */
+        <View style={styles.emptyBody}>
+          <Text style={styles.emptyText}>
+            Nothing queued. Tracks you play next appear here.
+          </Text>
+        </View>
       ) : (
         <ScrollView style={styles.list} nestedScrollEnabled showsVerticalScrollIndicator={false}>
           {upcoming.map((track, i) => {
@@ -414,6 +421,12 @@ const styles = StyleSheet.create({
     fontSize: TYPE.footnote.fontSize,
     color: COLORS.text.secondary,
     marginTop: 1,
+  },
+  emptyBody: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     fontFamily: FONTS.regular,
