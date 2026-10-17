@@ -671,7 +671,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceElevated,
     borderWidth: 1,
     borderColor: COLORS.hairline,
-    minHeight: SIZES.touchTarget - 8,
+    // R2-B4: full 44px touch target (was 36).
+    minHeight: SIZES.touchTarget,
     justifyContent: 'center',
   },
   pickerChipText: {
@@ -682,7 +683,8 @@ const styles = StyleSheet.create({
   backRow: {
     alignItems: 'center',
     paddingVertical: SIZES.sm,
-    minHeight: SIZES.touchTarget - 8,
+    // R2-B4: full 44px touch target (was 36).
+    minHeight: SIZES.touchTarget,
     justifyContent: 'center',
   },
   backText: {

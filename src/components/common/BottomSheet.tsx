@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Keyboard,
   Platform,
   ScrollView,
   StyleSheet,
@@ -73,6 +74,23 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   const frameH = hostH > 0 ? hostH : Dimensions.get('window').height;
   const maxSheetHeight = Math.round(frameH * 0.88);
 
+  // R2-B8: the keyboard lift used to be a dormant prop no caller wired.
+  // The shared chrome now listens itself — sheets with inputs rise above the
+  // keyboard on native; sheets without inputs never see an event. The prop
+  // remains as a manual override for exotic cases.
+  const [kbH, setKbH] = useState(0);
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) =>
+      setKbH(e.endCoordinates.height),
+    );
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKbH(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+  const kb = keyboardHeight > 0 ? keyboardHeight : kbH;
+
   return (
     // WebModal keeps the sheet inside the app frame on web (RN Modal portals
     // to document.body and spans the whole browser window there).
@@ -97,8 +115,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             scrollBody && { maxHeight: maxSheetHeight },
             {
               paddingBottom:
-                keyboardHeight > 0 ? SIZES.md : Math.max(insets.bottom, SIZES.sm) + SIZES.sm,
-              bottom: keyboardHeight,
+                kb > 0 ? SIZES.md : Math.max(insets.bottom, SIZES.sm) + SIZES.sm,
+              bottom: kb,
             },
           ]}
         >

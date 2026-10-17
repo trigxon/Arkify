@@ -214,8 +214,11 @@ const VerticalBand: React.FC<{ value: number; onChange: (v: number) => void }> =
   };
 
   return (
+    // R2-B1: the RESPONDER is the full column width — the 26px rail keeps its
+    // look but taps/drags in the dead space beside it now land. Same height,
+    // so the locationY math below is unchanged.
     <View
-      style={[styles.bandTrack]}
+      style={[styles.bandHit]}
       onStartShouldSetResponder={() => {
         dragging.current = true;
         return true;
@@ -226,6 +229,7 @@ const VerticalBand: React.FC<{ value: number; onChange: (v: number) => void }> =
       onResponderRelease={endDrag}
       onResponderTerminate={endDrag}
     >
+      <View style={[styles.bandTrack]}>
       <View style={styles.bandMid} />
       {/* Boost: rises from the centre line. */}
       <View
@@ -243,6 +247,7 @@ const VerticalBand: React.FC<{ value: number; onChange: (v: number) => void }> =
         ]}
       />
       <View style={[styles.bandThumb, { bottom: `${Math.round(Math.max(2, Math.min(94, pctFromBottom - 3)))}%` }]} />
+      </View>
     </View>
   );
 };
@@ -288,6 +293,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: 'center',
   },
   presetChipActive: {
     backgroundColor: COLORS.accent.primary,
@@ -308,29 +315,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: SIZES.sm,
   },
-  powerBtn: {
-    width: 52,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: COLORS.surfaceElevated,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    padding: 3,
-  },
-  powerBtnOn: {
-    backgroundColor: COLORS.accent.primary,
-    borderColor: COLORS.accent.primary,
-  },
-  powerKnob: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.text.secondary,
-  },
-  powerKnobOn: {
-    backgroundColor: '#FFFFFF',
-    alignSelf: 'flex-end',
-  },
   bandsWrap: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -340,6 +324,12 @@ const styles = StyleSheet.create({
   bandCol: {
     alignItems: 'center',
     flex: 1,
+  },
+  /** R2-B1: full-width hit zone wrapping the visual rail. */
+  bandHit: {
+    width: '100%',
+    height: BAND_TRACK_H,
+    alignItems: 'center',
   },
   bandTrack: {
     width: 26,

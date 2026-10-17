@@ -192,7 +192,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     backgroundColor: COLORS.surfaceElevated,
-    minHeight: SIZES.touchTarget - 6,
+    // R2-B3: full 44px touch target (was touchTarget - 6 = 38 despite the
+    // prior session's log claiming 44).
+    minHeight: SIZES.touchTarget,
     justifyContent: 'center',
   },
   genderPillActive: {

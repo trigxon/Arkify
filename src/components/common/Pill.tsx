@@ -76,7 +76,8 @@ const styles = StyleSheet.create({
   containerSmall: {
     paddingHorizontal: 12,
     paddingVertical: 5,
-    minHeight: 30,
+    // R2-B2: 30 was under the touch rubric; 36 + hitSlop 3 → 42px effective.
+    minHeight: 36,
     marginRight: SIZES.xs + 2,
   },
   labelSmall: {

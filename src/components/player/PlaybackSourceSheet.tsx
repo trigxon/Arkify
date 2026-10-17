@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -38,6 +38,16 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
+  // R2-B7: the probe is async — if the sheet closes mid-flight, stop poking
+  // state (same alive-ref convention as AIPlaylist/MoodRadios/DownloadRow).
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
   const endpoints = settings.resolverEndpoints;
 
   const add = async () => {
@@ -66,6 +76,7 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
           : '';
 
     const reachable = await probe(`${trimmed}${testPath}`);
+    if (!alive.current) return; // sheet closed mid-probe
     setChecking(false);
 
     updateSettings({ resolverEndpoints: [...endpoints, { url: trimmed, kind }] });
