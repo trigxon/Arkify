@@ -70,8 +70,14 @@ Grab the signed APK from the **[latest release](https://github.com/trigxon/Arkif
 
 **[⬇ Download Arkify-v2.1.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v2.1.0.apk)**
 
-Verify it before installing — every release publishes its exact APK checksum in the
-release notes and as a `.sha256` file next to the APK:
+Verify it before installing:
+
+```
+SHA-256  59244849efa7b289b35f6beabba90d27c8cfb9fb22d7e94f365f6506eb2ed1b9
+```
+
+Every release also publishes its checksum as a `.sha256` file next to the APK
+and in the release notes. To check:
 
 ```bash
 # Linux / macOS
@@ -81,8 +87,8 @@ sha256sum Arkify-v2.1.0.apk
 Get-FileHash Arkify-v2.1.0.apk -Algorithm SHA256
 ```
 
-Then compare the output with the `SHA-256` shown on the release page (and in the
-`.sha256` sidecar) before installing.
+Then compare the output with the `SHA-256` shown above (and in the `.sha256`
+sidecar) before installing.
 
 Arkify is **not distributed through Google Play**, so you install it by sideloading. Android
 will warn you about installing from an unknown source — that warning is expected for any
