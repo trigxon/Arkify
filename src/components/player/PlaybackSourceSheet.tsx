@@ -118,6 +118,7 @@ export const PlaybackSourceSheet: React.FC<{ visible: boolean; onClose: () => vo
                 accessibilityRole="button"
                 accessibilityLabel={`Source type ${k}`}
                 accessibilityState={{ selected: kind === k }}
+                aria-pressed={kind === k}
               >
                 <Text style={[styles.kindText, kind === k && styles.kindTextActive]}>{k}</Text>
               </TouchableOpacity>

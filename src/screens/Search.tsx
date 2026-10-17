@@ -304,6 +304,7 @@ export default function SearchScreen() {
               accessibilityRole="button"
               accessibilityLabel="Search by voice"
               accessibilityState={{ busy: listening }}
+              aria-busy={listening}
             >
               {listening ? (
                 <ActivityIndicator size="small" color={COLORS.accent.primary} />

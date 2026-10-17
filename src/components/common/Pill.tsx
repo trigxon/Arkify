@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import { COLORS, SIZES, FONTS, TYPE } from '../../constants/theme';
+import { COLORS, SIZES, FONTS, TYPE, GLASS } from '../../constants/theme';
 
 interface PillProps {
   label: string;
@@ -26,6 +26,7 @@ export const Pill: React.FC<PillProps> = ({ label, isActive, onPress, style, sma
       accessibilityRole="button"
       accessibilityLabel={`Filter: ${label}`}
       accessibilityState={{ selected: !!isActive }}
+      aria-pressed={!!isActive}
     >
       <Text style={[
         styles.label,
@@ -52,9 +53,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent.primary,
   },
   inactiveContainer: {
-    backgroundColor: COLORS.surfaceElevated,
+    // CLEAR glass chip: a thin translucent tint with a fine light edge —
+    // the canvas breathes through instead of an opaque card blocking it.
+    backgroundColor: GLASS.fill.thin,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: GLASS.border.hairline,
   },
   label: {
     fontFamily: FONTS.medium,

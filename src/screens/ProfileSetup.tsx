@@ -88,6 +88,7 @@ export default function ProfileSetupScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={option.label}
                   accessibilityState={{ selected: active }}
+                  aria-pressed={active}
                 >
                   <Text style={[styles.genderText, active && styles.genderTextActive]}>
                     {option.label}

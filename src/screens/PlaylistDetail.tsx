@@ -904,6 +904,7 @@ const MenuRow: React.FC<{
     accessibilityRole="button"
     accessibilityLabel={label}
     accessibilityState={{ selected: active }}
+    aria-pressed={active}
   >
     <View style={pdStyles.menuIcon}>
       <Icon

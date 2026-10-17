@@ -1,11 +1,13 @@
 import React from 'react';
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   Dimensions,
+  ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -86,18 +88,25 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             },
           ]}
         >
-          {/* Liquid glass material: light from above, lens-dark below. */}
+          {/* Material: backdrop sampling on web (blur is native-only above). */}
+          {Platform.OS === 'web' ? (
+            <View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { backdropFilter: `blur(${Math.round(sheetMaterial.blur * 1.4)}px) saturate(130%)` } as unknown as ViewStyle]}
+            />
+          ) : null}
+          {/* Liquid glass material: light from above, whisper of lens below. */}
           <LinearGradient
-            colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
-            locations={[0, 0.10, 0.30]}
+            colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
+            locations={[0, 0.09, 0.26]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             pointerEvents="none"
             style={StyleSheet.absoluteFill}
           />
           <LinearGradient
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.16)']}
-            locations={[0.72, 1]}
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.08)']}
+            locations={[0.78, 1]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             pointerEvents="none"
@@ -167,20 +176,23 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: COLORS.scrim,
+    // Softened from 0.62 — a clear-glass sheet lets the content behind stay
+    // present; the scrim only calms the backdrop for text contrast.
+    backgroundColor: 'rgba(0, 0, 0, 0.46)',
     // The panel floats clear of the screen edges, per the reference.
     paddingHorizontal: SIZES.sm + 2,
     paddingBottom: SIZES.sm,
   },
   sheet: {
-    backgroundColor: 'rgba(9, 21, 23, 0.96)',
+    // Fill/border arrive from the `sheet` material at render time (inline).
+    // The stale near-opaque base that used to live here is gone — it made
+    // every sheet read as a foggy panel regardless of the glass setting.
     borderRadius: SIZES.radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(59, 240, 223, 0.26)',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -12 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.42,
     shadowRadius: 30,
     elevation: 18,
     paddingTop: SIZES.sm + 2,

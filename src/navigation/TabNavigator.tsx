@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -334,26 +335,29 @@ const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigati
         ]}
         onLayout={onBarLayout}
       >
-        {/* Material: real blur on native, layered translucency everywhere. */}
+        {/* Material: real blur on native, backdrop-filter sampling on web.
+         *  CLEAR glass — the fill is a thin tint, not a dark slab; the
+         *  content behind stays legibly present through the bar. */}
         {Platform.OS !== 'web' ? (
-          <BlurView intensity={56} tint="dark" style={StyleSheet.absoluteFill} />
-        ) : null}
-        <LinearGradient
-          colors={['rgba(14, 26, 27, 0.72)', 'rgba(4, 10, 11, 0.92)']}
-          style={StyleSheet.absoluteFill}
-        />
+          <BlurView intensity={Math.round(navMaterial.blur * 1.5)} tint="dark" style={StyleSheet.absoluteFill} />
+        ) : (
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backdropFilter: `blur(${Math.round(navMaterial.blur * 1.5)}px) saturate(135%)` } as unknown as ViewStyle]}
+          />
+        )}
         {/* Light from above: the specular wash across the top edge. */}
         <LinearGradient
-          colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.14, 0.44]}
+          colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.12, 0.4]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        {/* Depth: the lower glass thickens and darkens, like a real lens. */}
+        {/* Depth: a whisper of lens shading at the bottom edge. */}
         <LinearGradient
-          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.10)', 'rgba(0,0,0,0.34)']}
-          locations={[0.52, 0.76, 1]}
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.04)', 'rgba(0,0,0,0.14)']}
+          locations={[0.55, 0.8, 1]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -534,6 +538,8 @@ const AnimatedTab: React.FC<{
         accessibilityRole="tab"
         accessibilityLabel={label}
         accessibilityState={{ selected: focused }}
+        aria-selected={focused}
+        aria-current={focused ? 'page' : undefined}
       >
         <Animated.View style={dimStyle}>
           <Animated.View style={[styles.tabGlyph, glyphStyle]}>{children}</Animated.View>
@@ -599,21 +605,22 @@ const styles = StyleSheet.create({
     bottom: -7,
     height: 30,
     borderRadius: 999,
-    backgroundColor: 'rgba(59, 240, 223, 0.20)',
+    backgroundColor: 'rgba(59, 240, 223, 0.13)',
     shadowColor: '#3BF0DF',
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
+    shadowOpacity: 0.4,
+    shadowRadius: 22,
     shadowOffset: { width: 0, height: 0 },
   },
   bar: {
     borderRadius: 31,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(159, 244, 235, 0.16)',
-    backgroundColor: 'rgba(12, 22, 24, 0.84)',
+    borderColor: 'rgba(190, 250, 243, 0.22)',
+    // Pre-measure fallback only — the `nav` material fill wins at runtime.
+    backgroundColor: 'rgba(8, 21, 23, 0.36)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.42,
     shadowRadius: 28,
     elevation: 16,
   },

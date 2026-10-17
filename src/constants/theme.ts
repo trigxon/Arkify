@@ -211,36 +211,38 @@ export const MOTION = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// LIQUID GLASS — translucent material system (iOS-style depth)
+// LIQUID GLASS — CLEAR translucent material system (iOS clear-glass direction)
 //
-// Surfaces are layered, not flat: a translucent fill sits over a tinted
-// scrim, carries a hairline border that is brighter along the top edge
-// (the specular highlight), and casts a soft ambient glow. The helpers in
-// components/common/Glass.tsx assemble these tokens into real materials.
+// The material reads as CLEAR, not foggy: fills are low-alpha tints that let
+// the content behind stay visible, blur is selective and shallow (compact
+// controls and navigation stay sharp; only sheets and menus sample deeply),
+// edges carry fine bright highlights, and darkening is limited to a whisper
+// of lens shading at the bottom edge. Helpers in components/common/Glass.tsx
+// assemble these tokens into real materials.
 // ---------------------------------------------------------------------------
 
 export const GLASS = {
-  /** Translucent teal-flooded fills, darkest → lightest. Kept airy — glass
-   *  has to let the atmosphere behind it breathe. AA contrast holds because
-   *  the canvas beneath is near-black. */
+  /** Clear teal-tinted fills, thinnest → thickest. Alphas stay LOW so the
+   *  backdrop transmits through the material — legibility is preserved by
+   *  the (selective) blur layer and edge definition, never by frost. */
   fill: {
-    ultraThin: 'rgba(10, 23, 25, 0.36)',
-    thin: 'rgba(8, 20, 22, 0.52)',
-    regular: 'rgba(7, 17, 19, 0.68)',
-    thick: 'rgba(5, 13, 15, 0.86)',
+    ultraThin: 'rgba(10, 24, 26, 0.22)',
+    thin: 'rgba(8, 21, 23, 0.36)',
+    regular: 'rgba(6, 18, 20, 0.52)',
+    thick: 'rgba(4, 14, 16, 0.70)',
   },
-  /** Edge treatment. Aqua light reads along every edge — light from above. */
+  /** Edge treatment. Fine bright rims — light from above, not neon. */
   border: {
-    subtle: 'rgba(59, 240, 223, 0.12)',
-    hairline: 'rgba(59, 240, 223, 0.18)',
-    luminous: 'rgba(59, 240, 223, 0.34)',
-    accent: 'rgba(59, 240, 223, 0.48)',
+    subtle: 'rgba(59, 240, 223, 0.14)',
+    hairline: 'rgba(159, 244, 235, 0.22)',
+    luminous: 'rgba(190, 250, 243, 0.38)',
+    accent: 'rgba(59, 240, 223, 0.55)',
   },
   /** The specular streak drawn along the top edge of a glass panel. */
   highlight: {
-    strong: 'rgba(210, 255, 250, 0.30)',
-    soft: 'rgba(210, 255, 250, 0.15)',
-    faint: 'rgba(210, 255, 250, 0.06)',
+    strong: 'rgba(225, 255, 251, 0.32)',
+    soft: 'rgba(225, 255, 251, 0.17)',
+    faint: 'rgba(225, 255, 251, 0.07)',
   },
   /** Inner ambient tints used by glowing variants. */
   tint: {
@@ -248,11 +250,13 @@ export const GLASS = {
     accentGlow: 'rgba(59, 240, 223, 0.26)',
     dangerSoft: 'rgba(239, 68, 68, 0.12)',
   },
-  /** Blur radii per material weight (used where BlurView is available). */
+  /** Selective, SHALLOW blur radii per material weight. Heavy blur is the
+   *  fog this system exists to avoid — deep sampling is reserved for sheets
+   *  and menus, where content contrast actually needs it. */
   blur: {
-    thin: 24,
-    regular: 40,
-    thick: 64,
+    thin: 14,
+    regular: 26,
+    thick: 40,
   },
   radius: {
     card: 20,
@@ -268,11 +272,16 @@ export const GLASS = {
  * luminance and blur weight; `glassMaterial()` resolves them against the
  * user's glass-intensity setting at render time.
  *
+ * Clear-glass bias: compact interactive surfaces (control/button/nav/mini)
+ * use the thinnest fills and shallowest blur so they stay transparent and
+ * crisp; text-carrying surfaces (menu/modal) keep the thickest recipe for
+ * contrast; sheets and the player sit in between.
+ *
  *   background — barely-there wash under ambient content
  *   card       — floating card glass (rows, tiles)
  *   control    — compact control glass (segmented bars, chips)
  *   button     — interactive button glass (luminous rim on press)
- *   nav        — floating navigation slab
+ *   nav        — floating navigation slab (clearest surface in the app)
  *   mini       — mini-player slab
  *   player     — expanded Now Playing surfaces
  *   sheet      — bottom sheets (queue, actions, filters)
@@ -282,14 +291,14 @@ export const GLASS = {
 export const GLASS_MATERIALS = {
   background: { weight: 'ultraThin', border: 'subtle', blur: 'thin' },
   card: { weight: 'thin', border: 'hairline', blur: 'regular' },
-  control: { weight: 'regular', border: 'hairline', blur: 'regular' },
+  control: { weight: 'thin', border: 'hairline', blur: 'thin' },
   button: { weight: 'regular', border: 'luminous', blur: 'thin' },
-  nav: { weight: 'regular', border: 'luminous', blur: 'regular' },
-  mini: { weight: 'regular', border: 'luminous', blur: 'regular' },
-  player: { weight: 'thick', border: 'hairline', blur: 'thick' },
-  sheet: { weight: 'thick', border: 'hairline', blur: 'thick' },
+  nav: { weight: 'thin', border: 'luminous', blur: 'regular' },
+  mini: { weight: 'thin', border: 'luminous', blur: 'regular' },
+  player: { weight: 'regular', border: 'hairline', blur: 'thick' },
+  sheet: { weight: 'regular', border: 'hairline', blur: 'thick' },
   menu: { weight: 'thick', border: 'luminous', blur: 'thick' },
-  modal: { weight: 'thick', border: 'luminous', blur: 'thick' },
+  modal: { weight: 'thick', border: 'hairline', blur: 'thick' },
 } as const;
 
 export type GlassMaterialId = keyof typeof GLASS_MATERIALS;

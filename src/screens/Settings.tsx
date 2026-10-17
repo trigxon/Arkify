@@ -207,6 +207,7 @@ export default function SettingsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={option.label}
                 accessibilityState={{ selected: active }}
+                aria-pressed={active}
               >
                 <Text style={[styles.pillText, active && styles.pillTextActive]}>
                   {option.label}
@@ -484,6 +485,7 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel={licenceExpanded ? 'Collapse licence' : 'Expand licence'}
           accessibilityState={{ expanded: licenceExpanded }}
+          aria-expanded={licenceExpanded}
         >
           <View style={styles.licenceHeader}>
             <Text style={styles.legalTitle}>Arkify</Text>

@@ -79,6 +79,7 @@ const MiniPlayerLike: React.FC<{ track: Track }> = ({ track }) => {
       accessibilityRole="button"
       accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
       accessibilityState={{ selected: liked }}
+      aria-pressed={liked}
     >
       <Animated.View style={heartStyle}>
         <Heart
@@ -274,7 +275,8 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
     >
       {/* Aqua ambience bleeding from under the slab — matches the tab bar. */}
       <Animated.View pointerEvents="none" style={[styles.underGlow, underGlowStyle]} />
-      {/* Liquid glass slab: real blur on native, layered translucency on web. */}
+      {/* Liquid glass slab: real blur on native, backdrop-filter sampling on
+       *  web. CLEAR material — thin tint over sampled backdrop. */}
       <View
         style={[
           styles.container,
@@ -283,19 +285,24 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         ]}
       >
         {Platform.OS !== 'web' ? (
-          <BlurView intensity={48} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
-        ) : null}
+          <BlurView intensity={Math.round(miniMaterial.blur * 1.5)} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+        ) : (
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backdropFilter: `blur(${Math.round(miniMaterial.blur * 1.5)}px) saturate(135%)` } as unknown as ViewStyle]}
+          />
+        )}
         <LinearGradient
-          colors={['rgba(255,255,255,0.20)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.18, 0.52]}
+          colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.16, 0.48]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
           pointerEvents="none"
         />
         <LinearGradient
-          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']}
-          locations={[0.62, 1]}
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.10)']}
+          locations={[0.68, 1]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -412,10 +419,10 @@ const styles = StyleSheet.create({
     bottom: -8,
     height: 26,
     borderRadius: 999,
-    backgroundColor: 'rgba(59, 240, 223, 0.16)',
+    backgroundColor: 'rgba(59, 240, 223, 0.11)',
     shadowColor: '#3BF0DF',
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
   },
   container: {
@@ -423,8 +430,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     // Fill/border come from the `mini` material at render time; these static
     // values are only the pre-measure fallback.
-    backgroundColor: 'rgba(8, 20, 22, 0.78)',
-    borderColor: 'rgba(59, 240, 223, 0.26)',
+    backgroundColor: 'rgba(8, 21, 23, 0.36)',
+    borderColor: 'rgba(190, 250, 243, 0.24)',
     borderWidth: 1,
   },
   content: {

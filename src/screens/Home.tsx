@@ -313,6 +313,7 @@ export default function HomeScreen() {
                 onPress={() => pressChip(chip.id)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
+                aria-pressed={active}
                 accessibilityLabel={`${chip.label} filter`}
               >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>

@@ -56,6 +56,17 @@ export function glassMaterial(glass: TunedGlass, id: GlassMaterialId) {
 
 export type GlassWeight = 'ultraThin' | 'thin' | 'regular' | 'thick';
 
+/**
+ * Materials that sample their backdrop on web (backdrop-filter). Selective
+ * by design: floating chrome genuinely reads as glass only when the content
+ * behind it is optically processed; static cards over the flat canvas gain
+ * nothing from sampling and would only spend GPU on it (§ performance).
+ * Native always samples via expo-blur.
+ */
+const SAMPLING_MATERIALS = new Set<GlassMaterialId>([
+  'nav', 'mini', 'player', 'sheet', 'menu', 'modal', 'button', 'control',
+]);
+
 type GlassViewProps = {
   weight?: GlassWeight;
   /** Draws the top-edge specular streak. On by default. */
@@ -65,7 +76,9 @@ type GlassViewProps = {
   /** Named material from the GLASS_MATERIALS family — resolves weight and
    *  border recipe; explicit `weight` still wins when both are given. */
   material?: GlassMaterialId;
-  /** Blurs whatever is behind the panel (native). Off on web. */
+  /** Background sampling: real blur on native, backdrop-filter on web.
+   *  Default = platform decides (native always; web only for floating
+   *  chrome materials, keeping static cards cheap). */
   blur?: boolean;
   /** Rounded pill (full radius). */
   pill?: boolean;
@@ -79,9 +92,7 @@ export const GlassView: React.FC<GlassViewProps> = ({
   specular = true,
   accent = false,
   material,
-  // Real translucent material on native (iOS UIBlurEffect / Android blur);
-  // web keeps the layered translucent fill, which reads nearly identically.
-  blur = Platform.OS !== 'web',
+  blur,
   pill = false,
   style,
   children,
@@ -99,6 +110,14 @@ export const GlassView: React.FC<GlassViewProps> = ({
       ? glass.border[mat.border as keyof typeof glass.border]
       : glass.border.hairline;
 
+  // Sampling policy: native always samples (expo-blur); web samples only
+  // floating chrome — navigation, players, sheets, menus, controls.
+  const effectiveBlur =
+    blur ??
+    (Platform.OS === 'web' ? (material ? SAMPLING_MATERIALS.has(material) : false) : true);
+  const blurRadius =
+    weight === 'thick' ? glass.blur.thick : weight === 'thin' || weight === 'ultraThin' ? glass.blur.thin : glass.blur.regular;
+
   return (
     <View
       pointerEvents={pointerEvents ?? 'auto'}
@@ -114,11 +133,26 @@ export const GlassView: React.FC<GlassViewProps> = ({
         style,
       ]}
     >
-      {blur && Platform.OS !== 'web' ? (
+      {effectiveBlur && Platform.OS !== 'web' ? (
         <BlurView
-          intensity={weight === 'thick' ? glass.blur.thick : weight === 'thin' ? glass.blur.thin : glass.blur.regular}
+          intensity={blurRadius}
           tint="dark"
           style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+      {effectiveBlur && Platform.OS === 'web' ? (
+        /* Web background sampling: real optical processing of the backdrop
+         * via backdrop-filter (Chromium/WebKit/Android WebView all support
+         * it). Saturate keeps the transmitted colour liquid instead of
+         * grey. */
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backdropFilter: `blur(${blurRadius}px) saturate(135%)`,
+            } as unknown as ViewStyle,
+          ]}
         />
       ) : null}
 
@@ -126,16 +160,17 @@ export const GlassView: React.FC<GlassViewProps> = ({
         <>
           <LinearGradient
             colors={[glass.highlight.strong, glass.highlight.faint, 'rgba(255,255,255,0)']}
-            locations={[0, 0.16, 0.44]}
+            locations={[0, 0.13, 0.4]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             pointerEvents="none"
             style={StyleSheet.absoluteFill}
           />
-          {/* Lens depth: the lower half thickens, grounding the material. */}
+          {/* Lens depth: a whisper of shading at the lower edge — enough to
+           *  ground the slab, never enough to read as fog. */}
           <LinearGradient
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.26)']}
-            locations={[0.5, 0.76, 1]}
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.02)', 'rgba(0,0,0,0.12)']}
+            locations={[0.55, 0.82, 1]}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
             pointerEvents="none"
@@ -335,6 +370,7 @@ export const Segmented: React.FC<{
             onPress={() => onChange(option.value)}
             accessibilityRole="radio"
             accessibilityState={{ selected: active }}
+            aria-checked={active}
             accessibilityLabel={option.label}
           >
             <Text style={[styles.segmentText, active && styles.segmentTextActive]} numberOfLines={1}>
@@ -386,6 +422,8 @@ export const IOSToggle: React.FC<{
       }}
       accessibilityRole="switch"
       accessibilityState={{ selected: value, disabled }}
+      aria-checked={value}
+      aria-disabled={disabled}
       accessibilityLabel={accessibilityLabel}
       style={[styles.toggleWrap, style]}
     >
@@ -408,9 +446,17 @@ export const BackButton: React.FC<{
   style?: StyleProp<ViewStyle>;
 }> = ({ onPress, label = 'Back', style }) => {
   const navigation = useNavigation();
+  // CLEAR glass: the floating back button uses the `button` material —
+  // translucent fill with a fine light rim — instead of a solid disc.
+  const { glass } = useAppearance();
+  const buttonMaterial = glassMaterial(glass, 'button');
   return (
     <SpringPressable
-      style={[styles.backBtn, style]}
+      style={[
+        styles.backBtn,
+        { backgroundColor: buttonMaterial.fill, borderColor: buttonMaterial.border },
+        style,
+      ]}
       pressScale={0.88}
       sheen
       sheenRadius={19}
@@ -614,9 +660,10 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: COLORS.surfaceElevated,
+    // Fallback only — the `button` material overrides at runtime.
+    backgroundColor: GLASS.fill.regular,
     borderWidth: 1,
-    borderColor: COLORS.hairline,
+    borderColor: GLASS.border.luminous,
     alignItems: 'center',
     justifyContent: 'center',
   },

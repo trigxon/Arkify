@@ -224,6 +224,7 @@ export default function LibraryScreen() {
             accessibilityRole="button"
             accessibilityLabel={showImport ? 'Close create panel' : 'Create or import a playlist'}
             accessibilityState={{ expanded: showImport }}
+            aria-expanded={showImport}
           >
             <View style={[styles.addButtonCircle, showImport && styles.addButtonCircleActive]}>
               {showImport ? (

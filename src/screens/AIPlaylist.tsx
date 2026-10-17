@@ -189,6 +189,7 @@ export default function AIPlaylistScreen() {
             accessibilityRole="button"
             accessibilityLabel="Generate playlist"
             accessibilityState={{ busy: loading }}
+            aria-busy={loading}
           >
             {loading ? (
               <ActivityIndicator size="small" color={COLORS.text.dark} />

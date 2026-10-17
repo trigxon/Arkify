@@ -319,6 +319,7 @@ export const QueueSheet: React.FC<Props> = ({
           accessibilityRole="button"
           accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle queue'}
           accessibilityState={{ selected: shuffle }}
+          aria-pressed={shuffle}
         >
           <Shuffle
             color={shuffle ? COLORS.accent.primary : COLORS.text.primary}
@@ -335,6 +336,7 @@ export const QueueSheet: React.FC<Props> = ({
           accessibilityRole="button"
           accessibilityLabel="Clear queue"
           accessibilityState={{ disabled: upcoming.length === 0 }}
+          aria-disabled={upcoming.length === 0}
         >
           <Text style={[styles.footerText, upcoming.length === 0 && styles.footerTextDisabled]}>
             Clear

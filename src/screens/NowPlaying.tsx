@@ -880,6 +880,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={liked ? 'Remove from liked songs' : 'Add to liked songs'}
                 accessibilityState={{ selected: liked }}
+                aria-pressed={liked}
               >
                 <Heart
                   color={liked ? accent : COLORS.text.primary}
@@ -921,6 +922,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle off'}
                 accessibilityState={{ selected: shuffle }}
+                aria-pressed={shuffle}
               >
                 <Shuffle color={shuffle ? accent : COLORS.text.secondary} size={SIZES.icon.md + 2} />
               </TouchableOpacity>
@@ -977,6 +979,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Repeat mode: ${repeat === 'off' ? 'off' : repeat === 'all' ? 'repeat all' : 'repeat one'}`}
                 accessibilityState={{ selected: repeat !== 'off' }}
+                aria-pressed={repeat !== 'off'}
               >
                 {repeat === 'one' ? (
                   <Repeat1 color={accent} size={SIZES.icon.md + 2} />
@@ -1029,6 +1032,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={immersive ? 'Exit immersive mode' : 'Enter immersive mode'}
                 accessibilityState={{ selected: immersive }}
+                aria-pressed={immersive}
               >
                 {immersive ? (
                   <Minimize2 color={accent} size={SIZES.icon.md} />
@@ -1057,6 +1061,7 @@ export default function NowPlayingScreen() {
                 onPress={() => setView('lyrics')}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: view === 'lyrics' }}
+                aria-selected={view === 'lyrics'}
                 accessibilityLabel="Lyrics tab"
               >
                 <Text style={[styles.tabText, view === 'lyrics' && styles.tabTextActive]}>
@@ -1069,6 +1074,7 @@ export default function NowPlayingScreen() {
                 onPress={() => setView('about')}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: view === 'about' }}
+                aria-selected={view === 'about'}
                 accessibilityLabel="About tab"
               >
                 <Text style={[styles.tabText, view === 'about' && styles.tabTextActive]}>
@@ -1126,6 +1132,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={shuffle ? 'Shuffle on' : 'Shuffle off'}
                 accessibilityState={{ selected: shuffle }}
+                aria-pressed={shuffle}
               >
                 <Shuffle
                   color={shuffle ? accent : COLORS.text.secondary}
@@ -1173,6 +1180,7 @@ export default function NowPlayingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Repeat mode: ${repeat === 'off' ? 'off' : repeat === 'all' ? 'repeat all' : 'repeat one'}`}
                 accessibilityState={{ selected: repeat !== 'off' }}
+                aria-pressed={repeat !== 'off'}
               >
                 {repeat === 'one' ? (
                   <Repeat1 color={accent} size={SIZES.icon.md + 2} />
