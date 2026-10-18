@@ -76,7 +76,7 @@ Grab the signed APK from the **[latest release](https://github.com/trigxon/Arkif
 Verify it before installing:
 
 ```
-SHA-256  published with each release — see the `.sha256` file next to the APK
+SHA-256  fe8376ad9e1bb3244e2711ac11093663d180186d3c40f5f0faaa86f320bdce75
 ```
 
 Every release also publishes its checksum as a `.sha256` file next to the APK
