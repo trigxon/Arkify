@@ -67,7 +67,7 @@ export default function AIPlaylistScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { playTrack, isLoading, currentTrack, isPlaying, togglePlayPause } = usePlayer();
-  const { createPlaylist } = useLibrary();
+  const { createPlaylist, settings } = useLibrary();
 
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,13 +82,19 @@ export default function AIPlaylistScreen() {
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
+    // AI features off (Settings → Arkify AI) forces the honest on-device
+    // planner: no cloud key is consulted even when one is stored.
+    if (settings.aiEnabled === false) {
+      setGeminiReady(false);
+      return;
+    }
     void isGeminiConfigured().then((ok) => {
       if (alive.current) setGeminiReady(ok);
     });
     return () => {
       alive.current = false;
     };
-  }, []);
+  }, [settings.aiEnabled]);
 
   const generate = useCallback(
     async (text: string) => {
@@ -102,7 +108,10 @@ export default function AIPlaylistScreen() {
       setError(null);
       setSaved(false);
       try {
-        const { plan, tracks: result } = await recommendationEngine.generateFromPrompt(q);
+        const { plan, tracks: result } = await recommendationEngine.generateFromPrompt(q, {
+          // AI features off → the planner stays on-device (no cloud call).
+          useAI: settings.aiEnabled !== false,
+        });
         if (!alive.current) return;
         setTracks(result);
         setPlanTitle(plan.title);
@@ -119,7 +128,7 @@ export default function AIPlaylistScreen() {
         if (alive.current) setLoading(false);
       }
     },
-    [loading]
+    [loading, settings.aiEnabled]
   );
 
   const mixLabel = planTitle || DEFAULT_MIX_TITLE;

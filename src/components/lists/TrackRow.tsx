@@ -98,7 +98,7 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
         <View style={styles.moreButton}>
           <ActivityIndicator size="small" color={COLORS.accent.primary} />
         </View>
-      ) : (
+      ) : onMorePress ? (
         <TouchableOpacity
           style={styles.moreButton}
           onPress={handleMorePress}
@@ -108,7 +108,7 @@ const TrackRowComponent: React.FC<TrackRowProps> = ({
         >
           <MoreVertical color={COLORS.text.muted} size={SIZES.icon.sm} />
         </TouchableOpacity>
-      )}
+      ) : null}
     </Animated.View>
   );
 };

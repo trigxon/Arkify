@@ -5,7 +5,7 @@ import { Share } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { Track } from '../core/types';
-import { DOWNLOADS_STORAGE_KEY, ensureMigrated } from '../core/storage';
+import { DOWNLOADS_STORAGE_KEY, ensureMigrated, readJson, STORAGE_KEYS } from '../core/storage';
 import { MusicService } from './MusicService';
 
 /** Index key used before the Arkify rename; read once, then migrated away. */
@@ -276,6 +276,17 @@ class DownloadServiceImpl {
    */
   async smartAutoDownload(maxNew = 10): Promise<number> {
     if (Platform.OS === 'web') return 0;
+
+    // The Smart-offline toggle is the single source of truth. Before this
+    // gate the setting was write-only: turning it OFF did not stop the
+    // App-boot run, so downloads happened with the switch off.
+    try {
+      const settings = await readJson<Partial<{ autoDownload: boolean }>>(STORAGE_KEYS.settings, {});
+      if (settings && settings.autoDownload === false) return 0;
+    } catch {
+      // Unreadable settings must never silently re-enable downloads — but
+      // the default is ON, so falling through matches the shipped default.
+    }
 
     try {
       const net = await NetInfo.fetch();

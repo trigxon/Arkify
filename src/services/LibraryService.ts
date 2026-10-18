@@ -30,6 +30,10 @@ export type AppSettings = {
   volume: number;
   /** Skip music videos in favour of official audio where both exist. */
   preferAudioOnly: boolean;
+  /** Show the lyrics view in the player. */
+  showLyrics: boolean;
+  /** Display the Roman English variant of a line when one is available. */
+  romanLyrics: boolean;
   /** Keep the queue rolling with related tracks when it runs out. */
   autoplayRelated: boolean;
   /** Quietly download recent likes while on Wi-Fi. */
@@ -54,6 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   resolverEndpoints: [],
   volume: 1,
   preferAudioOnly: true,
+  showLyrics: true,
+  romanLyrics: true,
   autoplayRelated: true,
   autoDownload: true,
   aiEnabled: true,

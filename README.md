@@ -50,6 +50,9 @@ except the requests needed to search for and stream the audio you asked for.
 - **Lock-screen controls** — play/pause, skip, and ±10s seeking from the notification
 - **Cinematic Now Playing** — full-screen player with artwork-reactive ambient glow,
   karaoke-style lyrics, sleep timer, and shared-element artwork flight from the mini player
+- **Honest lyrics** — genuine timestamped lyrics only (karaoke never fakes sync), original
+  script always preserved, optional Roman English transliteration when a reliable one exists,
+  and a source footer that tells you exactly which is showing
 - **Arkify AI** — on-device taste profile and recommendations, mood radios, and
   prompt-based playlist generation (optionally upgraded with your own Gemini API key)
 - **Queue** — add, remove, reorder, play-next, shuffle, and repeat (off / all / one)
@@ -68,12 +71,12 @@ except the requests needed to search for and stream the audio you asked for.
 
 Grab the signed APK from the **[latest release](https://github.com/trigxon/Arkify/releases/latest)**:
 
-**[⬇ Download Arkify-v2.1.1.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v2.1.1.apk)**
+**[⬇ Download Arkify-v2.2.0.apk](https://github.com/trigxon/Arkify/releases/latest/download/Arkify-v2.2.0.apk)**
 
 Verify it before installing:
 
 ```
-SHA-256  ff0c3a625e725593af64319573c8eddedfa5123e13b90b496bfce7ab92031b46
+SHA-256  published with each release — see the `.sha256` file next to the APK
 ```
 
 Every release also publishes its checksum as a `.sha256` file next to the APK
@@ -81,10 +84,10 @@ and in the release notes. To check:
 
 ```bash
 # Linux / macOS
-sha256sum Arkify-v2.1.1.apk
+sha256sum Arkify-v2.2.0.apk
 
 # Windows (PowerShell)
-Get-FileHash Arkify-v2.1.1.apk -Algorithm SHA256
+Get-FileHash Arkify-v2.2.0.apk -Algorithm SHA256
 ```
 
 Then compare the output with the `SHA-256` shown above (and in the `.sha256`

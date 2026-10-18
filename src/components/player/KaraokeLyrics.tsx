@@ -33,10 +33,12 @@ const LINE_PITCH = 40 + LINE_PAD_Y * 2 + LINE_SPACING;
 type Props = {
   lyrics: Lyrics;
   position: number;
+  /** Show the Roman English variant of a line when one exists. */
+  useRoman?: boolean;
   onSeek: (seconds: number) => void;
 };
 
-export const KaraokeLyrics: React.FC<Props> = ({ lyrics, position, onSeek }) => {
+export const KaraokeLyrics: React.FC<Props> = ({ lyrics, position, useRoman = true, onSeek }) => {
   const scrollRef = useRef<ScrollView>(null);
   const lastLineRef = useRef(-1);
 
@@ -64,16 +66,21 @@ export const KaraokeLyrics: React.FC<Props> = ({ lyrics, position, onSeek }) => 
       showsVerticalScrollIndicator={false}
     >
       <View style={{ height: AUTO_SCROLL_OFFSET }} />
-      {lyrics.lines.map((line, i) => (
-        <KaraokeLine
-          key={`${i}-${line.time ?? 'u'}`}
-          text={line.text || '•'}
-          active={i === activeIndex}
-          onPress={() => {
-            if (line.time !== undefined) onSeek(Math.max(0, line.time - 0.2));
-          }}
-        />
-      ))}
+      {lyrics.lines.map((line, i) => {
+        // lyricsCore schema: when romanized, `text` is the Roman English
+        // form and `original` keeps the provider's script verbatim.
+        const displayText = useRoman ? line.text : line.original ?? line.text;
+        return (
+          <KaraokeLine
+            key={`${i}-${line.time ?? 'u'}`}
+            text={displayText || '•'}
+            active={i === activeIndex}
+            onPress={() => {
+              if (line.time !== undefined) onSeek(Math.max(0, line.time - 0.2));
+            }}
+          />
+        );
+      })}
       <View style={{ height: 140 }} />
     </ScrollView>
   );

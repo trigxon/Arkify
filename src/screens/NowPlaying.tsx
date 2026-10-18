@@ -66,6 +66,7 @@ import { useLibrary } from '../hooks/useLibrary';
 import { usePalette } from '../hooks/usePalette';
 import { useAppearance } from '../hooks/useAppearance';
 import { hapticLight } from '../utils/haptics';
+import { useCloseSheetOnBlur } from '../hooks/useCloseSheetOnBlur';
 import { useNavigation } from '@react-navigation/native';
 
 /** Tactile press: quick scale-down, spring back. Short and interruptible. */
@@ -85,11 +86,13 @@ const LyricsView: React.FC<{
   track: Track;
   lyrics: Lyrics | null;
   loading: boolean;
+  /** Show the Roman English reading when one exists (Settings → Lyrics). */
+  useRoman: boolean;
   onSeek?: (seconds: number) => void;
   onRetry?: () => void;
   /** Opens the track's action sheet, per the reference's ⋮ affordance. */
   onMore?: () => void;
-}> = ({ track, lyrics, loading, onSeek, onRetry, onMore }) => {
+}> = ({ track, lyrics, loading, useRoman, onSeek, onRetry, onMore }) => {
   const { position } = useProgress();
   const scrollRef = useRef<ScrollView>(null);
   const activeIndexRef = useRef(-1);
@@ -99,6 +102,18 @@ const LyricsView: React.FC<{
     () => (lyrics?.synced ? LyricsService.activeLineIndex(lyrics, position) : -1),
     [lyrics, Math.floor(position * 2)]
   );
+
+  // One honest source label for both lyrics modes: the footer names the
+  // provider, the sync truth, and which reading is displayed. Karaoke
+  // previously showed no provenance at all.
+  const sourceLabel = lyrics
+    ? `${lyrics.source}${lyrics.synced ? ' · Live synced' : ' · Plain text'}` +
+      (!lyrics.romanized
+        ? ' · Roman English unavailable'
+        : useRoman
+          ? ' · Roman English'
+          : ' · Original script')
+    : '';
 
   // Keep the active line centred (plain mode only; karaoke scrolls itself).
   useEffect(() => {
@@ -165,7 +180,12 @@ const LyricsView: React.FC<{
           )}
         </View>
       ) : lyrics.synced && karaoke ? (
-        <KaraokeLyrics lyrics={lyrics} position={position} onSeek={(s) => onSeek?.(s)} />
+        <View style={styles.lyricsKaraokeWrap}>
+          <KaraokeLyrics lyrics={lyrics} position={position} useRoman={useRoman} onSeek={(s) => onSeek?.(s)} />
+          <View style={styles.lyricsFooter}>
+            <Text style={styles.lyricsSource}>{sourceLabel}</Text>
+          </View>
+        </View>
       ) : (
         <ScrollView
           ref={scrollRef}
@@ -175,6 +195,9 @@ const LyricsView: React.FC<{
         >
           {lyrics.lines.map((line, i) => {
             const isActive = lyrics.synced && i === activeIndex;
+            // lyricsCore schema: when romanized, `text` is the Roman English
+            // reading and `original` keeps the provider's script verbatim.
+            const displayText = useRoman ? line.text : line.original ?? line.text;
             return (
               <TouchableOpacity
                 key={i}
@@ -200,11 +223,7 @@ const LyricsView: React.FC<{
             );
           })}
           <View style={styles.lyricsFooter}>
-            <Text style={styles.lyricsSource}>
-              {lyrics.source}
-              {lyrics.synced ? ' · Live Synced' : ''}
-              {lyrics.romanized ? ' · Roman English' : ''}
-            </Text>
+            <Text style={styles.lyricsSource}>{sourceLabel}</Text>
           </View>
         </ScrollView>
       )}
@@ -250,12 +269,25 @@ export default function NowPlayingScreen() {
     setVolume,
   } = usePlayer();
 
-  const { isLiked, toggleLike } = useLibrary();
+  const { isLiked, toggleLike, settings } = useLibrary();
   const [view, setView] = useState<'player' | 'lyrics' | 'about'>('player');
+  // The lyrics tab exists only while the preference allows it; a stale
+  // 'lyrics' selection falls back to About instead of rendering a hidden view.
+  const showLyricsView = settings.showLyrics !== false;
+  const activeView = view === 'lyrics' && !showLyricsView ? 'about' : view;
   const [showQueue, setShowQueue] = useState(false);
   const [actionsTrack, setActionsTrack] = useState<Track | null>(null);
   // Timer shortcuts land straight in the sleep picker, not the generic menu.
   const [actionsInitial, setActionsInitial] = useState<'actions' | 'sleep'>('actions');
+  /** Closes the action sheet AND resets where the next open should land. */
+  const closeActions = useCallback(() => {
+    setActionsInitial('actions');
+    setActionsTrack(null);
+  }, []);
+  // Ghost-menu fix: the sheet is driven by this screen's state, and a stack
+  // screen stays mounted after goBack. Close on blur so the menu can never
+  // outlive the player and float over the tab bar behind it.
+  useCloseSheetOnBlur(actionsTrack !== null, closeActions);
   const [shareRequest, setShareRequest] = useState<ShareRequest | null>(null);
   /** Immersive listening: dims the room, enlarges the art, keeps controls. */
   const [immersive, setImmersive] = useState(false);
@@ -271,32 +303,37 @@ export default function NowPlayingScreen() {
     return Math.min(horizontalMax, verticalMax, isUltraCompact ? 220 : isCompact ? 270 : 330);
   }, [width, height, insets.top, insets.bottom, isCompact, isUltraCompact]);
 
-  // Lyrics: fetched for the current track in Roman English
+  // Lyrics: fetched for the current track. Request-id + abort: a slow first
+  // fetch can never overwrite a fast retry, and superseded requests are
+  // aborted outright (stale-lyrics race through the Retry button).
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
+  const lyricsReqRef = useRef(0);
+  const lyricsAbortRef = useRef<AbortController | null>(null);
 
   const loadLyrics = useCallback(() => {
     if (!currentTrack) return;
-    // Guard: a fast track switch must never land an older track's lyrics.
-    let cancelled = false;
+    const reqId = ++lyricsReqRef.current;
+    lyricsAbortRef.current?.abort();
+    const controller = new AbortController();
+    lyricsAbortRef.current = controller;
     setLyrics(null);
     setLyricsLoading(true);
-    LyricsService.get(currentTrack)
+    LyricsService.get(currentTrack, controller.signal)
       .then((result) => {
-        if (!cancelled) setLyrics(result);
+        if (reqId === lyricsReqRef.current) setLyrics(result);
       })
       .catch(() => {
-        if (!cancelled) setLyrics(null);
+        if (reqId === lyricsReqRef.current) setLyrics(null);
       })
       .finally(() => {
-        if (!cancelled) setLyricsLoading(false);
+        if (reqId === lyricsReqRef.current) setLyricsLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [currentTrack]);
 
-  useEffect(() => loadLyrics(), [loadLyrics]);
+  useEffect(() => {
+    loadLyrics();
+  }, [loadLyrics]);
 
   // Sleep timer: wired here so the action sheet's picker controls real
   // playback pause through the app's own play/pause path. pauseIfPlaying is
@@ -726,7 +763,7 @@ export default function NowPlayingScreen() {
   /** Artist/album lookup: real search navigation, same as Library rows. */
   const goToString = (q: string) => {
     setShowQueue(false);
-    setActionsTrack(null);
+    closeActions();
     navigation.goBack();
     // SearchTab picks up browseQuery params from other screens; one
     // synchronous navigate lands on the right tab with the query attached —
@@ -1012,21 +1049,23 @@ export default function NowPlayingScreen() {
                 <Timer color={COLORS.text.primary} size={SIZES.icon.md} />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.lyricsPill,
-                  {
-                    borderColor: palette?.accentBorder ?? 'rgba(59, 240, 223, 0.35)',
-                    backgroundColor: accentSoft,
-                  },
-                ]}
-                onPress={() => setView('lyrics')}
-                accessibilityRole="button"
-                accessibilityLabel="Open lyrics"
-              >
-                <Sparkles color={accent} size={SIZES.icon.sm + 2} />
-                <Text style={[styles.lyricsPillText, { color: accent }]}>Lyrics</Text>
-              </TouchableOpacity>
+              {showLyricsView ? (
+                <TouchableOpacity
+                  style={[
+                    styles.lyricsPill,
+                    {
+                      borderColor: palette?.accentBorder ?? 'rgba(59, 240, 223, 0.35)',
+                      backgroundColor: accentSoft,
+                    },
+                  ]}
+                  onPress={() => setView('lyrics')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open lyrics"
+                >
+                  <Sparkles color={accent} size={SIZES.icon.sm + 2} />
+                  <Text style={[styles.lyricsPillText, { color: accent }]}>Lyrics</Text>
+                </TouchableOpacity>
+              ) : null}
 
               {/* Immersive listening — dims the room, enlarges the art. */}
               <TouchableOpacity
@@ -1059,41 +1098,45 @@ export default function NowPlayingScreen() {
           </>
         ) : (
           <>
-            {/* Lyrics / About tabs, per the reference. */}
+            {/* Lyrics / About tabs, per the reference. The lyrics tab is
+                hidden entirely when the user turns lyrics off in Settings. */}
             <View style={styles.tabRow}>
+              {showLyricsView ? (
               <TouchableOpacity
-                style={[styles.tabChip, view === 'lyrics' && styles.tabChipActive]}
+                style={[styles.tabChip, activeView === 'lyrics' && styles.tabChipActive]}
                 activeOpacity={0.8}
                 onPress={() => setView('lyrics')}
                 accessibilityRole="tab"
-                accessibilityState={{ selected: view === 'lyrics' }}
-                aria-selected={view === 'lyrics'}
+                accessibilityState={{ selected: activeView === 'lyrics' }}
+                aria-selected={activeView === 'lyrics'}
                 accessibilityLabel="Lyrics tab"
               >
-                <Text style={[styles.tabText, view === 'lyrics' && styles.tabTextActive]}>
+                <Text style={[styles.tabText, activeView === 'lyrics' && styles.tabTextActive]}>
                   Lyrics
                 </Text>
               </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
-                style={[styles.tabChip, view === 'about' && styles.tabChipActive]}
+                style={[styles.tabChip, activeView === 'about' && styles.tabChipActive]}
                 activeOpacity={0.8}
                 onPress={() => setView('about')}
                 accessibilityRole="tab"
-                accessibilityState={{ selected: view === 'about' }}
-                aria-selected={view === 'about'}
+                accessibilityState={{ selected: activeView === 'about' }}
+                aria-selected={activeView === 'about'}
                 accessibilityLabel="About tab"
               >
-                <Text style={[styles.tabText, view === 'about' && styles.tabTextActive]}>
+                <Text style={[styles.tabText, activeView === 'about' && styles.tabTextActive]}>
                   About
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {view === 'lyrics' ? (
+            {activeView === 'lyrics' ? (
               <LyricsView
                 track={currentTrack}
                 lyrics={lyrics}
                 loading={lyricsLoading}
+                useRoman={settings.romanLyrics !== false}
                 onSeek={seekTo}
                 onRetry={loadLyrics}
                 onMore={() => {
@@ -1258,7 +1301,7 @@ export default function NowPlayingScreen() {
       <TrackActionsSheet
         track={actionsTrack}
         initial={actionsInitial}
-        onClose={() => setActionsTrack(null)}
+        onClose={closeActions}
         onPlayNext={playNext}
         onAddToQueue={addToQueue}
         onGoToRadio={(t) => void playRadio(t)}
@@ -1575,6 +1618,9 @@ const styles = StyleSheet.create({
     color: COLORS.text.dark,
   },
   lyricsScroll: {
+    flex: 1,
+  },
+  lyricsKaraokeWrap: {
     flex: 1,
   },
   lyricsContent: {

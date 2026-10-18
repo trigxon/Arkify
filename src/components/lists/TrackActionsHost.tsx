@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { TrackActionsSheet } from './TrackActionsSheet';
 import { Track } from '../../core/types';
 import { usePlayer } from '../../hooks/usePlayer';
+import { useCloseSheetOnBlur } from '../../hooks/useCloseSheetOnBlur';
 
 /**
  * The full Spotify-style track menu, pre-wired for any tab or stack screen:
@@ -22,6 +23,11 @@ export const TrackActionsHost: React.FC<{
 }> = ({ track, onClose, contextPlaylistId }) => {
   const navigation = useNavigation();
   const { playNext, addToQueue, playRadio } = usePlayer();
+
+  // BUG 1 (ghost menu): the sheet's open state lives in the hosting screen,
+  // which stays mounted across tab/stack navigation. Force-close on blur so
+  // a menu can never outlive its screen and float over the next one.
+  useCloseSheetOnBlur(track !== null, onClose);
 
   /** Artist/album jumps land on Search with the query pre-run. */
   const goToString = useCallback(

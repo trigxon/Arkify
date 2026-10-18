@@ -260,6 +260,20 @@ export default function SettingsScreen() {
           <Text style={styles.keyHint}>
             Stored only on this device. Get one free at aistudio.google.com/apikey.
           </Text>
+          <Divider />
+          <View style={styles.row}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>AI features</Text>
+              <Text style={styles.rowCaption}>
+                Shows Ask Arkify AI surfaces and lets the planner use your cloud key when set.
+              </Text>
+            </View>
+            <IOSToggle
+              value={settings.aiEnabled !== false}
+              onValueChange={(v) => updateSettings({ aiEnabled: v })}
+              accessibilityLabel="AI features"
+            />
+          </View>
         </View>
 
         {/* ---- Personalisation reset ---- */}
@@ -341,13 +355,17 @@ export default function SettingsScreen() {
             />
           </View>
           <Divider />
+          {/* BUG FIX: this row used to be a write-only "High-quality streams"
+              toggle — no playback code ever read it, so it changed nothing.
+              The resolver always picks the highest audio-only bitrate the
+              selected source offers; quality honesty beats a fake switch. */}
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>High-quality streams</Text>
-            <IOSToggle
-              value={settings.preferAudioOnly}
-              onValueChange={(v) => updateSettings({ preferAudioOnly: v })}
-              accessibilityLabel="Prefer audio only"
-            />
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Stream quality</Text>
+              <Text style={styles.rowCaption}>
+                Highest audio-only bitrate the active source offers, chosen automatically. Change the source under Playback.
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -437,6 +455,38 @@ export default function SettingsScreen() {
             <Text style={styles.rowLink}>Reset appearance to defaults</Text>
             <ChevronRight color={COLORS.text.muted} size={SIZES.icon.sm} />
           </TouchableOpacity>
+        </View>
+
+        {/* ---- Lyrics — both toggles are read by the player's lyrics view ---- */}
+        <Text style={styles.sectionLabel}>LYRICS</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Show lyrics</Text>
+              <Text style={styles.rowCaption}>
+                Lyrics view in the player, with karaoke timing when a synced source exists.
+              </Text>
+            </View>
+            <IOSToggle
+              value={settings.showLyrics !== false}
+              onValueChange={(v) => updateSettings({ showLyrics: v })}
+              accessibilityLabel="Show lyrics"
+            />
+          </View>
+          <Divider />
+          <View style={styles.row}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.rowLabel}>Roman English when available</Text>
+              <Text style={styles.rowCaption}>
+                Shows a transliterated reading when the provider supplies one. The original script is always kept — the footer tells you which is showing.
+              </Text>
+            </View>
+            <IOSToggle
+              value={settings.romanLyrics !== false}
+              onValueChange={(v) => updateSettings({ romanLyrics: v })}
+              accessibilityLabel="Roman English when available"
+            />
+          </View>
         </View>
 
         {/* ---- Downloads ---- */}

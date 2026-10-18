@@ -157,6 +157,8 @@ class ArkifyLyricsProvider implements LyricsProvider {
 
 class LyricsServiceImpl {
   private provider: LyricsProvider = new ArkifyLyricsProvider();
+  /** In-flight fetches keyed by track id — concurrent callers share one. */
+  private inflight = new Map<string, Promise<Lyrics | null>>();
 
   use(provider: LyricsProvider | null): void {
     this.provider = provider || new ArkifyLyricsProvider();
@@ -190,15 +192,27 @@ class LyricsServiceImpl {
     const cached = metadataCache.get<Lyrics | null>(key);
     if (cached !== undefined) return cached;
 
-    try {
-      const lyrics = await this.provider.fetch(track, signal);
-      if (lyrics) {
-        metadataCache.set(key, lyrics, TTL);
+    // Stampede guard: two concurrent callers for one track (e.g. the effect
+    // plus a fast Retry tap) share a single provider fetch.
+    const running = this.inflight.get(track.id);
+    if (running) return running;
+
+    const request = (async () => {
+      try {
+        const lyrics = await this.provider.fetch(track, signal);
+        if (lyrics) {
+          metadataCache.set(key, lyrics, TTL);
+        }
+        return lyrics;
+      } catch {
+        return null;
+      } finally {
+        this.inflight.delete(track.id);
       }
-      return lyrics;
-    } catch {
-      return null;
-    }
+    })();
+
+    this.inflight.set(track.id, request);
+    return request;
   }
 
   /** The line that should be highlighted at `position` seconds. */

@@ -83,7 +83,10 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { playTrack, currentTrack, isPlaying, togglePlayPause, isLoading } = usePlayer();
-  const { recentlyPlayed, liked, profile } = useLibrary();
+  const { recentlyPlayed, liked, profile, settings } = useLibrary();
+  // The Ask-Arkify-AI surface is a real preference (Settings → Arkify AI):
+  // off means the card is hidden AND the planner stays on-device.
+  const aiEnabled = settings.aiEnabled !== false;
   const { streak, streakActive } = useEngagement();
 
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -527,7 +530,8 @@ export default function HomeScreen() {
           </FadeInUp>
         </View>
 
-        {/* Ask AI card */}
+        {/* Ask AI card — hidden entirely when AI features are disabled */}
+        {aiEnabled ? (
         <FadeInUp index={4}>
           <SpringPressable
             style={styles.askAICard}
@@ -550,6 +554,7 @@ export default function HomeScreen() {
             <ChevronRight color={COLORS.text.muted} size={SIZES.icon.md} />
           </SpringPressable>
         </FadeInUp>
+        ) : null}
 
         {/* ---------------- Mood radios ---------------- */}
         <View
