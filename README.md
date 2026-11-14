@@ -128,8 +128,8 @@ For audio lovers, LastWave packs Bit-Perfect USB DAC output, Lossless FLAC addon
 
 ```bash
 # Clone the repository
-git clone https://github.com/Clash-Projects/LastWave-native.git
-cd LastWave-native
+git clone https://github.com/trigxon/Arkify.git
+cd Arkify
 
 # Build the release APK
 ./gradlew assembleRelease
@@ -187,6 +187,3 @@ LastWave is an open-source, non-commercial application developed strictly for ed
 - **No Affiliation:** This project is not affiliated with, funded, authorized, endorsed by, or in any way associated with Google LLC, YouTube, YouTube Music, Spotify, Apple Inc., Last.fm, or any of their subsidiaries.
 - **Content Delivery:** LastWave does not host, store on private servers, or distribute copyrighted media. All playback streams and metadata are resolved directly from public endpoints.
 - **Trademarks:** All product names, logos, trademarks, and registered trademarks belong to their respective owners.
-
-<!-- [![GitGem](https://gitgem.org/api/badge/github/Clash-Projects/LastWave-Native.svg)](https://gitgem.org/github/Clash-Projects/LastWave-Native) -->
-<a href="https://gitgem.org/github/Clash-Projects/LastWave-Native"><img src="https://gitgem.org/api/badge/github/Clash-Projects/LastWave-Native.svg" width="0" height="0" alt="" /></a>
